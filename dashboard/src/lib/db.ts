@@ -22,15 +22,16 @@ export async function getDb(): Promise<any> {
   }
 
   try {
-    // 關鍵優化：改為動態載入 (Dynamic Import)。
-    // 這樣在 Vercel 雲端上執行時，若無 iot.db 檔案就不會觸發 sqlite3 的 require，
-    // 從而避免了 Vercel 缺少 sqlite3 C 二進位綁定所產生的 FUNCTION_INVOCATION_FAILED 錯誤。
-    const sqlite3 = await import('sqlite3');
-    const { open } = await import('sqlite');
+    // 終極優化：利用 eval("require('...')") 繞過 Webpack 與 Vercel Node File Trace (NFT) 的靜態分析依賴追蹤。
+    // 這樣 Vercel 在打包 Serverless Function 時，會完全忽略並剔除 sqlite3 的原生 C 編譯綁定，
+    // 從而 100% 根治冷啟動時原生模組加載失敗引發的 FUNCTION_INVOCATION_FAILED 崩潰！
+    // 而在本地開發環境中，因為 node_modules 實體存在，Runtime 執行 eval("require") 仍能正常工作。
+    const sqlite3 = eval("require('sqlite3')");
+    const { open } = eval("require('sqlite')");
 
     dbInstance = await open({
       filename: dbPath,
-      driver: sqlite3.default.Database
+      driver: sqlite3.Database
     });
 
     // 設定 sqlite 的 busy timeout，避免鎖庫問題
