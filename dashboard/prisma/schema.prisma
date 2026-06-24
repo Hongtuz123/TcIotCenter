@@ -1,0 +1,58 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Sensor {
+  id           String        @id
+  name         String
+  lat          Float
+  lon          Float
+  county       String
+  status       String        @default("正常")
+  observations Observation[]
+  events       EventSensor[]
+}
+
+model Observation {
+  sensorId    String   @map("sensor_id")
+  time        String
+  pm25        Float?   @map("pm2_5")
+  temperature Float?
+  humidity    Float?
+  voc         Float?
+  tvoc        Float?
+  sensor      Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  @@id([sensorId, time])
+  @@index([time])
+}
+
+model Event {
+  id          String        @id
+  title       String
+  description String
+  status      String        @default("待確認")
+  createdAt   String        @map("created_at")
+  updatedAt   String        @map("updated_at")
+  bounds      String?
+  sensors     EventSensor[]
+}
+
+model EventSensor {
+  eventId  String @map("event_id")
+  sensorId String @map("sensor_id")
+  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sensor   Sensor @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, sensorId])
+}
+
+model Setting {
+  key   String @id
+  value String
+}

@@ -1,0 +1,15 @@
+# 大規模資料檔案 (排除上傳 GitHub)
+202604iotdata/
+iotinformation.csv
+dashboard/iot.db
+dashboard/iot.db-journal
+
+# Next.js 與 Node 依賴
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.env*.local
+dashboard/.env
+
+# 系統檔案
+.DS_Store
+Thumbs.db
