@@ -6,7 +6,7 @@ import SensorMap from '@/components/Map/SensorMap';
 import EventManager from '@/components/EventList/EventManager';
 import TrendChart from '@/components/Analytics/TrendChart';
 import { Sensor, Observation, Event, Cluster, SystemSettings } from '@/types';
-import { Play, Pause, FastForward, RotateCcw, ShieldAlert, Award, Radio } from 'lucide-react';
+import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X } from 'lucide-react';
 
 export default function DashboardPage() {
   // 篩選與播放狀態
