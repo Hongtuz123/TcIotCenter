@@ -1,0 +1,11 @@
+{
+  "name": "tc-iot-center-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run build --prefix dashboard"
+  },
+  "dependencies": {
+    "next": "^15.0.0"
+  }
+}
