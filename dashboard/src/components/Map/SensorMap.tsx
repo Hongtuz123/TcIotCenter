@@ -26,7 +26,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [mapStyle, setMapStyle] = useState<'dark-v11' | 'satellite-streets-v12' | 'streets-v12'>('dark-v11');
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const token = (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '').trim().replace(/^\uFEFF/, '');
+  const token = (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '').trim().replace(/[^a-zA-Z0-9_.-]/g, '');
 
   // 1. 初始化地圖
   useEffect(() => {
