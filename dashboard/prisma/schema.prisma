@@ -25,7 +25,7 @@ model Observation {
   temperature Float?
   humidity    Float?
   voc         Float?
-  tvoc        Float?
+
   sensor      Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
 
   @@id([sensorId, time])

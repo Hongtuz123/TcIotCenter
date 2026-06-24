@@ -14,7 +14,7 @@ export interface Observation {
   temperature: number | null;
   humidity: number | null;
   voc: number | null;
-  tvoc: number | null;
+
   prev_temperature?: number;
   tempDiff?: number;
   isAnomaly?: boolean;

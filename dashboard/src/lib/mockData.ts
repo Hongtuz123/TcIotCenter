@@ -60,7 +60,6 @@ export function getMockObservations(time: string): (Sensor & Observation)[] {
       temperature: parseFloat(temperature.toFixed(1)),
       humidity: Math.round(humidity),
       voc: parseFloat(voc.toFixed(2)),
-      tvoc: parseFloat((voc * 1.2).toFixed(2)),
       tempDiff: parseFloat(tempDiff.toFixed(1)),
       isAnomaly,
       anomalyType,
@@ -93,8 +92,7 @@ export function getMockHistory(sensorId: string, startTime: string): Observation
         pm2_5: Math.round(pm25),
         temperature: parseFloat(temp.toFixed(1)),
         humidity: Math.round(humidity),
-        voc: parseFloat(voc.toFixed(2)),
-        tvoc: parseFloat((voc * 1.2).toFixed(2))
+        voc: parseFloat(voc.toFixed(2))
       });
     }
   }

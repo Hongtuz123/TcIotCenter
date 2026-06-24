@@ -25,6 +25,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({});
   const [mapStyle, setMapStyle] = useState<'dark-v11' | 'satellite-streets-v12' | 'streets-v12'>('dark-v11');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showIndustrialZones, setShowIndustrialZones] = useState(true);
 
   const token = (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '').trim().replace(/[^a-zA-Z0-9_.-]/g, '');
 
@@ -51,12 +52,48 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       
       // 註冊地圖點擊事件，方便使用者框選位置新增事件
       map.on('click', (e) => {
-        // 如果點擊的不是 marker，就觸發點擊地圖座標事件
         const target = e.originalEvent.target as HTMLElement;
         if (target && !target.closest('.mapboxgl-marker')) {
           onMapClickCoords?.({ lat: e.lngLat.lat, lon: e.lngLat.lng });
         }
       });
+    });
+
+    map.on('style.load', () => {
+      // style 載入（初次或切換風格）時，重新添加產業園區圖層
+      if (!map.getSource('industrial-zones-source')) {
+        map.addSource('industrial-zones-source', {
+          type: 'geojson',
+          data: '/industrial-zones.geojson'
+        });
+
+        map.addLayer({
+          id: 'industrial-zones-fill',
+          type: 'fill',
+          source: 'industrial-zones-source',
+          paint: {
+            'fill-color': '#a855f7', // 半透明紫色填充
+            'fill-opacity': 0.15
+          },
+          layout: {
+            visibility: showIndustrialZones ? 'visible' : 'none'
+          }
+        });
+
+        map.addLayer({
+          id: 'industrial-zones-line',
+          type: 'line',
+          source: 'industrial-zones-source',
+          paint: {
+            'line-color': '#c084fc', // 紫色虛線邊框
+            'line-width': 1.5,
+            'line-dasharray': [2, 2]
+          },
+          layout: {
+            visibility: showIndustrialZones ? 'visible' : 'none'
+          }
+        });
+      }
     });
 
     return () => {
@@ -70,6 +107,18 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     if (!mapRef.current || !isLoaded) return;
     mapRef.current.setStyle(`mapbox://styles/mapbox/${mapStyle}`);
   }, [mapStyle, isLoaded]);
+
+  // 2.5 同步控制產業園區圖層可見度
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const visibility = showIndustrialZones ? 'visible' : 'none';
+    if (mapRef.current.getLayer('industrial-zones-fill')) {
+      mapRef.current.setLayoutProperty('industrial-zones-fill', 'visibility', visibility);
+    }
+    if (mapRef.current.getLayer('industrial-zones-line')) {
+      mapRef.current.setLayoutProperty('industrial-zones-line', 'visibility', visibility);
+    }
+  }, [showIndustrialZones, isLoaded]);
 
   // 3. 更新 Marker 點位與顏色
   useEffect(() => {
@@ -266,17 +315,29 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       {/* 地圖樣式與控制面板 */}
       {token && (
-        <div className="absolute top-3 right-3 lg:top-4 lg:right-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg p-1.5 lg:p-2 flex items-center gap-1.5 lg:gap-2 z-10 shadow-lg text-[10px] lg:text-xs">
-          <Layers className="text-orange-500 w-4 h-4" />
-          <select
-            value={mapStyle}
-            onChange={(e) => setMapStyle(e.target.value as any)}
-            className="bg-transparent text-slate-200 border-none outline-none cursor-pointer pr-4 font-medium"
-          >
-            <option value="dark-v11" className="bg-slate-900">深色地圖</option>
-            <option value="satellite-streets-v12" className="bg-slate-900">衛星街道</option>
-            <option value="streets-v12" className="bg-slate-900">街道地圖</option>
-          </select>
+        <div className="absolute top-3 right-3 lg:top-4 lg:right-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg p-1.5 lg:p-2 flex flex-col sm:flex-row items-start sm:items-center gap-2 lg:gap-3 z-10 shadow-lg text-[10px] lg:text-xs">
+          <div className="flex items-center gap-1.5 lg:gap-2">
+            <Layers className="text-orange-500 w-4 h-4" />
+            <select
+              value={mapStyle}
+              onChange={(e) => setMapStyle(e.target.value as any)}
+              className="bg-transparent text-slate-200 border-none outline-none cursor-pointer pr-4 font-medium"
+            >
+              <option value="dark-v11" className="bg-slate-900">深色地圖</option>
+              <option value="satellite-streets-v12" className="bg-slate-900">衛星街道</option>
+              <option value="streets-v12" className="bg-slate-900">街道地圖</option>
+            </select>
+          </div>
+          <div className="h-px sm:h-4 w-full sm:w-px bg-slate-800 self-stretch sm:self-center" />
+          <label className="flex items-center gap-1.5 text-slate-300 font-medium cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showIndustrialZones}
+              onChange={(e) => setShowIndustrialZones(e.target.checked)}
+              className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+            />
+            台中產業園區
+          </label>
         </div>
       )}
 

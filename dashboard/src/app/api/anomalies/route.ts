@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       const query = `
         SELECT 
           s.id, s.name, s.lat, s.lon, s.county,
-          o.pm2_5, o.temperature, o.humidity, o.voc, o.tvoc,
+          o.pm2_5, o.temperature, o.humidity, o.voc,
           prev.temperature AS prev_temperature
         FROM sensors s
         JOIN observations o ON s.id = o.sensor_id AND o.time = ?

@@ -15,3 +15,6 @@ dashboard/.env
 Thumbs.db
 
 .vercel
+__pycache__/
+產業園區shp/
+
