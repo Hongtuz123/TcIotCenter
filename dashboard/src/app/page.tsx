@@ -11,6 +11,7 @@ import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X } from 'lucide-
 export default function DashboardPage() {
   // 篩選與播放狀態
   const [selectedCounty, setSelectedCounty] = useState('');
+  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
   const [selectedDate, setSelectedDate] = useState('2026-04-02'); // 預設 2026-04-02 有較多異常
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('10:10:00');
   const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity' | 'voc'>('pm2_5');
@@ -291,12 +292,12 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#0b0f19] text-slate-100 overflow-hidden font-sans">
+    <div className="flex flex-col h-auto lg:h-screen w-full bg-[#0b0f19] text-slate-100 overflow-y-auto lg:overflow-hidden font-sans">
       
       {/* 頂部導航與狀態看板 */}
-      <header className="h-[65px] bg-[#121824]/90 border-b border-slate-800 flex items-center justify-between px-6 z-20 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="bg-orange-500 text-slate-950 p-2 rounded-xl flex items-center justify-center font-black text-sm tracking-wider shadow-lg shadow-orange-500/20">
+      <header className="min-h-[60px] lg:h-[65px] bg-[#121824]/90 border-b border-slate-800 flex items-center justify-between px-4 lg:px-6 py-2 lg:py-0 z-20 backdrop-blur-md">
+        <div className="flex items-center gap-2 lg:gap-3">
+          <div className="bg-orange-500 text-slate-950 p-1.5 lg:p-2 rounded-xl flex items-center justify-center font-black text-xs lg:text-sm tracking-wider shadow-lg shadow-orange-500/20">
             GIS
           </div>
           <div className="flex flex-col">
@@ -332,19 +333,35 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white p-2 lg:px-4 lg:py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+            title="判定參數與回測設定"
           >
             <Settings className="w-4 h-4 text-orange-500" />
-            判定參數與回測設定
+            <span className="hidden sm:inline">判定參數與回測設定</span>
           </button>
         </div>
       </header>
 
-      {/* 主儀表板區域 (三欄式佈局) */}
-      <main className="flex-1 flex overflow-hidden p-4 gap-4">
+      {/* 主儀表板區域 (三欄式 / RWD 佈局) */}
+      <main className="flex-1 flex flex-col lg:flex-row p-3 lg:p-4 gap-3 lg:gap-4 h-auto lg:h-[calc(100vh-65px)] overflow-y-auto lg:overflow-hidden">
         
-        {/* 左側欄: 篩選條件 (20%) */}
-        <section className="w-[20%] min-w-[240px] max-w-[280px] h-full flex flex-col gap-4">
+        {/* 行動端篩選摺疊切換按鈕 */}
+        <div className="lg:hidden flex items-center justify-between bg-slate-900 border border-slate-850 rounded-2xl p-3 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+            <span className="text-xs font-bold text-slate-300">時間與地區篩選</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFiltersMobile(!showFiltersMobile)}
+            className="bg-orange-500 hover:bg-orange-600 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+          >
+            {showFiltersMobile ? '收合篩選器' : '展開篩選器'}
+          </button>
+        </div>
+
+        {/* 左側欄: 篩選條件 */}
+        <section className={`${showFiltersMobile ? 'block' : 'hidden'} lg:block w-full lg:w-[20%] lg:min-w-[240px] lg:max-w-[280px] h-auto lg:h-full flex flex-col gap-4`}>
           <FilterPanel
             counties={counties}
             selectedCounty={selectedCounty}
@@ -363,10 +380,10 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* 中間欄: 地圖與時間軸播放器 (53%) */}
-        <section className="flex-1 h-full flex flex-col gap-4">
+        {/* 中間欄: 地圖與時間軸播放器 */}
+        <section className="w-full lg:flex-1 h-[450px] md:h-[500px] lg:h-full flex flex-col gap-3 lg:gap-4">
           {/* 地圖區域 */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative min-h-[300px]">
             <SensorMap
               points={filteredPoints}
               clusters={clusters}
@@ -379,32 +396,32 @@ export default function DashboardPage() {
           </div>
 
           {/* 時間軸播放器 */}
-          <div className="h-[75px] bg-[#121824] border border-slate-800 rounded-2xl px-5 py-3 flex items-center justify-between shadow-lg gap-4">
-            <div className="flex items-center gap-3">
+          <div className="h-auto min-h-[75px] bg-[#121824] border border-slate-800 rounded-2xl px-4 py-3 flex flex-col sm:flex-row items-center justify-between shadow-lg gap-3 lg:gap-4">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 onClick={handlePlayToggle}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer ${
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer shrink-0 ${
                   isPlaying
                     ? 'bg-red-500 hover:bg-red-600 text-white'
                     : 'bg-orange-500 hover:bg-orange-600 text-slate-950'
                 }`}
               >
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                {isPlaying ? <Pause className="w-4.5 h-4.5" /> : <Play className="w-4.5 h-4.5 fill-current ml-0.5" />}
               </button>
               
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-500 font-bold">時間軸自動播控</span>
                 <span className="text-xs font-semibold text-slate-300">
-                  {isPlaying ? '播放中 (步長: 5分鐘)' : '已暫停'}
+                  {isPlaying ? '播放中 (5分步長)' : '已暫停'}
                 </span>
               </div>
             </div>
 
             {/* 進度顯示與快速調整 */}
-            <div className="flex-1 flex flex-col gap-1 max-w-[60%]">
-              <div className="flex justify-between text-[10px] text-slate-400 font-semibold px-1">
+            <div className="flex-1 flex flex-col gap-1 w-full sm:max-w-[60%]">
+              <div className="flex justify-between text-[9px] sm:text-[10px] text-slate-400 font-semibold px-1">
                 <span>00:00</span>
-                <span className="text-orange-400 font-bold text-xs bg-slate-950 border border-slate-800 px-2.5 py-0.5 rounded-full">
+                <span className="text-orange-400 font-bold text-xs bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-full">
                   {selectedDate} &nbsp; {selectedTimeSlot.substring(0, 5)}
                 </span>
                 <span>23:55</span>
@@ -426,7 +443,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 self-end sm:self-center">
               <button
                 onClick={() => {
                   setSelectedTimeSlot('00:00:00');
@@ -441,10 +458,10 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* 右側欄: 事件清單 & 詳細趨勢圖 (27%) */}
-        <section className="w-[27%] min-w-[320px] max-w-[380px] h-full flex flex-col gap-4">
+        {/* 右側欄: 事件清單 & 詳細趨勢圖 */}
+        <section className="w-full lg:w-[27%] lg:min-w-[320px] lg:max-w-[380px] h-auto lg:h-full flex flex-col md:flex-row lg:flex-col gap-3 lg:gap-4">
           {/* 上半部: 事件管理列表 */}
-          <div className="flex-1 min-h-[300px]">
+          <div className="w-full md:w-1/2 lg:w-full h-[350px] md:h-[400px] lg:h-auto lg:flex-1">
             <EventManager
               selectedSensor={selectedSensor}
               onSelectSensor={setSelectedSensorId}
@@ -457,7 +474,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 下半部: 被選定測站趨勢圖 */}
-          <div className="h-[300px]">
+          <div className="w-full md:w-1/2 lg:w-full h-[350px] lg:h-[300px]">
             <TrendChart
               selectedSensor={selectedSensor}
               historyData={historyData}

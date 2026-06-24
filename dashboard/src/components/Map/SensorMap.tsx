@@ -266,7 +266,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       {/* 地圖樣式與控制面板 */}
       {token && (
-        <div className="absolute top-4 right-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg p-2 flex items-center gap-2 z-10 shadow-lg text-xs">
+        <div className="absolute top-3 right-3 lg:top-4 lg:right-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg p-1.5 lg:p-2 flex items-center gap-1.5 lg:gap-2 z-10 shadow-lg text-[10px] lg:text-xs">
           <Layers className="text-orange-500 w-4 h-4" />
           <select
             value={mapStyle}
@@ -281,7 +281,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       )}
 
       {/* 圖例說明 */}
-      <div className="absolute bottom-4 left-4 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-3 z-10 shadow-lg text-xs flex flex-col gap-2 min-w-[150px]">
+      <div className="hidden sm:flex absolute bottom-4 left-4 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-2 min-w-[150px]">
         <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">PM2.5 圖例</h5>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-emerald-500" />

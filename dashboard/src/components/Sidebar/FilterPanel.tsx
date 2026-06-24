@@ -53,7 +53,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-6 shadow-xl h-full overflow-y-auto">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 lg:p-5 flex flex-col gap-4 lg:gap-6 shadow-xl h-auto lg:h-full overflow-y-auto">
       {/* 標題 */}
       <div className="border-b border-slate-800 pb-3 flex items-center gap-2">
         <Sliders className="text-orange-500 w-5 h-5" />
@@ -81,7 +81,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       </div>
 
       {/* 時間與日期篩選 */}
-      <div className="flex flex-col gap-4 bg-slate-950/40 border border-slate-800/60 p-4 rounded-xl">
+      <div className="flex flex-col gap-3 lg:gap-4 bg-slate-950/40 border border-slate-800/60 p-3 lg:p-4 rounded-xl">
         <div className="flex flex-col gap-2">
           <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-500" />
