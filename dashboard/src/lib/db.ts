@@ -13,7 +13,7 @@ export async function getDb(): Promise<any> {
   }
 
   const dbPath = path.resolve(process.cwd(), 'iot.db');
-  
+
   // Vercel 部署或初次載入時若資料庫不存在，降級到 Mock 模式，完全避開載入 sqlite3 原生套件
   if (!fs.existsSync(dbPath)) {
     console.warn("SQLite database 'iot.db' not found. Activating Mock fallback mode.");
@@ -33,6 +33,7 @@ export async function getDb(): Promise<any> {
       filename: dbPath,
       driver: sqlite3.Database
     });
+
 
     // 設定 sqlite 的 busy timeout，避免鎖庫問題
     await dbInstance.run('PRAGMA journal_mode = WAL');
