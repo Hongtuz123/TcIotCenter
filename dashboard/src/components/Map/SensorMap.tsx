@@ -229,7 +229,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           id: cluster.id,
           stationsCount: cluster.stationsCount,
           avgPm25: cluster.avgPm25,
-          dominantType: cluster.dominantType
+          dominantType: cluster.dominantType,
+          radiusKm: cluster.radiusKm
         },
         geometry: {
           type: 'Polygon',
@@ -282,7 +283,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             <p class="text-xs text-slate-700">測站總數：<strong>${props.stationsCount} 站</strong></p>
             <p class="text-xs text-slate-700">平均 PM2.5：<strong>${parseFloat(props.avgPm25).toFixed(1)} ug/m³</strong></p>
             <p class="text-xs text-slate-700">主導類型：<strong>${props.dominantType}</strong></p>
-            <p class="text-[10px] text-slate-400 mt-1">半徑: ${clusters[0]?.radiusKm} km</p>
+            <p class="text-[10px] text-slate-400 mt-1">半徑: ${props.radiusKm} km</p>
           </div>
         `)
         .addTo(map);
@@ -306,9 +307,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       {!token && (
         <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center z-50">
           <AlertTriangle className="text-amber-500 w-16 h-16 mb-4 animate-bounce" />
-          <h3 class="text-xl font-bold text-white mb-2">未設定 Mapbox API Key</h3>
-          <p class="text-slate-400 max-w-md text-sm mb-4">
-            請在專案目錄下的 <code class="bg-slate-800 px-2 py-0.5 rounded text-orange-500">.env.local</code> 檔案中，將 Mapbox 的 Token 填入 <code class="bg-slate-800 px-2 py-0.5 rounded text-orange-500">NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN</code> 中。
+          <h3 className="text-xl font-bold text-white mb-2">未設定 Mapbox API Key</h3>
+          <p className="text-slate-400 max-w-md text-sm mb-4">
+            請在專案目錄下的 <code className="bg-slate-800 px-2 py-0.5 rounded text-orange-500">.env.local</code> 檔案中，將 Mapbox 的 Token 填入 <code className="bg-slate-800 px-2 py-0.5 rounded text-orange-500">NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN</code> 中。
           </p>
         </div>
       )}

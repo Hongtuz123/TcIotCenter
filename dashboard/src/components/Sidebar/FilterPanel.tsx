@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Calendar, Sliders, MapPin, Wind, Thermometer, Droplets } from 'lucide-react';
+import { Calendar, Sliders, MapPin, Wind, Thermometer, Droplets, Flame } from 'lucide-react';
 
 interface FilterPanelProps {
   counties: string[];
@@ -11,8 +11,8 @@ interface FilterPanelProps {
   onChangeDate: (date: string) => void;
   selectedTimeSlot: string; // 格式: '10:00:00' 等
   onChangeTimeSlot: (time: string) => void;
-  selectedMetric: 'pm2_5' | 'temperature' | 'humidity' | 'voc';
-  onChangeMetric: (metric: 'pm2_5' | 'temperature' | 'humidity' | 'voc') => void;
+  selectedMetric: 'pm2_5' | 'temperature' | 'humidity';
+  onChangeMetric: (metric: 'pm2_5' | 'temperature' | 'humidity') => void;
   minVal: number;
   maxVal: number;
   onChangeMinVal: (val: number) => void;
@@ -167,7 +167,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
             }`}
           >
-            <Wind className="w-3 h-3" />
+            <Flame className="w-3 h-3" />
             VOC
           </button>
         </div>

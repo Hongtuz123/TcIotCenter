@@ -14,7 +14,7 @@ export default function DashboardPage() {
   const [showFiltersMobile, setShowFiltersMobile] = useState(false);
   const [selectedDate, setSelectedDate] = useState('2026-04-02'); // 預設 2026-04-02 有較多異常
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('10:10:00');
-  const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity' | 'voc'>('pm2_5');
+  const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity'>('pm2_5');
   const [minVal, setMinVal] = useState(0);
   const [maxVal, setMaxVal] = useState(300);
 
@@ -99,6 +99,9 @@ export default function DashboardPage() {
   // 3. 當選取的感測站改變時，載入該站當天的 24 小時歷史趨勢
   useEffect(() => {
     if (!selectedSensorId) return;
+
+    // Bug #6 修正：立即清空舊資料，避免切換時顯示上一站數據
+    setHistoryData([]);
 
     const sensor = points.find((p) => p.id === selectedSensorId);
     if (sensor) {
@@ -253,21 +256,28 @@ export default function DashboardPage() {
           const parts = prevTime.split(':');
           let h = parseInt(parts[0], 10);
           let m = parseInt(parts[1], 10);
-          
+
           m += 5;
           if (m >= 60) {
             m = 0;
             h += 1;
           }
+
+          // Bug #4 修正：到達資料尾端 (4/3 23:55) 自動停止播放
           if (h >= 24) {
-            h = 0;
             setSelectedDate((prevDate) => {
+              // 資料範圍只有到 2026-04-03，抵達後停止
+              if (prevDate >= '2026-04-03') {
+                clearInterval(playIntervalRef.current!);
+                setIsPlaying(false);
+                return prevDate;
+              }
               const day = parseInt(prevDate.substring(8, 10), 10);
-              const nextDay = day >= 30 ? 1 : day + 1;
-              return `2026-04-${String(nextDay).padStart(2, '0')}`;
+              return `2026-04-${String(day + 1).padStart(2, '0')}`;
             });
+            h = 0;
           }
-          
+
           return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
         });
       }, 1800);

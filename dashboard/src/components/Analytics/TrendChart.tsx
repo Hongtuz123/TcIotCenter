@@ -16,7 +16,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   historyData,
   pm25Threshold
 }) => {
-  const [metricTab, setMetricTab] = useState<'pm2_5' | 'temperature' | 'humidity' | 'voc'>('pm2_5');
+  const [metricTab, setMetricTab] = useState<'pm2_5' | 'temperature' | 'humidity'>('pm2_5');
 
   if (!selectedSensor) {
     return (
@@ -67,10 +67,6 @@ export const TrendChart: React.FC<TrendChartProps> = ({
     strokeColor = '#06b6d4'; // cyan-500
     fillColor = 'url(#colorCyan)';
     unit = ' %';
-  } else if (metricTab === 'voc') {
-    strokeColor = '#a855f7'; // purple-500
-    fillColor = 'url(#colorPurple)';
-    unit = ' ppm';
   } else {
     unit = ' ug/m³';
   }
@@ -89,7 +85,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
 
         {/* 測項切換 */}
         <div className="flex gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-          {(['pm2_5', 'temperature', 'humidity', 'voc'] as const).map((tab) => (
+          {(['pm2_5', 'temperature', 'humidity'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setMetricTab(tab)}
@@ -99,7 +95,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {tab === 'pm2_5' ? 'PM2.5' : tab === 'temperature' ? '溫度' : tab === 'humidity' ? '濕度' : 'VOC'}
+              {tab === 'pm2_5' ? 'PM2.5' : tab === 'temperature' ? '溫度' : '濕度'}
             </button>
           ))}
         </div>
@@ -206,7 +202,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                 strokeWidth={2}
                 fillOpacity={1}
                 fill={fillColor}
-                name={metricTab === 'pm2_5' ? 'PM2.5' : metricTab === 'temperature' ? '溫度' : metricTab === 'humidity' ? '濕度' : 'VOC'}
+                name={metricTab === 'pm2_5' ? 'PM2.5' : metricTab === 'temperature' ? '溫度' : '濕度'}
               />
             </AreaChart>
           </ResponsiveContainer>
