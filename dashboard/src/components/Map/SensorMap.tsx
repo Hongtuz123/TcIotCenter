@@ -38,8 +38,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: `mapbox://styles/mapbox/${mapStyle}`,
-      center: [120.64, 24.15], // 預設以台中/台灣中部為中心
-      zoom: 11,
+      center: [120.64, 24.16], // 預設以台中市中心為中心
+      zoom: 12.5,
       pitch: 45, // 微立體視角
     });
 
@@ -89,11 +89,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       let bgColor = 'bg-emerald-500'; // 正常 (0~15)
       if (val > 15 && val <= 35) bgColor = 'bg-yellow-500'; // 普通 (16~35)
       if (val > 35 && val <= 54) bgColor = 'bg-orange-500'; // 對敏感族群不健康 (36~54)
-      if (val > 54) bgColor = 'bg-red-500 animate-pulse'; // 疑似排汙高危險點 (54+)
+      if (val > 54) bgColor = 'bg-red-500 animate-pulse'; // 疑似排污高危險點 (54+)
 
       // 檢查是否含有 VOC 異常或溫度突升 (疑似燃燒)
       const isFire = point.anomalyType === '疑似露天燃燒';
-      const isFactory = point.anomalyType === '疑似工廠排汙';
+      const isFactory = point.anomalyType === '疑似工廠排污';
       
       if (isFire) {
         el.className += ` ${bgColor} border-red-300 ring-4 ring-orange-500/30`;
@@ -297,7 +297,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-slate-400">高汙染 (54+)</span>
+          <span className="text-slate-400">高污染 (54+)</span>
         </div>
         <div className="flex items-center gap-2 border-t border-slate-800 pt-1.5 mt-0.5">
           <span>🔥</span>
@@ -305,7 +305,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <span>🏭</span>
-          <span className="text-slate-300 font-medium">疑似工廠排汙</span>
+          <span className="text-slate-300 font-medium">疑似工廠排污</span>
         </div>
       </div>
     </div>

@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
         let anomalyType = '';
         if (isAnomaly) {
-          if (isVocAnomaly && isPm25Anomaly) anomalyType = '疑似工廠排汙';
+          if (isVocAnomaly && isPm25Anomaly) anomalyType = '疑似工廠排污';
           else if (isTempAnomaly && isPm25Anomaly) anomalyType = '疑似露天燃燒';
           else anomalyType = '數值異常';
         }
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
       if (group.length >= minStations) {
         group.forEach((pt) => visited.add(pt.id));
 
-        // 計算中心點及平均汙染程度
+        // 計算中心點及平均污染程度
         const avgLat = group.reduce((sum, pt) => sum + pt.lat, 0) / group.length;
         const avgLon = group.reduce((sum, pt) => sum + pt.lon, 0) / group.length;
         const avgPm25 = group.reduce((sum, pt) => sum + (pt.pm2_5 || 0), 0) / group.length;

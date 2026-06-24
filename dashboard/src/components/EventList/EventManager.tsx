@@ -97,7 +97,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
       <div className="border-b border-slate-800 pb-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <AlertCircle className="text-orange-500 w-5 h-5" />
-          <h2 className="text-lg font-bold text-slate-100">疑似排汙事件管理</h2>
+          <h2 className="text-lg font-bold text-slate-100">疑似排污事件管理</h2>
         </div>
         {!showAddForm && (
           <button
@@ -115,7 +115,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto pr-1">
           <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-1">
             <h3 className="text-sm font-bold text-orange-400">
-              {editingEventId ? '編輯排汙事件' : '新增疑似排汙事件'}
+              {editingEventId ? '編輯排污事件' : '新增疑似排污事件'}
             </h3>
             <button
               type="button"
@@ -144,7 +144,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="輸入可能的汙染源特徵、擴散方向、風向等"
+              placeholder="輸入可能的污染源特徵、擴散方向、風向等"
               className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-orange-500 resize-none"
             />
           </div>
@@ -219,7 +219,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
           {events.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-6 text-center">
               <FileText className="w-12 h-12 mb-3 text-slate-700" />
-              <p className="text-sm font-bold mb-1">尚未建立任何排汙事件</p>
+              <p className="text-sm font-bold mb-1">尚未建立任何排污事件</p>
               <p className="text-xs text-slate-600 max-w-[200px] leading-relaxed">
                 若在地圖上發現疑似超標的紅色熱區，可點擊上方「新增事件」進行人工追蹤管理。
               </p>

@@ -12,6 +12,11 @@ DB_PATH = os.path.join(BASE_DIR, "dashboard", "iot.db")
 INFO_CSV = os.path.join(BASE_DIR, "iotinformation.csv")
 DATA_DIR = os.path.join(BASE_DIR, "202604iotdata")
 
+# 歷史資料時間過濾配置 (若為 None 則導入整個 4 月份資料)
+# 推薦設為前三天 "2026-04-01" ~ "2026-04-03"，能確保跨日趨勢正常展現，且資料庫大小輕量在 200MB 以內
+IMPORT_START_DATE = "2026-04-01"
+IMPORT_END_DATE = "2026-04-03"
+
 def init_db():
     """初始化 SQLite 資料庫與資料表"""
     db_dir = os.path.dirname(DB_PATH)
@@ -161,6 +166,15 @@ def process_and_import_observations():
                 continue
                 
             df['dt'] = pd.to_datetime(df['createTime'])
+            
+            # 時間範圍過濾
+            if IMPORT_START_DATE and IMPORT_END_DATE:
+                start_dt = pd.to_datetime(IMPORT_START_DATE)
+                end_dt = pd.to_datetime(IMPORT_END_DATE + " 23:59:59")
+                df = df[(df['dt'] >= start_dt) & (df['dt'] <= end_dt)]
+                if df.empty:
+                    continue
+
             df['time_5min'] = df['dt'].dt.floor('5min').dt.strftime('%Y-%m-%d %H:%M:%S')
             
             pivot_df = df.pivot_table(

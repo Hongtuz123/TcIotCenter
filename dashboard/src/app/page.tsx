@@ -475,7 +475,7 @@ export default function DashboardPage() {
             <div className="flex justify-between items-center border-b border-slate-850 pb-3">
               <h3 className="font-bold text-slate-100 flex items-center gap-1.5">
                 <Settings className="w-5 h-5 text-orange-500" />
-                排汙判定引數與回測設定
+                排污判定引數與回測設定
               </h3>
               <button
                 onClick={() => setShowSettingsModal(false)}
@@ -522,7 +522,7 @@ export default function DashboardPage() {
                   onChange={(e) => setVocInput(parseFloat(e.target.value))}
                   className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500"
                 />
-                <span className="text-[10px] text-slate-500">標準：用於區分工業工廠排汙與一般垃圾燃燒。</span>
+                <span className="text-[10px] text-slate-500">標準：用於區分工業工廠排污與一般垃圾燃燒。</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -33,7 +33,7 @@ export function getMockObservations(time: string): (Sensor & Observation)[] {
     const temp = 22 + (timeHash % 8) + (idx * 0.5);
     const humidity = 70 + (timeHash % 25) - (idx * 2);
     
-    // 特定幾個站點隨時間產生超標汙染
+    // 特定幾個站點隨時間產生超標污染
     const isStationAnomaly = (idx === 1 && timeHash % 3 === 0) || (idx === 5 && timeHash % 2 === 0);
     const pm25 = isStationAnomaly ? basePm25 + 40 : basePm25;
     const voc = isStationAnomaly ? 1.8 : 0.2;
@@ -47,7 +47,7 @@ export function getMockObservations(time: string): (Sensor & Observation)[] {
 
     let anomalyType = '';
     if (isAnomaly) {
-      if (isVocAnomaly && isPm25Anomaly) anomalyType = '疑似工廠排汙';
+      if (isVocAnomaly && isPm25Anomaly) anomalyType = '疑似工廠排污';
       else if (isTempAnomaly && isPm25Anomaly) anomalyType = '疑似露天燃燒';
       else anomalyType = '數值異常';
     }
