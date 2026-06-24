@@ -302,10 +302,10 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="flex flex-col h-auto lg:h-screen w-full bg-[#0b0f19] text-slate-100 overflow-y-auto lg:overflow-hidden font-sans">
+    <div className="flex flex-col h-auto lg:h-screen w-full text-slate-100 overflow-y-auto lg:overflow-hidden font-sans" style={{background: 'var(--background)'}}>
       
       {/* 頂部導航與狀態看板 */}
-      <header className="min-h-[60px] lg:h-[65px] bg-[#121824]/90 border-b border-slate-800 flex items-center justify-between px-4 lg:px-6 py-2 lg:py-0 z-20 backdrop-blur-md">
+      <header className="tech-grid min-h-[60px] lg:h-[65px] border-b border-slate-800/60 flex items-center justify-between px-4 lg:px-6 py-2 lg:py-0 z-20" style={{background: 'rgba(8,12,20,0.92)', backdropFilter: 'blur(20px)'}}>
         <div className="flex items-center gap-2 lg:gap-3">
           <div className="bg-orange-500 text-slate-950 p-1.5 lg:p-2 rounded-xl flex items-center justify-center font-black text-xs lg:text-sm tracking-wider shadow-lg shadow-orange-500/20">
             GIS
@@ -406,7 +406,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 時間軸播放器 */}
-          <div className="h-auto min-h-[75px] bg-[#121824] border border-slate-800 rounded-2xl px-4 py-3 flex flex-col sm:flex-row items-center justify-between shadow-lg gap-3 lg:gap-4">
+          <div className="glass-card h-auto min-h-[75px] rounded-2xl px-4 py-3 flex flex-col sm:flex-row items-center justify-between shadow-lg gap-3 lg:gap-4">
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 onClick={handlePlayToggle}
@@ -497,8 +497,8 @@ export default function DashboardPage() {
 
       {/* 設定 Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-5">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background: 'rgba(4,8,16,0.85)', backdropFilter: 'blur(12px)'}}>
+          <div className="glass-card neon-border rounded-2xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-5">
             <div className="flex justify-between items-center border-b border-slate-850 pb-3">
               <h3 className="font-bold text-slate-100 flex items-center gap-1.5">
                 <Settings className="w-5 h-5 text-orange-500" />

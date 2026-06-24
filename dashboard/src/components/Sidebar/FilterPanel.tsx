@@ -53,7 +53,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 lg:p-5 flex flex-col gap-4 lg:gap-6 shadow-xl h-auto lg:h-full overflow-y-auto">
+    <div className="glass-card neon-border rounded-2xl p-4 lg:p-5 flex flex-col gap-4 lg:gap-6 shadow-xl h-auto lg:h-full overflow-y-auto">
       {/* 標題 */}
       <div className="border-b border-slate-800 pb-3 flex items-center gap-2">
         <Sliders className="text-orange-500 w-5 h-5" />

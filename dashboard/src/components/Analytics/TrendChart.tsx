@@ -72,7 +72,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-5 shadow-xl h-full">
+    <div className="glass-card neon-border rounded-2xl p-5 flex flex-col gap-5 shadow-xl h-full">
       {/* 頂部控制列 */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
         <div className="flex flex-col">
@@ -103,7 +103,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
 
       {/* 資料摘要卡片 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-xl flex flex-col">
+        <div className="stat-card-orange bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-orange-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">最大觀測值</span>
           <span className="text-lg font-bold text-slate-200">
             {maxVal.toFixed(1)}
@@ -111,7 +111,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
           </span>
         </div>
 
-        <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-xl flex flex-col">
+        <div className="stat-card-cyan bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-cyan-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">平均觀測值</span>
           <span className="text-lg font-bold text-slate-200">
             {avgVal.toFixed(1)}
@@ -119,7 +119,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
           </span>
         </div>
 
-        <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-xl flex flex-col">
+        <div className="stat-card-rose bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-rose-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">最小觀測值</span>
           <span className="text-lg font-bold text-slate-200">
             {minVal.toFixed(1)}
@@ -127,7 +127,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
           </span>
         </div>
 
-        <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-xl flex flex-col">
+        <div className="stat-card-red bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-red-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">PM2.5 超標次數</span>
           <span className="text-lg font-bold text-slate-200 flex items-center gap-1.5">
             {exceedCount > 0 ? (

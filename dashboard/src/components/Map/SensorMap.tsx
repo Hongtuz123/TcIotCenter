@@ -129,60 +129,79 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     markersRef.current = {};
 
     points.forEach((point) => {
+      // 建立 Marker 外層容器（支援雷達脇衝環效果）
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'position:relative;display:flex;align-items:center;justify-content:center;';
+
       // 建立自訂 DOM 元素作為 Marker
       const el = document.createElement('div');
       el.className = `w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50`;
-      
-      // 根據測值設定顏色分級
+      el.style.cssText = 'position:relative;z-index:1;';
+
+      // 根據測値設定顏色分級
       const val = point.pm2_5 || 0;
       let bgColor = 'bg-emerald-500'; // 正常 (0~15)
-      if (val > 15 && val <= 35) bgColor = 'bg-yellow-500'; // 普通 (16~35)
-      if (val > 35 && val <= 54) bgColor = 'bg-orange-500'; // 對敏感族群不健康 (36~54)
-      if (val > 54) bgColor = 'bg-red-500 animate-pulse'; // 疑似排污高危險點 (54+)
+      if (val > 15 && val <= 35) bgColor = 'bg-yellow-500';
+      if (val > 35 && val <= 54) bgColor = 'bg-orange-500';
+      if (val > 54) bgColor = 'bg-red-500';
 
-      // 檢查是否含有 VOC 異常或溫度突升 (疑似燃燒)
       const isFire = point.anomalyType === '疑似露天燃燒';
       const isFactory = point.anomalyType === '疑似工廠排污';
-      
+
       if (isFire) {
         el.className += ` ${bgColor} border-red-300 ring-4 ring-orange-500/30`;
         el.innerHTML = '🔥';
+        // 雷達脇衝環
+        const ping = document.createElement('div');
+        ping.className = 'radar-ping';
+        ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
+        wrapper.appendChild(ping);
       } else if (isFactory) {
         el.className += ` ${bgColor} border-purple-300 ring-4 ring-purple-500/30`;
         el.innerHTML = '🏭';
+        const ping = document.createElement('div');
+        ping.className = 'radar-ping';
+        ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
+        wrapper.appendChild(ping);
+      } else if (val > 54) {
+        el.className += ` ${bgColor}`;
+        const ping = document.createElement('div');
+        ping.className = 'radar-ping';
+        ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
+        wrapper.appendChild(ping);
       } else {
         el.className += ` ${bgColor}`;
-        // 選取狀態的外觀
-        if (point.id === selectedSensorId) {
-          el.className += ' ring-4 ring-white scale-125 z-40';
-        }
+      }
+
+      if (!isFire && !isFactory && point.id === selectedSensorId) {
+        el.className += ' ring-4 ring-white scale-125 z-40';
       }
 
       el.addEventListener('click', () => {
         onSelectSensor(point.id);
       });
 
-      // 建立彈出氣泡窗
-      const popup = new mapboxgl.Popup({ offset: 15 }).setHTML(`
-        <div class="p-2 text-slate-900 font-sans">
-          <h4 class="font-bold border-b pb-1 mb-1 text-slate-800">${point.name} (${point.id})</h4>
-          <p class="text-xs text-slate-500 mb-1">區域：${point.county}</p>
-          <div class="grid grid-cols-2 gap-1 text-xs">
-            <span class="text-slate-600">PM2.5:</span>
-            <span class="font-bold ${val > 54 ? 'text-red-600' : 'text-slate-800'}">${val} ug/m³</span>
-            <span class="text-slate-600">溫度:</span>
-            <span class="font-bold text-slate-800">${point.temperature !== null ? point.temperature + ' °C' : 'N/A'}</span>
-            <span class="text-slate-600">濕度:</span>
-            <span class="font-bold text-slate-800">${point.humidity !== null ? point.humidity + ' %' : 'N/A'}</span>
-            <span class="text-slate-600">VOC:</span>
-            <span class="font-bold text-slate-800">${point.voc !== null ? point.voc + ' ppm' : 'N/A'}</span>
+      // 深色玻璃風格彈出氣泡窗
+      const popup = new mapboxgl.Popup({ offset: 15, className: 'dark-popup' }).setHTML(`
+        <div style="padding:10px;font-family:Inter,sans-serif;color:#f1f5f9;background:rgba(8,14,26,0.97);border-radius:10px;min-width:180px;">
+          <h4 style="font-weight:700;border-bottom:1px solid rgba(249,115,22,0.25);padding-bottom:6px;margin-bottom:6px;color:#fff;font-size:12px;">${point.name} (${point.id})</h4>
+          <p style="font-size:11px;color:#94a3b8;margin-bottom:6px;">區域：${point.county}</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;font-size:11px;">
+            <span style="color:#64748b;">PM2.5:</span>
+            <span style="font-weight:700;color:${val > 54 ? '#f87171' : '#e2e8f0'}">${val} ug/m³</span>
+            <span style="color:#64748b;">溫度:</span>
+            <span style="font-weight:700;color:#e2e8f0;">${point.temperature !== null ? point.temperature + ' °C' : 'N/A'}</span>
+            <span style="color:#64748b;">濕度:</span>
+            <span style="font-weight:700;color:#e2e8f0;">${point.humidity !== null ? point.humidity + ' %' : 'N/A'}</span>
+            <span style="color:#64748b;">VOC:</span>
+            <span style="font-weight:700;color:#e2e8f0;">${point.voc !== null ? point.voc + ' ppm' : 'N/A'}</span>
           </div>
-          ${point.anomalyType ? `<p class="mt-2 text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded text-center">🚨 警告：${point.anomalyType}</p>` : ''}
+          ${point.anomalyType ? `<p style="margin-top:8px;font-size:11px;font-weight:700;color:#f87171;background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:6px;text-align:center;border:1px solid rgba(239,68,68,0.2);">🚨 警告：${point.anomalyType}</p>` : ''}
         </div>
       `);
 
       // 建立 Marker 並加入地圖
-      const marker = new mapboxgl.Marker(el)
+      const marker = new mapboxgl.Marker(wrapper)
         .setLngLat([point.lon, point.lat])
         .setPopup(popup)
         .addTo(mapRef.current!);
@@ -343,7 +362,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       )}
 
       {/* 圖例說明 */}
-      <div className="hidden sm:flex absolute bottom-4 left-4 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-2 min-w-[150px]">
+      <div className="hidden sm:flex absolute bottom-4 left-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-2 min-w-[150px]">
         <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">PM2.5 圖例</h5>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-emerald-500" />
