@@ -26,6 +26,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [mapStyle, setMapStyle] = useState<'dark-v11' | 'satellite-streets-v12' | 'streets-v12'>('dark-v11');
   const [isLoaded, setIsLoaded] = useState(false);
   const [showIndustrialZones, setShowIndustrialZones] = useState(true);
+  const [styleVersion, setStyleVersion] = useState(0);
+  const showIndustrialZonesRef = useRef(showIndustrialZones);
+
+  // 同步 ref 狀態以供閉包安全讀取
+  useEffect(() => {
+    showIndustrialZonesRef.current = showIndustrialZones;
+  }, [showIndustrialZones]);
 
   const token = (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '').trim().replace(/[^a-zA-Z0-9_.-]/g, '');
 
@@ -46,9 +53,59 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-left');
 
+    const setupIndustrialZones = () => {
+      const latestShow = showIndustrialZonesRef.current;
+      if (!map.getSource('industrial-zones-source')) {
+        console.log('Adding industrial-zones-source...');
+        try {
+          map.addSource('industrial-zones-source', {
+            type: 'geojson',
+            data: '/industrial-zones.geojson'
+          });
+          console.log('industrial-zones-source added successfully.');
+
+          map.addLayer({
+            id: 'industrial-zones-fill',
+            type: 'fill',
+            source: 'industrial-zones-source',
+            paint: {
+              'fill-color': '#a855f7', // 半透明紫色填充
+              'fill-opacity': 0.15
+            },
+            layout: {
+              visibility: latestShow ? 'visible' : 'none'
+            }
+          });
+          console.log('industrial-zones-fill layer added successfully.');
+
+          map.addLayer({
+            id: 'industrial-zones-line',
+            type: 'line',
+            source: 'industrial-zones-source',
+            paint: {
+              'line-color': '#c084fc', // 紫色虛線邊框
+              'line-width': 1.5,
+              'line-dasharray': [2, 2]
+            },
+            layout: {
+              visibility: latestShow ? 'visible' : 'none'
+            }
+          });
+          console.log('industrial-zones-line layer added successfully.');
+        } catch (error) {
+          console.error('Error while adding industrial-zones layers:', error);
+        }
+      } else {
+        console.log('industrial-zones-source already exists, skipping.');
+      }
+    };
+
     map.on('load', () => {
       mapRef.current = map;
+      (window as any).mapboxMap = map;
       setIsLoaded(true);
+      console.log('Mapbox load event triggered.');
+      setupIndustrialZones();
       
       // 註冊地圖點擊事件，方便使用者框選位置新增事件
       map.on('click', (e) => {
@@ -60,40 +117,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     });
 
     map.on('style.load', () => {
-      // style 載入（初次或切換風格）時，重新添加產業園區圖層
-      if (!map.getSource('industrial-zones-source')) {
-        map.addSource('industrial-zones-source', {
-          type: 'geojson',
-          data: '/industrial-zones.geojson'
-        });
-
-        map.addLayer({
-          id: 'industrial-zones-fill',
-          type: 'fill',
-          source: 'industrial-zones-source',
-          paint: {
-            'fill-color': '#a855f7', // 半透明紫色填充
-            'fill-opacity': 0.15
-          },
-          layout: {
-            visibility: showIndustrialZones ? 'visible' : 'none'
-          }
-        });
-
-        map.addLayer({
-          id: 'industrial-zones-line',
-          type: 'line',
-          source: 'industrial-zones-source',
-          paint: {
-            'line-color': '#c084fc', // 紫色虛線邊框
-            'line-width': 1.5,
-            'line-dasharray': [2, 2]
-          },
-          layout: {
-            visibility: showIndustrialZones ? 'visible' : 'none'
-          }
-        });
-      }
+      console.log('Mapbox style.load event triggered.');
+      setStyleVersion((v) => v + 1);
+      setupIndustrialZones();
     });
 
     return () => {
@@ -315,7 +341,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       map.getCanvas().style.cursor = '';
     });
 
-  }, [clusters, isLoaded]);
+  }, [clusters, isLoaded, styleVersion]);
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
