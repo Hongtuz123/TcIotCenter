@@ -1,0 +1,8 @@
+# Ignore database and massive raw CSV data folders to prevent exceeding Vercel's 100MB limit
+202604iotdata/
+dashboard/iot.db
+dashboard/.next/
+dashboard/node_modules/
+*.db
+*.sqlite
+.vercel
