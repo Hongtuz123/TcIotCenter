@@ -3,9 +3,27 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm install --prefix dashboard && npm run build --prefix dashboard"
+    "build": "npm run build --prefix dashboard"
   },
   "dependencies": {
-    "next": "^15.0.0"
+    "lucide-react": "^1.21.0",
+    "mapbox-gl": "^3.25.0",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "recharts": "^3.9.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/mapbox-gl": "^3.4.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
