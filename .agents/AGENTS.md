@@ -1,5 +1,24 @@
 # 微感 GIS Dashboard - 專案備忘與自訂規則
 
+## 🚀 Vercel 部署規則（重要）
+
+**Vercel Root Directory 已設定為 `dashboard`**。因此部署指令必須從 `dashboard/` 子目錄執行：
+
+```powershell
+# ✅ 正確：從 dashboard/ 目錄部署
+cd C:\GoogleAntigravity\2026IoTcenter\dashboard
+npx vercel --prod --yes
+
+# ❌ 錯誤：從專案根目錄部署（會造成 dashboard/dashboard/ 路徑雙層問題）
+cd C:\GoogleAntigravity\2026IoTcenter
+npx vercel --prod --yes
+```
+
+- 根目錄的 `vercel.json` 保持 `{}` 空物件，勿加任何 buildCommand 或 installCommand
+- 實際的部署設定維護於 `dashboard/vercel.json`
+
+---
+
 ## 📌 待辦備忘：如何將真實 1.72 GB SQLite 大數據遷移至雲端 (PostgreSQL) 的對接指引
 
 **問題背景**：
@@ -27,3 +46,4 @@
   * **Key**: `DATABASE_URL`
   * **Value**: 您的雲端 PostgreSQL 連線字串
 * 重新部署專案。系統內的 `src/lib/db.ts` 偵測到 `DATABASE_URL` 後，便會自動停用 Mock 降級，無縫切換為直接從雲端 PostgreSQL 讀取 100% 真實的數據。
+
