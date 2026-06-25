@@ -63,6 +63,7 @@ export async function GET() {
     return NextResponse.json({
       rate: Math.round(rate * 1000) / 10, // 百分比，一位小數
       mode: 'supabase',
+      debug_host: process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).host : null,
       total_sensors: total,
       expected_obs: expected,
       actual_obs: actual,

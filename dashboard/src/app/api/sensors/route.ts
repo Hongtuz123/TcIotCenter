@@ -28,13 +28,13 @@ export async function GET() {
       let latestObs: Record<string, any> = {};
 
       if (stationIds.length > 0) {
-        // 使用 DISTINCT ON 策略：取每站最新 bucket_time 的資料
+        // 直接取得最近 1 小時內的觀測值，避免傳入上千個 ID 導致 URL 過長而 500
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
         const { data: obsData } = await supabase
           .from('observations_5m')
           .select('station_id, bucket_time, pm2_5, temperature, humidity, is_anomaly, anomaly_type')
-          .in('station_id', stationIds)
-          .order('bucket_time', { ascending: false })
-          .limit(stationIds.length * 2); // 每站取最新 2 筆，客戶端 dedup
+          .gte('bucket_time', oneHourAgo)
+          .order('bucket_time', { ascending: false });
 
         if (obsData) {
           // 每站只保留最新一筆
