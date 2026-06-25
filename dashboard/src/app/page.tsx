@@ -29,6 +29,7 @@ export default function DashboardPage() {
   // 資料狀態
   const [points, setPoints] = useState<(Sensor & Observation)[]>([]);
   const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [clusters24h, setClusters24h] = useState<Cluster[]>([]);
   const [counties, setCounties] = useState<string[]>([]);
   const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null);
   const [selectedSensor, setSelectedSensor] = useState<Sensor | null>(null);
@@ -207,6 +208,28 @@ export default function DashboardPage() {
     fetchPoints();
   }, [currentTime]);
 
+  // 2.5. 載入過去 24 小時的熱區列表
+  useEffect(() => {
+    const fetch24hClusters = async () => {
+      try {
+        const res = await fetch(
+          `/api/clusters-24h?time=${encodeURIComponent(currentTime)}` +
+            `&radius=${systemSettings.cluster_radius_km}` +
+            `&min_stations=${systemSettings.min_cluster_stations}` +
+            `&pm25_threshold=${systemSettings.pm25_threshold}`
+        );
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setClusters24h(data);
+        }
+      } catch (err) {
+        console.error('載入24小時熱區失敗:', err);
+      }
+    };
+
+    fetch24hClusters();
+  }, [currentTime, systemSettings]);
+
   // 3. 當選取的感測站改變時，載入該站在日期區間內的歷史趨勢
   useEffect(() => {
     if (!selectedSensorId) return;
@@ -299,6 +322,27 @@ export default function DashboardPage() {
       }
     } catch (e) {
       console.error('刪除事件失敗:', e);
+    }
+  };
+
+  const handleClusterChange = (clusterId: string | null) => {
+    setSelectedClusterId(clusterId);
+    if (clusterId) {
+      const found = clusters24h.find((c) => c.id === clusterId);
+      if (found) {
+        let timeStr = found.time;
+        if (timeStr.includes('T') || timeStr.includes('Z')) {
+          const d = new Date(timeStr);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const hours = String(d.getHours()).padStart(2, '0');
+          const minutes = String(d.getMinutes()).padStart(2, '0');
+          const seconds = String(d.getSeconds()).padStart(2, '0');
+          timeStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+        setCurrentTime(timeStr);
+      }
     }
   };
 
@@ -456,12 +500,6 @@ export default function DashboardPage() {
               <ShieldAlert className="w-4 h-4 text-red-500 animate-pulse" />
             </span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-slate-500 font-semibold mb-0.5">當前系統判定閾值</span>
-            <span className="font-bold text-slate-400 text-sm">
-              PM₂.₅ &gt; {systemSettings.pm25_threshold} ug/m³
-            </span>
-          </div>
           {/* 完整率卡片 */}
           <div className="flex flex-col border-l border-slate-800 pl-6">
             <span className="text-[10px] text-slate-500 font-semibold mb-0.5">資料完整率（1h）</span>
@@ -562,9 +600,9 @@ export default function DashboardPage() {
             onChangeMinVal={setMinVal}
             onChangeMaxVal={setMaxVal}
             isLoading={isLoadingPoints}
-            clusters={clusters}
+            clusters={clusters24h}
             selectedClusterId={selectedClusterId}
-            onChangeClusterId={setSelectedClusterId}
+            onChangeClusterId={handleClusterChange}
           />
         </section>
 
@@ -754,6 +792,10 @@ export default function DashboardPage() {
               <span className="text-[10px] text-slate-500 -mt-2">
                 說明：在此半徑內若有大於此站數的超標感測器，即會在地圖上渲染出一個紅色「空間異常熱區」。
               </span>
+
+              <div className="text-[11px] text-orange-500/90 font-medium mt-1">
+                * 備註：判定規則調整後僅對未來即時資料生效，不可回溯歷史資料。
+              </div>
 
               <button
                 type="submit"

@@ -243,21 +243,21 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         </div>
       </div>
  
-      {/* 空間疑似燃燒熱區 */}
+      {/* 24小時內污染熱區 */}
       <div className="flex flex-col gap-2 border-t border-slate-800/60 pt-4">
         <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
           <Flame className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
-          空間疑似燃燒熱區 ({clusters.length} 處)
+          24小時內污染熱區為 {clusters.length} 處
         </label>
         <select
           value={selectedClusterId || ''}
           onChange={(e) => onChangeClusterId(e.target.value || null)}
           className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500 transition-colors w-full cursor-pointer"
         >
-          <option value="">選擇燃燒熱區 (無選擇)</option>
+          <option value="">選擇污染熱區 (無選擇)</option>
           {clusters.map((c) => (
             <option key={c.id} value={c.id}>
-              熱區 {c.id.substring(0, 6)} ({c.stationsCount}站, PM₂.₅:{c.avgPm25.toFixed(1)})
+              {c.name} ({c.stationsCount}站, PM₂.₅:{c.avgPm25.toFixed(1)})
             </option>
           ))}
         </select>

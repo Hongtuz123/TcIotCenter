@@ -463,14 +463,6 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
           <span className="text-slate-400">對所有族群不健康 (54.5+)</span>
         </div>
-        <div className="flex items-center gap-2 border-t border-slate-800 pt-1.5 mt-0.5">
-          <span>🔥</span>
-          <span className="text-slate-300 font-medium">疑似露天燃燒</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span>🏭</span>
-          <span className="text-slate-300 font-medium">疑似工廠排污</span>
-        </div>
       </div>
     </div>
   );
