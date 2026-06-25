@@ -48,6 +48,15 @@ export default function DashboardPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 完整率狀態
+  const [completeness, setCompleteness] = useState<{
+    rate: number | null;
+    mode: string;
+    total_sensors: number;
+    online_count: number;
+    offline_count: number;
+  } | null>(null);
+
   // 1. 初始化行政區列表與系統設定
   useEffect(() => {
     const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
@@ -153,6 +162,20 @@ export default function DashboardPage() {
 
     initData();
     fetchEvents();
+
+    // 立即抓完整率，之後每 5 分鐘刷新一次
+    const fetchCompleteness = async () => {
+      try {
+        const res = await fetch('/api/completeness');
+        const data = await res.json();
+        setCompleteness(data);
+      } catch (e) {
+        console.error('載入完整率失敗:', e);
+      }
+    };
+    fetchCompleteness();
+    const completenessInterval = setInterval(fetchCompleteness, 5 * 60 * 1000);
+    return () => clearInterval(completenessInterval);
   }, []);
 
   // 當開始日期/時間變更時，重設播放指針到起點
@@ -438,6 +461,32 @@ export default function DashboardPage() {
             <span className="font-bold text-slate-400 text-sm">
               PM₂.₅ &gt; {systemSettings.pm25_threshold} ug/m³
             </span>
+          </div>
+          {/* 完整率卡片 */}
+          <div className="flex flex-col border-l border-slate-800 pl-6">
+            <span className="text-[10px] text-slate-500 font-semibold mb-0.5">資料完整率（1h）</span>
+            {completeness ? (
+              completeness.mode === 'mock' ? (
+                <span className="font-bold text-slate-500 text-sm">— 未連線</span>
+              ) : (
+                <span
+                  className={`font-bold text-sm ${
+                    (completeness.rate ?? 0) >= 90
+                      ? 'text-emerald-400'
+                      : (completeness.rate ?? 0) >= 70
+                      ? 'text-yellow-400'
+                      : 'text-red-400'
+                  }`}
+                >
+                  {completeness.rate?.toFixed(1) ?? '--'}%
+                  <span className="text-slate-500 font-normal text-xs ml-1">
+                    （離線 {completeness.offline_count} 站）
+                  </span>
+                </span>
+              )
+            ) : (
+              <span className="font-bold text-slate-600 text-sm animate-pulse">計算中...</span>
+            )}
           </div>
         </div>
 

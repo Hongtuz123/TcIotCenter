@@ -1,0 +1,17 @@
+{
+  "name": "iot-poller",
+  "version": "1.0.0",
+  "description": "台中市微感測站 IoT 資料爬蟲",
+  "scripts": {
+    "poll": "tsx pollIoT.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "tc-iot-center-root": "file:.."
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5.0.0"
+  }
+}

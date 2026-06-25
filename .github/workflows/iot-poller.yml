@@ -1,0 +1,45 @@
+name: IoT Data Poller - 台中市微感測站
+
+on:
+  schedule:
+    # 每 5 分鐘執行一次（UTC 時間，台灣為 UTC+8）
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    # 允許手動觸發（用於測試）
+    inputs:
+      dry_run:
+        description: '僅測試，不實際寫入 DB'
+        required: false
+        default: 'false'
+
+jobs:
+  poll-iot-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4  # 必須在 5 分鐘內完成，否則下一次觸發會重疊
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/package.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: scripts
+
+      - name: Run IoT Poller
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx tsx pollIoT.ts
+        working-directory: scripts
+
+      - name: Report result
+        if: always()
+        run: |
+          echo "IoT Poller 執行完成 - $(date '+%Y-%m-%d %H:%M:%S UTC')"

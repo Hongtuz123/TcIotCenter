@@ -9,6 +9,8 @@ dashboard/node_modules/
 dashboard/.next/
 dashboard/.env*.local
 dashboard/.env
+scripts/node_modules/
+
 
 # 系統檔案
 .DS_Store
