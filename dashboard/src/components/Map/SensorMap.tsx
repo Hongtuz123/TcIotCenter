@@ -28,6 +28,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [showIndustrialZones, setShowIndustrialZones] = useState(true);
   const [styleVersion, setStyleVersion] = useState(0);
   const showIndustrialZonesRef = useRef(showIndustrialZones);
+  const prevStyleRef = useRef(mapStyle);
 
   // 同步 ref 狀態以供閉包安全讀取
   useEffect(() => {
@@ -131,7 +132,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   // 2. 切換地圖風格
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
+    if (prevStyleRef.current === mapStyle) return;
+
+    console.log(`Switching map style from ${prevStyleRef.current} to ${mapStyle}`);
     mapRef.current.setStyle(`mapbox://styles/mapbox/${mapStyle}`);
+    prevStyleRef.current = mapStyle;
   }, [mapStyle, isLoaded]);
 
   // 2.5 同步控制產業園區圖層可見度
@@ -164,12 +169,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       el.className = `w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50`;
       el.style.cssText = 'position:relative;z-index:1;';
 
-      // 根據測値設定顏色分級
+      // 根據測値設定顏色分級 (對齊 AQI 新門檻)
       const val = point.pm2_5 || 0;
-      let bgColor = 'bg-emerald-500'; // 正常 (0~15)
-      if (val > 15 && val <= 35) bgColor = 'bg-yellow-500';
-      if (val > 35 && val <= 54) bgColor = 'bg-orange-500';
-      if (val > 54) bgColor = 'bg-red-500';
+      let bgColor = 'bg-emerald-500'; // 良好 (0.0 ~ 15.4)
+      if (val >= 15.5 && val <= 35.4) bgColor = 'bg-yellow-500'; // 普通
+      if (val >= 35.5 && val <= 54.4) bgColor = 'bg-orange-500'; // 對敏感族群不健康
+      if (val >= 54.5) bgColor = 'bg-red-500'; // 對所有族群不健康
 
       const isFire = point.anomalyType === '疑似露天燃燒';
       const isFactory = point.anomalyType === '疑似工廠排污';
@@ -213,7 +218,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           <h4 style="font-weight:700;border-bottom:1px solid rgba(249,115,22,0.25);padding-bottom:6px;margin-bottom:6px;color:#fff;font-size:12px;">${point.name} (${point.id})</h4>
           <p style="font-size:11px;color:#94a3b8;margin-bottom:6px;">區域：${point.county}</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;font-size:11px;">
-            <span style="color:#64748b;">PM2.5:</span>
+            <span style="color:#64748b;">PM₂.₅:</span>
             <span style="font-weight:700;color:${val > 54 ? '#f87171' : '#e2e8f0'}">${val} ug/m³</span>
             <span style="color:#64748b;">溫度:</span>
             <span style="font-weight:700;color:#e2e8f0;">${point.temperature !== null ? point.temperature + ' °C' : 'N/A'}</span>
@@ -389,22 +394,22 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       {/* 圖例說明 */}
       <div className="hidden sm:flex absolute bottom-4 left-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-2 min-w-[150px]">
-        <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">PM2.5 圖例</h5>
+        <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">PM₂.₅ 圖例</h5>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-emerald-500" />
-          <span className="text-slate-400">良好 (0 ~ 15)</span>
+          <span className="text-slate-400">良好 (0.0 ~ 15.4)</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-yellow-500" />
-          <span className="text-slate-400">普通 (16 ~ 35)</span>
+          <span className="text-slate-400">普通 (15.5 ~ 35.4)</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-orange-500" />
-          <span className="text-slate-400">偏高 (36 ~ 54)</span>
+          <span className="text-slate-400">對敏感族群不健康 (35.5 ~ 54.4)</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-slate-400">高污染 (54+)</span>
+          <span className="text-slate-400">對所有族群不健康 (54.5+)</span>
         </div>
         <div className="flex items-center gap-2 border-t border-slate-800 pt-1.5 mt-0.5">
           <span>🔥</span>

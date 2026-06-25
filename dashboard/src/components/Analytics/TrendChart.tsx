@@ -95,7 +95,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {tab === 'pm2_5' ? 'PM2.5' : tab === 'temperature' ? '溫度' : '濕度'}
+              {tab === 'pm2_5' ? 'PM₂.₅' : tab === 'temperature' ? '溫度' : '濕度'}
             </button>
           ))}
         </div>
@@ -128,7 +128,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
         </div>
 
         <div className="stat-card-red bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-red-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
-          <span className="text-[10px] text-slate-500 font-semibold mb-1">PM2.5 超標次數</span>
+          <span className="text-[10px] text-slate-500 font-semibold mb-1">PM₂.₅ 超標次數</span>
           <span className="text-lg font-bold text-slate-200 flex items-center gap-1.5">
             {exceedCount > 0 ? (
               <>
@@ -202,7 +202,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                 strokeWidth={2}
                 fillOpacity={1}
                 fill={fillColor}
-                name={metricTab === 'pm2_5' ? 'PM2.5' : metricTab === 'temperature' ? '溫度' : '濕度'}
+                name={metricTab === 'pm2_5' ? 'PM₂.₅' : metricTab === 'temperature' ? '溫度' : '濕度'}
               />
             </AreaChart>
           </ResponsiveContainer>

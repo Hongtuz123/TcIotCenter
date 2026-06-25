@@ -10,11 +10,17 @@ import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X } from 'lucide-
 
 export default function DashboardPage() {
   // 篩選與播放狀態
-  const [selectedCounty, setSelectedCounty] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<{ type: 'all' | 'county' | 'zone'; value: string }>({ type: 'all', value: '' });
+  const [selectedDeviceId, setSelectedDeviceId] = useState('all');
   const [showFiltersMobile, setShowFiltersMobile] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('2026-04-02'); // 預設 2026-04-02 有較多異常
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState('10:10:00');
-  const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity'>('pm2_5');
+  const [startDate, setStartDate] = useState('2026-04-02');
+  const [endDate, setEndDate] = useState('2026-04-02');
+  const [startTime, setStartTime] = useState('08:00:00');
+  const [endTime, setEndTime] = useState('18:00:00');
+  const [currentTime, setCurrentTime] = useState('2026-04-02 08:00:00');
+  const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity' | 'voc'>('pm2_5');
+  const [sensorZoneMap, setSensorZoneMap] = useState<{ [id: string]: string }>({});
+  const [zoneNames, setZoneNames] = useState<string[]>([]);
   const [minVal, setMinVal] = useState(0);
   const [maxVal, setMaxVal] = useState(300);
 
@@ -42,13 +48,58 @@ export default function DashboardPage() {
 
   // 1. 初始化行政區列表與系統設定
   useEffect(() => {
+    const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
+      const x = point[0], y = point[1];
+      let inside = false;
+      for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        const xi = vs[i][0], yi = vs[i][1];
+        const xj = vs[j][0], yj = vs[j][1];
+        const intersect = ((yi > y) !== (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    };
+
     const initData = async () => {
       try {
         // 取得所有感測器以提取行政區列表
         const res = await fetch('/api/sensors');
-        const data: Sensor[] = await res.json();
-        const extractedCounties = Array.from(new Set(data.map((s) => s.county))).filter(Boolean);
+        const sensorsData: Sensor[] = await res.json();
+        const extractedCounties = Array.from(new Set(sensorsData.map((s) => s.county))).filter(Boolean);
         setCounties(extractedCounties);
+
+        // 載入產業園區 GeoJSON 並做 Point-in-Polygon 幾何判斷
+        const geoRes = await fetch('/industrial-zones.geojson');
+        const geojson = await geoRes.json();
+        const zones: string[] = [];
+        const zoneMap: { [id: string]: string } = {};
+
+        if (geojson && geojson.features) {
+          geojson.features.forEach((feature: any) => {
+            const zoneName = feature.properties.name;
+            if (zoneName && !zones.includes(zoneName)) {
+              zones.push(zoneName);
+            }
+            const geom = feature.geometry;
+            sensorsData.forEach((sensor) => {
+              const pt: [number, number] = [sensor.lon, sensor.lat];
+              let inZone = false;
+              if (geom.type === 'Polygon') {
+                inZone = geom.coordinates.some((ring: any) => isPointInPolygon(pt, ring));
+              } else if (geom.type === 'MultiPolygon') {
+                inZone = geom.coordinates.some((poly: any) => 
+                  poly.some((ring: any) => isPointInPolygon(pt, ring))
+                );
+              }
+              if (inZone) {
+                zoneMap[sensor.id] = zoneName;
+              }
+            });
+          });
+        }
+        setZoneNames(zones.sort());
+        setSensorZoneMap(zoneMap);
 
         // 取得系統閾值設定
         const settingsRes = await fetch('/api/settings');
@@ -71,13 +122,17 @@ export default function DashboardPage() {
     fetchEvents();
   }, []);
 
-  // 2. 當時間/日期改變時，載入感測點觀測值與異常聚類
+  // 當開始日期/時間變更時，重設播放指針到起點
+  useEffect(() => {
+    setCurrentTime(`${startDate} ${startTime}`);
+  }, [startDate, startTime]);
+
+  // 2. 當時間改變時，載入感測點觀測值與異常聚類
   useEffect(() => {
     const fetchPoints = async () => {
       setIsLoadingPoints(true);
       try {
-        const timeStr = `${selectedDate} ${selectedTimeSlot}`;
-        const res = await fetch(`/api/anomalies?time=${encodeURIComponent(timeStr)}`);
+        const res = await fetch(`/api/anomalies?time=${encodeURIComponent(currentTime)}`);
         const data = await res.json();
         
         if (data.points) {
@@ -94,13 +149,12 @@ export default function DashboardPage() {
     };
 
     fetchPoints();
-  }, [selectedDate, selectedTimeSlot]);
+  }, [currentTime]);
 
-  // 3. 當選取的感測站改變時，載入該站當天的 24 小時歷史趨勢
+  // 3. 當選取的感測站改變時，載入該站在日期區間內的歷史趨勢
   useEffect(() => {
     if (!selectedSensorId) return;
 
-    // Bug #6 修正：立即清空舊資料，避免切換時顯示上一站數據
     setHistoryData([]);
 
     const sensor = points.find((p) => p.id === selectedSensorId);
@@ -118,12 +172,12 @@ export default function DashboardPage() {
     const fetchHistory = async () => {
       setIsLoadingHistory(true);
       try {
-        const startTime = `${selectedDate} 00:00:00`;
-        const endTime = `${selectedDate} 23:55:00`;
+        const queryStart = `${startDate} 00:00:00`;
+        const queryEnd = `${endDate} 23:55:00`;
         const res = await fetch(
           `/api/observations?sensorId=${selectedSensorId}&startTime=${encodeURIComponent(
-            startTime
-          )}&endTime=${encodeURIComponent(endTime)}&limit=300`
+            queryStart
+          )}&endTime=${encodeURIComponent(queryEnd)}&limit=1000`
         );
         const data = await res.json();
         setHistoryData(data);
@@ -135,7 +189,7 @@ export default function DashboardPage() {
     };
 
     fetchHistory();
-  }, [selectedSensorId, selectedDate]);
+  }, [selectedSensorId, startDate, endDate]);
 
   // 4. 事件管理 API 串接
   const fetchEvents = async () => {
@@ -224,8 +278,7 @@ export default function DashboardPage() {
         });
         setShowSettingsModal(false);
         // 強制刷新當前點位資料
-        const timeStr = `${selectedDate} ${selectedTimeSlot}`;
-        const refreshRes = await fetch(`/api/anomalies?time=${encodeURIComponent(timeStr)}`);
+        const refreshRes = await fetch(`/api/anomalies?time=${encodeURIComponent(currentTime)}`);
         const refreshData = await refreshRes.json();
         if (refreshData.points) setPoints(refreshData.points);
         if (refreshData.clusters) setClusters(refreshData.clusters);
@@ -252,33 +305,26 @@ export default function DashboardPage() {
     } else {
       setIsPlaying(true);
       playIntervalRef.current = setInterval(() => {
-        setSelectedTimeSlot((prevTime) => {
-          const parts = prevTime.split(':');
-          let h = parseInt(parts[0], 10);
-          let m = parseInt(parts[1], 10);
+        setCurrentTime((prevTime) => {
+          const currentDt = new Date(prevTime.replace(/-/g, '/'));
+          currentDt.setMinutes(currentDt.getMinutes() + 5);
 
-          m += 5;
-          if (m >= 60) {
-            m = 0;
-            h += 1;
+          const endDt = new Date(`${endDate} ${endTime}`.replace(/-/g, '/'));
+
+          if (currentDt.getTime() > endDt.getTime()) {
+            if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+            setIsPlaying(false);
+            return `${startDate} ${startTime}`;
           }
 
-          // Bug #4 修正：到達資料尾端 (4/3 23:55) 自動停止播放
-          if (h >= 24) {
-            setSelectedDate((prevDate) => {
-              // 資料範圍只有到 2026-04-03，抵達後停止
-              if (prevDate >= '2026-04-03') {
-                clearInterval(playIntervalRef.current!);
-                setIsPlaying(false);
-                return prevDate;
-              }
-              const day = parseInt(prevDate.substring(8, 10), 10);
-              return `2026-04-${String(day + 1).padStart(2, '0')}`;
-            });
-            h = 0;
-          }
+          const year = currentDt.getFullYear();
+          const month = String(currentDt.getMonth() + 1).padStart(2, '0');
+          const day = String(currentDt.getDate()).padStart(2, '0');
+          const hours = String(currentDt.getHours()).padStart(2, '0');
+          const minutes = String(currentDt.getMinutes()).padStart(2, '0');
+          const seconds = String(currentDt.getSeconds()).padStart(2, '0');
 
-          return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+          return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         });
       }, 1800);
     }
@@ -290,14 +336,37 @@ export default function DashboardPage() {
     };
   }, []);
 
+  const getProgressPercentage = () => {
+    try {
+      const startMs = new Date(`${startDate} ${startTime}`.replace(/-/g, '/')).getTime();
+      const endMs = new Date(`${endDate} ${endTime}`.replace(/-/g, '/')).getTime();
+      const currentMs = new Date(currentTime.replace(/-/g, '/')).getTime();
+
+      if (endMs <= startMs) return 0;
+      const pct = ((currentMs - startMs) / (endMs - startMs)) * 100;
+      return Math.min(100, Math.max(0, pct));
+    } catch (e) {
+      return 0;
+    }
+  };
+
   // 篩選後要渲染在地圖上的點位
   const filteredPoints = points.filter((pt) => {
-    if (selectedCounty && pt.county !== selectedCounty) return false;
+    if (selectedFilter.type === 'county' && pt.county !== selectedFilter.value) return false;
+    if (selectedFilter.type === 'zone' && sensorZoneMap[pt.id] !== selectedFilter.value) return false;
+    if (selectedDeviceId !== 'all' && pt.id !== selectedDeviceId) return false;
     
     const val = pt[selectedMetric];
     if (val === null || val === undefined) return false;
     if (val < minVal || val > maxVal) return false;
 
+    return true;
+  });
+
+  // 取得符合第一層篩選的所有設備清單，供第二層 DeviceID 下拉選單選擇
+  const availableDevices = points.filter((pt) => {
+    if (selectedFilter.type === 'county' && pt.county !== selectedFilter.value) return false;
+    if (selectedFilter.type === 'zone' && sensorZoneMap[pt.id] !== selectedFilter.value) return false;
     return true;
   });
 
@@ -311,7 +380,7 @@ export default function DashboardPage() {
             GIS
           </div>
           <div className="flex flex-col">
-            <h1 className="text-base font-extrabold tracking-wide text-slate-200">微感 GIS 空氣品質分析儀表板</h1>
+            <h1 className="text-base font-extrabold tracking-wide text-slate-200">微感監測中心</h1>
             <span className="text-[10px] text-slate-500 font-medium">環境部環境物聯網微感測數據中心</span>
           </div>
         </div>
@@ -335,7 +404,7 @@ export default function DashboardPage() {
           <div className="flex flex-col">
             <span className="text-[10px] text-slate-500 font-semibold mb-0.5">當前系統判定閾值</span>
             <span className="font-bold text-slate-400 text-sm">
-              PM2.5 &gt; {systemSettings.pm25_threshold} ug/m³
+              PM₂.₅ &gt; {systemSettings.pm25_threshold} ug/m³
             </span>
           </div>
         </div>
@@ -374,12 +443,23 @@ export default function DashboardPage() {
         <section className={`${showFiltersMobile ? 'block' : 'hidden'} lg:block w-full lg:w-[20%] lg:min-w-[240px] lg:max-w-[280px] h-auto lg:h-full flex flex-col gap-4`}>
           <FilterPanel
             counties={counties}
-            selectedCounty={selectedCounty}
-            onChangeCounty={setSelectedCounty}
-            selectedDate={selectedDate}
-            onChangeDate={setSelectedDate}
-            selectedTimeSlot={selectedTimeSlot}
-            onChangeTimeSlot={setSelectedTimeSlot}
+            zoneNames={zoneNames}
+            selectedFilter={selectedFilter}
+            onChangeFilter={(f) => {
+              setSelectedFilter(f);
+              setSelectedDeviceId('all');
+            }}
+            availableDevices={availableDevices}
+            selectedDeviceId={selectedDeviceId}
+            onChangeDeviceId={setSelectedDeviceId}
+            startDate={startDate}
+            onChangeStartDate={setStartDate}
+            endDate={endDate}
+            onChangeEndDate={setEndDate}
+            startTime={startTime}
+            onChangeStartTime={setStartTime}
+            endTime={endTime}
+            onChangeEndTime={setEndTime}
             selectedMetric={selectedMetric}
             onChangeMetric={setSelectedMetric}
             minVal={minVal}
@@ -430,11 +510,11 @@ export default function DashboardPage() {
             {/* 進度顯示與快速調整 */}
             <div className="flex-1 flex flex-col gap-1 w-full sm:max-w-[60%]">
               <div className="flex justify-between text-[9px] sm:text-[10px] text-slate-400 font-semibold px-1">
-                <span>00:00</span>
-                <span className="text-orange-400 font-bold text-xs bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-full">
-                  {selectedDate} &nbsp; {selectedTimeSlot.substring(0, 5)}
+                <span>{startTime.substring(0, 5)}</span>
+                <span className="text-orange-400 font-bold text-[10px] sm:text-xs bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-full">
+                  {currentTime.substring(5, 16)}
                 </span>
-                <span>23:55</span>
+                <span>{endTime.substring(0, 5)}</span>
               </div>
               
               {/* 進度條 */}
@@ -442,12 +522,7 @@ export default function DashboardPage() {
                 <div
                   className="bg-orange-500 h-full rounded-full transition-all duration-300"
                   style={{
-                    width: `${
-                      ((parseInt(selectedTimeSlot.split(':')[0], 10) * 60 +
-                        parseInt(selectedTimeSlot.split(':')[1], 10)) /
-                        1440) *
-                      100
-                    }%`
+                    width: `${getProgressPercentage()}%`
                   }}
                 />
               </div>
@@ -456,11 +531,11 @@ export default function DashboardPage() {
             <div className="flex gap-2 self-end sm:self-center">
               <button
                 onClick={() => {
-                  setSelectedTimeSlot('00:00:00');
+                  setCurrentTime(`${startDate} ${startTime}`);
                   setIsPlaying(false);
                 }}
                 className="p-2 bg-slate-950 hover:bg-slate-850 rounded-xl border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-                title="重設當天時間"
+                title="重設起點時間"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -514,7 +589,7 @@ export default function DashboardPage() {
 
             <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-slate-400 font-semibold">PM2.5 異常門檻值 (ug/m³)</label>
+                <label className="text-xs text-slate-400 font-semibold">PM₂.₅ 異常門檻值 (ug/m³)</label>
                 <input
                   type="number"
                   step="0.1"
