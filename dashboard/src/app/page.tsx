@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity' | 'voc'>('pm2_5');
   const [sensorZoneMap, setSensorZoneMap] = useState<{ [id: string]: string }>({});
   const [zoneNames, setZoneNames] = useState<string[]>([]);
+  const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const [minVal, setMinVal] = useState(0);
   const [maxVal, setMaxVal] = useState(300);
 
@@ -381,24 +382,23 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-col">
             <h1 className="text-base font-extrabold tracking-wide text-slate-200">微感監測中心</h1>
-            <span className="text-[10px] text-slate-500 font-medium">環境部環境物聯網微感測數據中心</span>
+            <span className="text-[10px] text-slate-500 font-medium">相關數據節錄於環境物聯網感測數據，僅功能測試使用。</span>
           </div>
         </div>
 
         {/* 系統即時摘要 */}
         <div className="hidden lg:flex items-center gap-6 text-xs border-l border-slate-800 pl-6">
           <div className="flex flex-col">
-            <span className="text-[10px] text-slate-500 font-semibold mb-0.5">時間點異常感測站數</span>
-            <span className="font-bold text-red-400 flex items-center gap-1.5 text-sm">
-              {points.filter((p) => p.isAnomaly).length} 站
-              <ShieldAlert className="w-4 h-4 text-red-500 animate-pulse" />
+            <span className="text-[10px] text-slate-500 font-semibold mb-0.5">微感總數</span>
+            <span className="font-bold text-slate-300 text-sm">
+              {points.length} 站
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] text-slate-500 font-semibold mb-0.5">空間疑似燃燒熱區</span>
-            <span className="font-bold text-orange-400 flex items-center gap-1.5 text-sm">
-              {clusters.length} 處
-              <Radio className="w-4 h-4 text-orange-500 animate-pulse" />
+            <span className="text-[10px] text-slate-500 font-semibold mb-0.5">異常微感數</span>
+            <span className="font-bold text-red-400 flex items-center gap-1.5 text-sm">
+              {points.filter((p) => p.isAnomaly).length} 站
+              <ShieldAlert className="w-4 h-4 text-red-500 animate-pulse" />
             </span>
           </div>
           <div className="flex flex-col">
@@ -409,10 +409,24 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className="text-xs bg-slate-950/60 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center gap-2">
+            <span className="text-slate-500 font-medium">更新狀態:</span>
+            {isLoadingPoints ? (
+              <span className="text-orange-400 flex items-center gap-1 animate-pulse font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                正在載入...
+              </span>
+            ) : (
+              <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                連線正常
+              </span>
+            )}
+          </div>
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white p-2 lg:px-4 lg:py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white p-2 lg:px-4 lg:py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
             title="判定參數與回測設定"
           >
             <Settings className="w-4 h-4 text-orange-500" />
@@ -467,6 +481,9 @@ export default function DashboardPage() {
             onChangeMinVal={setMinVal}
             onChangeMaxVal={setMaxVal}
             isLoading={isLoadingPoints}
+            clusters={clusters}
+            selectedClusterId={selectedClusterId}
+            onChangeClusterId={setSelectedClusterId}
           />
         </section>
 
@@ -482,6 +499,7 @@ export default function DashboardPage() {
               onMapClickCoords={(coords) => {
                 console.log('Map clicked coordinates:', coords);
               }}
+              selectedClusterId={selectedClusterId}
             />
           </div>
 

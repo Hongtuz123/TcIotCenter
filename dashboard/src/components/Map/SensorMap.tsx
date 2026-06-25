@@ -11,6 +11,7 @@ interface SensorMapProps {
   selectedSensorId: string | null;
   onSelectSensor: (sensorId: string) => void;
   onMapClickCoords?: (coords: { lat: number; lon: number }) => void;
+  selectedClusterId: string | null;
 }
 
 export const SensorMap: React.FC<SensorMapProps> = ({
@@ -18,7 +19,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   clusters,
   selectedSensorId,
   onSelectSensor,
-  onMapClickCoords
+  onMapClickCoords,
+  selectedClusterId
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -347,6 +349,23 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     });
 
   }, [clusters, isLoaded, styleVersion]);
+
+  // 5. 監聽 selectedClusterId 變更，地圖平滑飛越與縮放
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded || !selectedClusterId) return;
+
+    const cluster = clusters.find((c) => c.id === selectedClusterId);
+    if (cluster) {
+      console.log(`Zooming in to cluster ${selectedClusterId} at [${cluster.center.lon}, ${cluster.center.lat}]`);
+      mapRef.current.flyTo({
+        center: [cluster.center.lon, cluster.center.lat],
+        zoom: 14.5,
+        speed: 1.2,
+        curve: 1.4,
+        essential: true
+      });
+    }
+  }, [selectedClusterId, clusters, isLoaded]);
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
