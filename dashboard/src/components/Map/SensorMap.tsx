@@ -12,6 +12,8 @@ interface SensorMapProps {
   onSelectSensor: (sensorId: string) => void;
   onMapClickCoords?: (coords: { lat: number; lon: number }) => void;
   selectedClusterId: string | null;
+  selectedFilter: { type: 'all' | 'county' | 'zone'; value: string };
+  regionCenters: { [key: string]: [number, number] };
 }
 
 export const SensorMap: React.FC<SensorMapProps> = ({
@@ -20,7 +22,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   selectedSensorId,
   onSelectSensor,
   onMapClickCoords,
-  selectedClusterId
+  selectedClusterId,
+  selectedFilter,
+  regionCenters
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -366,6 +370,35 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       });
     }
   }, [selectedClusterId, clusters, isLoaded]);
+
+  // 5.5 監聽第一層篩選變更，地圖平滑飛越與縮放至區域中心
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    if (selectedFilter.type === 'all') {
+      console.log('Resetting map camera to Taichung city center.');
+      mapRef.current.flyTo({
+        center: [120.64, 24.16],
+        zoom: 12.5,
+        speed: 1.2,
+        curve: 1.4,
+        essential: true
+      });
+      return;
+    }
+
+    const key = `${selectedFilter.type}_${selectedFilter.value}`;
+    const center = regionCenters[key];
+    if (center) {
+      console.log(`Zooming in to region ${key} at [${center[0]}, ${center[1]}]`);
+      mapRef.current.flyTo({
+        center: center,
+        zoom: selectedFilter.type === 'zone' ? 14.2 : 13.2,
+        speed: 1.2,
+        curve: 1.4,
+        essential: true
+      });
+    }
+  }, [selectedFilter, regionCenters, isLoaded]);
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">

@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [sensorZoneMap, setSensorZoneMap] = useState<{ [id: string]: string }>({});
   const [zoneNames, setZoneNames] = useState<string[]>([]);
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
+  const [regionCenters, setRegionCenters] = useState<{ [key: string]: [number, number] }>({});
   const [minVal, setMinVal] = useState(0);
   const [maxVal, setMaxVal] = useState(300);
 
@@ -75,6 +76,17 @@ export default function DashboardPage() {
         const geojson = await geoRes.json();
         const zones: string[] = [];
         const zoneMap: { [id: string]: string } = {};
+        const centers: { [key: string]: [number, number] } = {};
+
+        // 1. 計算行政區的中心座標 (以測點平均經緯度)
+        extractedCounties.forEach((county) => {
+          const countyPts = sensorsData.filter((s) => s.county === county);
+          if (countyPts.length > 0) {
+            const avgLon = countyPts.reduce((sum, p) => sum + p.lon, 0) / countyPts.length;
+            const avgLat = countyPts.reduce((sum, p) => sum + p.lat, 0) / countyPts.length;
+            centers[`county_${county}`] = [avgLon, avgLat];
+          }
+        });
 
         if (geojson && geojson.features) {
           geojson.features.forEach((feature: any) => {
@@ -83,6 +95,25 @@ export default function DashboardPage() {
               zones.push(zoneName);
             }
             const geom = feature.geometry;
+
+            // 2. 計算園區幾何中心 (多邊形頂點平均經緯度)
+            let sumLon = 0, sumLat = 0, count = 0;
+            const processCoords = (ring: [number, number][]) => {
+              ring.forEach(([lon, lat]) => {
+                sumLon += lon;
+                sumLat += lat;
+                count++;
+              });
+            };
+            if (geom.type === 'Polygon') {
+              geom.coordinates.forEach(processCoords);
+            } else if (geom.type === 'MultiPolygon') {
+              geom.coordinates.forEach((poly: any) => poly.forEach(processCoords));
+            }
+            if (count > 0 && zoneName) {
+              centers[`zone_${zoneName}`] = [sumLon / count, sumLat / count];
+            }
+
             sensorsData.forEach((sensor) => {
               const pt: [number, number] = [sensor.lon, sensor.lat];
               let inZone = false;
@@ -101,6 +132,7 @@ export default function DashboardPage() {
         }
         setZoneNames(zones.sort());
         setSensorZoneMap(zoneMap);
+        setRegionCenters(centers);
 
         // 取得系統閾值設定
         const settingsRes = await fetch('/api/settings');
@@ -500,6 +532,8 @@ export default function DashboardPage() {
                 console.log('Map clicked coordinates:', coords);
               }}
               selectedClusterId={selectedClusterId}
+              selectedFilter={selectedFilter}
+              regionCenters={regionCenters}
             />
           </div>
 
