@@ -542,41 +542,88 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
   const renderScaleBar = () => {
     let gradientStyle = '';
-    let minText = '0';
-    let maxText = '100';
     let unit = '';
     let title = '';
+    let steps: { value: number; label: string }[] = [];
+
+    // 計算當前測值實際最大值與最小值
+    const validVals = points
+      .map(pt => pt[selectedMetric])
+      .filter(val => val !== null && val !== undefined && !isNaN(val)) as number[];
+    const actualMin = validVals.length > 0 ? Math.min(...validVals) : 0;
+    const actualMax = validVals.length > 0 ? Math.max(...validVals) : 0;
 
     if (selectedMetric === 'pm2_5') {
       title = 'PM₂.₅ 熱區密度';
       gradientStyle = 'linear-gradient(to right, #10b981, #eab308, #f97316, #ef4444, #a855f7)';
-      minText = '0';
-      maxText = '75';
-      unit = 'ug/m³';
+      unit = 'µg/m³';
+      steps = [
+        { value: 0, label: '0' },
+        { value: 15, label: '15' },
+        { value: 35, label: '35' },
+        { value: 55, label: '55' },
+        { value: 75, label: '75+' }
+      ];
     } else if (selectedMetric === 'temperature') {
       title = '溫度熱區密度';
       gradientStyle = 'linear-gradient(to right, #3b82f6, #10b981, #f59e0b, #ef4444)';
-      minText = '0';
-      maxText = '40';
       unit = '°C';
+      steps = [
+        { value: 0, label: '0' },
+        { value: 8, label: '8' },
+        { value: 20, label: '20' },
+        { value: 32, label: '32' },
+        { value: 40, label: '40+' }
+      ];
     } else if (selectedMetric === 'humidity') {
       title = '濕度熱區密度';
       gradientStyle = 'linear-gradient(to right, #f97316, #10b981, #3b82f6)';
-      minText = '0';
-      maxText = '100';
       unit = '%';
+      steps = [
+        { value: 0, label: '0' },
+        { value: 30, label: '30' },
+        { value: 60, label: '60' },
+        { value: 100, label: '100' }
+      ];
     }
 
+    const actualMinStr = validVals.length > 0 ? `${actualMin.toFixed(1)} ${unit}` : 'N/A';
+    const actualMaxStr = validVals.length > 0 ? `${actualMax.toFixed(1)} ${unit}` : 'N/A';
+
     return (
-      <div className="hidden sm:flex absolute bottom-4 right-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-1.5 min-w-[200px] border border-slate-800">
-        <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">{title}</h5>
-        <div 
-          className="w-full h-3 rounded-md shadow-inner" 
-          style={{ background: gradientStyle }}
-        />
-        <div className="flex justify-between text-[10px] text-slate-400 font-semibold px-0.5 mt-0.5">
-          <span>{minText} {unit}</span>
-          <span>{maxText} {unit}</span>
+      <div className="absolute bottom-4 right-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex flex-col gap-2 min-w-[210px] max-w-[240px] border border-slate-800 bg-slate-950/80 backdrop-blur-md">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-0.5">
+          <h5 className="font-bold text-slate-200">{title}</h5>
+          <span className="text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded-full font-semibold">
+            {unit}
+          </span>
+        </div>
+        
+        {/* 顏色漸層條 */}
+        <div className="relative my-0.5">
+          <div 
+            className="w-full h-3 rounded-full shadow-inner border border-slate-800/80" 
+            style={{ background: gradientStyle }}
+          />
+        </div>
+
+        {/* 顏色對應的測值切點 */}
+        <div className="flex justify-between text-[10px] text-slate-400 font-bold px-1 mb-0.5">
+          {steps.map((step, idx) => (
+            <span key={idx}>{step.label}</span>
+          ))}
+        </div>
+
+        {/* 當前實測最大/最小值展示 */}
+        <div className="bg-slate-900/60 rounded-lg p-2 flex flex-col gap-1 border border-slate-800/50">
+          <div className="flex justify-between text-[10px]">
+            <span className="text-slate-500">當前實測最小值:</span>
+            <span className="font-bold text-emerald-400">{actualMinStr}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="text-slate-500">當前實測最大值:</span>
+            <span className="font-bold text-red-400">{actualMaxStr}</span>
+          </div>
         </div>
       </div>
     );
