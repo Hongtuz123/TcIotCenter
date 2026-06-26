@@ -61,33 +61,40 @@ export async function GET(request: NextRequest) {
 
     // ── Tier 1: Supabase ──────────────────────────────────────────────────────
     if (supabase) {
-      // 取最新 5 分鐘桶的所有站資料（latest bucket within 30 min）
-      const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      // 取最近 2 小時內的資料（擴大窗口，避免 Actions 偶爾延遲導致全空）
+      const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
-      const { data: obsData, error: obsErr } = await supabase
-        .from('observations_5m')
-        .select(`
-          station_id,
-          bucket_time,
-          pm2_5,
-          temperature,
-          humidity,
-          is_anomaly,
-          anomaly_type,
-          sensors!inner(device_name, lat, lon, township, area)
-        `)
-        .gte('bucket_time', since)
-        .order('bucket_time', { ascending: false })
-        .range(0, 10000);
-
-      if (obsErr) throw obsErr;
-
-      // 每站只取最新一筆
+      // 分頁迴圈抓取，突破 Supabase max_rows=1000 限制
       const latestMap = new Map<string, any>();
-      for (const row of (obsData || [])) {
-        if (!latestMap.has(row.station_id)) {
-          latestMap.set(row.station_id, row);
+      let from = 0;
+      while (true) {
+        const { data: obsPage, error: obsErr } = await supabase
+          .from('observations_5m')
+          .select(`
+            station_id,
+            bucket_time,
+            pm2_5,
+            temperature,
+            humidity,
+            is_anomaly,
+            anomaly_type,
+            sensors!inner(device_name, lat, lon, township, area)
+          `)
+          .gte('bucket_time', since)
+          .order('bucket_time', { ascending: false })
+          .range(from, from + 999);
+
+        if (obsErr) throw obsErr;
+        if (!obsPage || obsPage.length === 0) break;
+
+        // 每站只保留最新一筆
+        for (const row of obsPage) {
+          if (!latestMap.has(row.station_id)) {
+            latestMap.set(row.station_id, row);
+          }
         }
+        if (obsPage.length < 1000) break;
+        from += 1000;
       }
 
       const allPoints = Array.from(latestMap.values()).map((row) => {
