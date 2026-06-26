@@ -77,7 +77,8 @@ export async function GET(request: NextRequest) {
           sensors!inner(device_name, lat, lon, township, area)
         `)
         .gte('bucket_time', since)
-        .order('bucket_time', { ascending: false });
+        .order('bucket_time', { ascending: false })
+        .range(0, 10000);
 
       if (obsErr) throw obsErr;
 

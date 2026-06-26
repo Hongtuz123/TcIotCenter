@@ -52,7 +52,8 @@ export async function GET() {
       .from('observations_5m')
       .select('station_id')
       .gte('bucket_time', windowStart)
-      .lte('bucket_time', windowEnd);
+      .lte('bucket_time', windowEnd)
+      .range(0, 25000);
 
     const activeSensorIds = new Set((activeSensors || []).map((r: any) => r.station_id));
     const onlineCount = activeSensorIds.size;

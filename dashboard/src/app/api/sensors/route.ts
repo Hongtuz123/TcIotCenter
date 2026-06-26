@@ -19,7 +19,8 @@ export async function GET() {
           township,
           area,
           area_type
-        `);
+        `)
+        .range(0, 3000);
 
       if (error) throw error;
 
@@ -34,7 +35,8 @@ export async function GET() {
           .from('observations_5m')
           .select('station_id, bucket_time, pm2_5, temperature, humidity, is_anomaly, anomaly_type')
           .gte('bucket_time', oneHourAgo)
-          .order('bucket_time', { ascending: false });
+          .order('bucket_time', { ascending: false })
+          .range(0, 25000);
 
         if (obsData) {
           // 每站只保留最新一筆

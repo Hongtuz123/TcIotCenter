@@ -85,7 +85,8 @@ export async function GET(request: NextRequest) {
         .gte('bucket_time', timeStart)
         .lte('bucket_time', timeEnd)
         .eq('is_anomaly', true)
-        .order('bucket_time', { ascending: true });
+        .order('bucket_time', { ascending: true })
+        .range(0, 10000);
 
       if (obsErr) throw obsErr;
 
