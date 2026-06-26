@@ -206,7 +206,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     points.forEach((point) => {
       // 建立 Marker 外層容器（支援雷達脇衝環效果）
       const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'position:relative;display:flex;align-items:center;justify-content:center;';
+      wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;';
 
       // 建立自訂 DOM 元素作為 Marker
       const el = document.createElement('div');
