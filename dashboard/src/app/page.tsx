@@ -671,9 +671,9 @@ export default function DashboardPage() {
             onChangeMinVal={setMinVal}
             onChangeMaxVal={setMaxVal}
             isLoading={isLoadingPoints}
-            clusters={clusters24h}
-            selectedClusterId={selectedClusterId}
-            onChangeClusterId={handleClusterChange}
+            highPollutionDevices={points.filter((p) => p.isAnomaly || (p.pm2_5 !== null && p.pm2_5 > systemSettings.pm25_threshold))}
+            selectedHighPollutionDeviceId={selectedSensorId}
+            onChangeHighPollutionDeviceId={setSelectedSensorId}
           />
         </section>
 

@@ -35,6 +35,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [showIndustrialZones, setShowIndustrialZones] = useState(true);
   const [showSensors, setShowSensors] = useState(true);
+  const [showHeatmap, setShowHeatmap] = useState(true);
   const [styleVersion, setStyleVersion] = useState(0);
   const showIndustrialZonesRef = useRef(showIndustrialZones);
   const prevStyleRef = useRef(mapStyle);
@@ -432,6 +433,24 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     }
   }, [selectedSensorId, isLoaded]);
 
+  // 3.2 監聽 selectedSensorId 變更，地圖平滑飛越與縮放至該設備
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded || !selectedSensorId) return;
+
+    const marker = markersRef.current[selectedSensorId];
+    if (marker) {
+      const lngLat = marker.getLngLat();
+      console.log(`Zooming in to selected sensor ${selectedSensorId} at [${lngLat.lng}, ${lngLat.lat}]`);
+      mapRef.current.flyTo({
+        center: [lngLat.lng, lngLat.lat],
+        zoom: 14.5,
+        speed: 1.2,
+        curve: 1.4,
+        essential: true
+      });
+    }
+  }, [selectedSensorId, isLoaded]);
+
   // 3.5 更新核密度圖 (Heatmap Layer)
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
@@ -440,6 +459,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     // 先清除舊的 Layer 和 Source
     if (map.getLayer('sensors-heatmap-layer')) map.removeLayer('sensors-heatmap-layer');
     if (map.getSource('sensors-heatmap-source')) map.removeSource('sensors-heatmap-source');
+
+    if (!showHeatmap) return;
 
     // 建立 GeoJSON FeatureCollection
     const features = points
@@ -539,7 +560,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
     }, map.getLayer('industrial-zones-fill') ? 'industrial-zones-fill' : undefined);
 
-  }, [points, selectedMetric, isLoaded, styleVersion]);
+  }, [points, selectedMetric, isLoaded, styleVersion, showHeatmap]);
 
   // 4. 更新聚類熱區 Layer
   useEffect(() => {
@@ -847,6 +868,16 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
             />
             顯示微感測點
+          </label>
+          <div className="h-px sm:h-4 w-full sm:w-px bg-slate-800 self-stretch sm:self-center" />
+          <label className="flex items-center gap-1.5 text-slate-300 font-medium cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showHeatmap}
+              onChange={(e) => setShowHeatmap(e.target.checked)}
+              className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+            />
+            顯示污染熱區
           </label>
         </div>
       )}

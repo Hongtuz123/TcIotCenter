@@ -2,7 +2,7 @@
  
 import React from 'react';
 import { Calendar, Sliders, MapPin, Wind, Thermometer, Droplets, Flame } from 'lucide-react';
-import { Sensor, Cluster } from '@/types';
+import { Sensor, Observation } from '@/types';
  
 interface FilterPanelProps {
   counties: string[];
@@ -26,9 +26,9 @@ interface FilterPanelProps {
   onChangeMinVal: (val: number) => void;
   onChangeMaxVal: (val: number) => void;
   isLoading: boolean;
-  clusters: Cluster[];
-  selectedClusterId: string | null;
-  onChangeClusterId: (id: string | null) => void;
+  highPollutionDevices: (Sensor & Observation)[];
+  selectedHighPollutionDeviceId: string | null;
+  onChangeHighPollutionDeviceId: (id: string | null) => void;
 }
  
 export const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -51,9 +51,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   onChangeMinVal,
   onChangeMaxVal,
   isLoading,
-  clusters,
-  selectedClusterId,
-  onChangeClusterId
+  highPollutionDevices,
+  selectedHighPollutionDeviceId,
+  onChangeHighPollutionDeviceId
 }) => {
   return (
     <div className="glass-card neon-border rounded-2xl p-4 lg:p-5 flex flex-col gap-4 lg:gap-6 shadow-xl h-full overflow-y-auto">
@@ -187,21 +187,21 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         </div>
       </div>
  
-      {/* 24小時內污染熱區 */}
+      {/* 高污染設備 */}
       <div className="flex flex-col gap-2 border-t border-slate-800/60 pt-4">
         <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
-          <Flame className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
-          24小時內污染熱區為 {clusters.length} 處
+          <Flame className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+          超標高污染設備 ({highPollutionDevices.length} 處)
         </label>
         <select
-          value={selectedClusterId || ''}
-          onChange={(e) => onChangeClusterId(e.target.value || null)}
+          value={selectedHighPollutionDeviceId || ''}
+          onChange={(e) => onChangeHighPollutionDeviceId(e.target.value || null)}
           className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500 transition-colors w-full cursor-pointer"
         >
-          <option value="">選擇污染熱區 (無選擇)</option>
-          {clusters.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} ({c.stationsCount}站, PM₂.₅:{c.avgPm25.toFixed(1)})
+          <option value="">選擇高污染設備 (無選擇)</option>
+          {highPollutionDevices.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name || d.id} (PM₂.₅: {d.pm2_5 !== null && d.pm2_5 !== undefined ? d.pm2_5.toFixed(1) : 'N/A'})
             </option>
           ))}
         </select>
