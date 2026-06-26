@@ -116,25 +116,30 @@ async function syncSensors(force = false): Promise<Map<string, StaThing['propert
   const shouldFetchFromAPI = force || nowHour === 0;
 
   if (!shouldFetchFromAPI) {
-    // 非每日同步時段 → 直接從 Supabase 讀取快取站清單
+    // 非每日同步時段 → 分頁讀取 Supabase 快取（突破 max_rows 1000 限制）
     console.log('\n📡 Phase 1: 從 Supabase 讀取測站快取（非每日同步時段）...');
-    const { data, error } = await supabase
-      .from('sensors')
-      .select('station_id,device_name,city,township,area,area_type');
-    if (error) {
-      console.error('  sensors 快取讀取失敗:', error.message);
-    }
     const propMap = new Map<string, StaThing['properties']>();
-    (data || []).forEach((row: any) =>
-      propMap.set(row.station_id, {
-        stationID: row.station_id,
-        deviceName: row.device_name,
-        city: row.city,
-        township: row.township,
-        area: row.area,
-        areaType: row.area_type,
-      })
-    );
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('sensors')
+        .select('station_id,device_name,city,township,area,area_type')
+        .range(from, from + 999);
+      if (error) { console.error('  sensors 快取讀取失敗:', error.message); break; }
+      if (!data || data.length === 0) break;
+      data.forEach((row: any) =>
+        propMap.set(row.station_id, {
+          stationID: row.station_id,
+          deviceName: row.device_name,
+          city: row.city,
+          township: row.township,
+          area: row.area,
+          areaType: row.area_type,
+        })
+      );
+      if (data.length < 1000) break;
+      from += 1000;
+    }
     console.log(`  ✅ 快取讀取 ${propMap.size} 站`);
     return propMap;
   }
