@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const [startTime, setStartTime] = useState('08:00:00');
   const [endTime, setEndTime] = useState('18:00:00');
   const [currentTime, setCurrentTime] = useState('2026-04-02 08:00:00');
-  const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity' | 'voc'>('pm2_5');
+  const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity'>('pm2_5');
   const [sensorZoneMap, setSensorZoneMap] = useState<{ [id: string]: string }>({});
   const [zoneNames, setZoneNames] = useState<string[]>([]);
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
@@ -657,6 +657,7 @@ export default function DashboardPage() {
               selectedClusterId={selectedClusterId}
               selectedFilter={selectedFilter}
               regionCenters={regionCenters}
+              selectedMetric={selectedMetric}
             />
           </div>
 

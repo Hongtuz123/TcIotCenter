@@ -14,6 +14,7 @@ interface SensorMapProps {
   selectedClusterId: string | null;
   selectedFilter: { type: 'all' | 'county' | 'zone'; value: string };
   regionCenters: { [key: string]: [number, number] };
+  selectedMetric: 'pm2_5' | 'temperature' | 'humidity';
 }
 
 export const SensorMap: React.FC<SensorMapProps> = ({
@@ -24,7 +25,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   onMapClickCoords,
   selectedClusterId,
   selectedFilter,
-  regionCenters
+  regionCenters,
+  selectedMetric
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -175,12 +177,27 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       el.className = `w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50`;
       el.style.cssText = 'position:relative;z-index:1;';
 
-      // 根據測値設定顏色分級 (對齊 AQI 新門檻)
-      const val = point.pm2_5 || 0;
-      let bgColor = 'bg-emerald-500'; // 良好 (0.0 ~ 15.4)
-      if (val >= 15.5 && val <= 35.4) bgColor = 'bg-yellow-500'; // 普通
-      if (val >= 35.5 && val <= 54.4) bgColor = 'bg-orange-500'; // 對敏感族群不健康
-      if (val >= 54.5) bgColor = 'bg-red-500'; // 對所有族群不健康
+      // 根據當前展示測項設定數值與顏色分級
+      const val = point[selectedMetric];
+      let bgColor = 'bg-slate-500'; // 預設灰色（無資料）
+
+      if (val !== null && val !== undefined) {
+        if (selectedMetric === 'pm2_5') {
+          if (val < 15.5) bgColor = 'bg-emerald-500'; // 良好
+          else if (val <= 35.4) bgColor = 'bg-yellow-500'; // 普通
+          else if (val <= 54.4) bgColor = 'bg-orange-500'; // 敏感不健康
+          else bgColor = 'bg-red-500'; // 不健康
+        } else if (selectedMetric === 'temperature') {
+          if (val < 20.0) bgColor = 'bg-blue-500'; // 涼爽
+          else if (val <= 28.0) bgColor = 'bg-emerald-500'; // 舒適
+          else if (val <= 35.0) bgColor = 'bg-yellow-500'; // 偏熱
+          else bgColor = 'bg-red-500'; // 炎熱
+        } else if (selectedMetric === 'humidity') {
+          if (val < 40) bgColor = 'bg-orange-500'; // 乾燥
+          else if (val <= 70) bgColor = 'bg-emerald-500'; // 舒適
+          else bgColor = 'bg-blue-500'; // 潮濕
+        }
+      }
 
       const isFire = point.anomalyType === '疑似露天燃燒';
       const isFactory = point.anomalyType === '疑似工廠排污';
@@ -200,7 +217,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         ping.className = 'radar-ping';
         ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
         wrapper.appendChild(ping);
-      } else if (val > 54) {
+      } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54) {
         el.className += ` ${bgColor}`;
         const ping = document.createElement('div');
         ping.className = 'radar-ping';
@@ -218,20 +235,35 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         onSelectSensor(point.id);
       });
 
-      // 深色玻璃風格彈出氣泡窗
+      // 設定當前測項名稱與測值字串
+      let metricName = '';
+      let metricValStr = '';
+      if (selectedMetric === 'pm2_5') {
+        metricName = 'PM₂.₅';
+        metricValStr = val !== null && val !== undefined ? `${val} ug/m³` : 'N/A';
+      } else if (selectedMetric === 'temperature') {
+        metricName = '溫度';
+        metricValStr = val !== null && val !== undefined ? `${val} °C` : 'N/A';
+      } else if (selectedMetric === 'humidity') {
+        metricName = '濕度';
+        metricValStr = val !== null && val !== undefined ? `${val} %` : 'N/A';
+      }
+
+      // 深色玻璃風格彈出氣泡窗，只呈現 deviceID、經緯度、測項、測值
       const popup = new mapboxgl.Popup({ offset: 15, className: 'dark-popup' }).setHTML(`
-        <div style="padding:10px;font-family:Inter,sans-serif;color:#f1f5f9;background:rgba(8,14,26,0.97);border-radius:10px;min-width:180px;">
-          <h4 style="font-weight:700;border-bottom:1px solid rgba(249,115,22,0.25);padding-bottom:6px;margin-bottom:6px;color:#fff;font-size:12px;">${point.name} (${point.id})</h4>
-          <p style="font-size:11px;color:#94a3b8;margin-bottom:6px;">區域：${point.county}</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;font-size:11px;">
-            <span style="color:#64748b;">PM₂.₅:</span>
-            <span style="font-weight:700;color:${val > 54 ? '#f87171' : '#e2e8f0'}">${val} ug/m³</span>
-            <span style="color:#64748b;">溫度:</span>
-            <span style="font-weight:700;color:#e2e8f0;">${point.temperature !== null ? point.temperature + ' °C' : 'N/A'}</span>
-            <span style="color:#64748b;">濕度:</span>
-            <span style="font-weight:700;color:#e2e8f0;">${point.humidity !== null ? point.humidity + ' %' : 'N/A'}</span>
-            <span style="color:#64748b;">VOC:</span>
-            <span style="font-weight:700;color:#e2e8f0;">${point.voc !== null ? point.voc + ' ppm' : 'N/A'}</span>
+        <div style="padding:10px;font-family:Inter,sans-serif;color:#f1f5f9;background:rgba(8,14,26,0.97);border-radius:10px;min-width:180px;border:1px solid rgba(249,115,22,0.35);">
+          <div style="display:grid;grid-template-columns:70px 1fr;gap:6px 8px;font-size:11px;align-items:center;">
+            <span style="color:#64748b;font-weight:600;">Device ID:</span>
+            <span style="font-weight:700;color:#fff;">${point.id}</span>
+            
+            <span style="color:#64748b;font-weight:600;">經緯度:</span>
+            <span style="font-weight:700;color:#e2e8f0;">${point.lon.toFixed(5)}, ${point.lat.toFixed(5)}</span>
+            
+            <span style="color:#64748b;font-weight:600;">測項:</span>
+            <span style="font-weight:700;color:#e2e8f0;">${metricName}</span>
+            
+            <span style="color:#64748b;font-weight:600;">測值:</span>
+            <span style="font-weight:700;color:#f97316;font-size:12px;">${metricValStr}</span>
           </div>
           ${point.anomalyType ? `<p style="margin-top:8px;font-size:11px;font-weight:700;color:#f87171;background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:6px;text-align:center;border:1px solid rgba(239,68,68,0.2);">🚨 警告：${point.anomalyType}</p>` : ''}
         </div>
@@ -245,7 +277,115 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       markersRef.current[point.id] = marker;
     });
-  }, [points, selectedSensorId, isLoaded]);
+  }, [points, selectedSensorId, isLoaded, selectedMetric]);
+
+  // 3.5 更新核密度圖 (Heatmap Layer)
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+
+    // 先清除舊的 Layer 和 Source
+    if (map.getLayer('sensors-heatmap-layer')) map.removeLayer('sensors-heatmap-layer');
+    if (map.getSource('sensors-heatmap-source')) map.removeSource('sensors-heatmap-source');
+
+    // 建立 GeoJSON FeatureCollection
+    const features = points
+      .filter((pt) => {
+        const val = pt[selectedMetric];
+        return val !== null && val !== undefined && !isNaN(val);
+      })
+      .map((pt) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [pt.lon, pt.lat]
+        },
+        properties: {
+          id: pt.id,
+          value: pt[selectedMetric]
+        }
+      }));
+
+    if (features.length === 0) return;
+
+    map.addSource('sensors-heatmap-source', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: features as any
+      }
+    });
+
+    // 根據 selectedMetric 動態調整權重插值範圍
+    let maxVal = 100;
+    if (selectedMetric === 'pm2_5') maxVal = 75;
+    else if (selectedMetric === 'temperature') maxVal = 40;
+    else if (selectedMetric === 'humidity') maxVal = 100;
+
+    map.addLayer({
+      id: 'sensors-heatmap-layer',
+      type: 'heatmap',
+      source: 'sensors-heatmap-source',
+      maxzoom: 15,
+      paint: {
+        'heatmap-weight': [
+          'interpolate',
+          ['linear'],
+          ['get', 'value'],
+          0, 0,
+          maxVal, 1
+        ],
+        'heatmap-intensity': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          0, 1,
+          15, 3
+        ],
+        'heatmap-color': selectedMetric === 'temperature'
+          ? [
+              'interpolate',
+              ['linear'],
+              ['heatmap-density'],
+              0, 'rgba(0,0,0,0)',
+              0.2, '#3b82f6', // 涼爽
+              0.5, '#10b981', // 舒適
+              0.8, '#f59e0b', // 偏熱
+              1.0, '#ef4444'  // 炎熱
+            ]
+          : selectedMetric === 'humidity'
+          ? [
+              'interpolate',
+              ['linear'],
+              ['heatmap-density'],
+              0, 'rgba(0,0,0,0)',
+              0.3, '#f97316', // 乾燥
+              0.6, '#10b981', // 舒適
+              1.0, '#3b82f6'  // 潮濕
+            ]
+          : [
+              'interpolate',
+              ['linear'],
+              ['heatmap-density'],
+              0, 'rgba(0,0,0,0)',
+              0.2, '#10b981', // 良好
+              0.4, '#eab308', // 普通
+              0.6, '#f97316', // 敏感橘
+              0.8, '#ef4444', // 不健康
+              1.0, '#a855f7'  // 非常不健康
+            ],
+        'heatmap-radius': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          0, 15,
+          15, 45
+        ],
+        'heatmap-opacity': 0.55
+      }
+    }, map.getLayer('industrial-zones-fill') ? 'industrial-zones-fill' : undefined);
+
+  }, [points, selectedMetric, isLoaded, styleVersion]);
 
   // 4. 更新聚類熱區 Layer
   useEffect(() => {
@@ -446,23 +586,65 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       {/* 圖例說明 */}
       <div className="hidden sm:flex absolute bottom-4 left-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-2 min-w-[150px]">
-        <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">PM₂.₅ 圖例</h5>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-emerald-500" />
-          <span className="text-slate-400">良好 (0.0 ~ 15.4)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-yellow-500" />
-          <span className="text-slate-400">普通 (15.5 ~ 35.4)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-orange-500" />
-          <span className="text-slate-400">對敏感族群不健康 (35.5 ~ 54.4)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-slate-400">對所有族群不健康 (54.5+)</span>
-        </div>
+        {selectedMetric === 'pm2_5' && (
+          <>
+            <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">PM₂.₅ 圖例 (ug/m³)</h5>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-slate-400">良好 (0.0 ~ 15.4)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-yellow-500" />
+              <span className="text-slate-400">普通 (15.5 ~ 35.4)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-orange-500" />
+              <span className="text-slate-400">敏感不健康 (35.5 ~ 54.4)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-slate-400">不健康 (54.5+)</span>
+            </div>
+          </>
+        )}
+        {selectedMetric === 'temperature' && (
+          <>
+            <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">溫度圖例 (°C)</h5>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-slate-400">涼爽 (&lt; 20.0)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-slate-400">舒適 (20.0 ~ 28.0)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-yellow-500" />
+              <span className="text-slate-400">偏熱 (28.1 ~ 35.0)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-slate-400">炎熱 (35.1+)</span>
+            </div>
+          </>
+        )}
+        {selectedMetric === 'humidity' && (
+          <>
+            <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">濕度圖例 (%)</h5>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-orange-500" />
+              <span className="text-slate-400">乾燥 (&lt; 40)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-slate-400">舒適 (40 ~ 70)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-slate-400">潮濕 (71+)</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -22,8 +22,8 @@ interface FilterPanelProps {
   endTime: string;
   onChangeEndTime: (time: string) => void;
  
-  selectedMetric: 'pm2_5' | 'temperature' | 'humidity' | 'voc';
-  onChangeMetric: (metric: 'pm2_5' | 'temperature' | 'humidity' | 'voc') => void;
+  selectedMetric: 'pm2_5' | 'temperature' | 'humidity';
+  onChangeMetric: (metric: 'pm2_5' | 'temperature' | 'humidity') => void;
   minVal: number;
   maxVal: number;
   onChangeMinVal: (val: number) => void;
@@ -215,7 +215,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           <option value="pm2_5">PM₂.₅</option>
           <option value="temperature">溫度</option>
           <option value="humidity">濕度</option>
-          <option value="voc">VOC</option>
         </select>
       </div>
  
