@@ -34,6 +34,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [mapStyle, setMapStyle] = useState<'dark-v11' | 'satellite-streets-v12' | 'streets-v12'>('dark-v11');
   const [isLoaded, setIsLoaded] = useState(false);
   const [showIndustrialZones, setShowIndustrialZones] = useState(true);
+  const [showSensors, setShowSensors] = useState(true);
   const [styleVersion, setStyleVersion] = useState(0);
   const showIndustrialZonesRef = useRef(showIndustrialZones);
   const prevStyleRef = useRef(mapStyle);
@@ -195,24 +196,29 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     }
   }, [showIndustrialZones, isLoaded]);
 
-  // 3. 更新 Marker 點位與顏色
+  // 3. 更新 Marker 點位與顏色 (Surgical Diff 更新，保留 Marker 實例以維持 Popup 狀態)
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
 
-    // 清除舊的 Markers
-    Object.values(markersRef.current).forEach((marker) => marker.remove());
-    markersRef.current = {};
+    if (!showSensors) {
+      // 隱藏時，清除所有 Markers
+      Object.values(markersRef.current).forEach((marker) => marker.remove());
+      markersRef.current = {};
+      return;
+    }
 
+    const currentPointIds = new Set(points.map((p) => p.id));
+
+    // 1. 移除地圖上已不存在於 points 中的舊 Markers
+    Object.keys(markersRef.current).forEach((id) => {
+      if (!currentPointIds.has(id)) {
+        markersRef.current[id].remove();
+        delete markersRef.current[id];
+      }
+    });
+
+    // 2. 更新或新增 Markers
     points.forEach((point) => {
-      // 建立 Marker 外層容器（支援雷達脇衝環效果）
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;';
-
-      // 建立自訂 DOM 元素作為 Marker
-      const el = document.createElement('div');
-      el.className = `sensor-dot w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50`;
-      el.style.cssText = 'position:relative;z-index:1;';
-
       // 根據當前展示測項設定數值與顏色分級
       const val = point[selectedMetric];
       let bgColor = 'bg-slate-500'; // 預設灰色（無資料）
@@ -240,54 +246,29 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       const isFire = point.anomalyType === '疑似露天燃燒';
       const isFactory = point.anomalyType === '疑似工廠排污';
 
-      if (isFire) {
-        el.className += ` ${bgColor} border-red-300 ring-4 ring-orange-500/30`;
-        el.innerHTML = '🔥';
-        // 雷達脇衝環
-        const ping = document.createElement('div');
-        ping.className = 'radar-ping';
-        ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
-        wrapper.appendChild(ping);
-      } else if (isFactory) {
-        el.className += ` ${bgColor} border-purple-300 ring-4 ring-purple-500/30`;
-        el.innerHTML = '🏭';
-        const ping = document.createElement('div');
-        ping.className = 'radar-ping';
-        ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
-        wrapper.appendChild(ping);
-      } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54.4) {
-        el.className += ` ${bgColor}`;
-        const ping = document.createElement('div');
-        ping.className = 'radar-ping';
-        ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
-        wrapper.appendChild(ping);
-      } else {
-        el.className += ` ${bgColor}`;
+      // 格式化資料時間為易讀格式
+      let timeStr = 'N/A';
+      if (point.time) {
+        try {
+          const d = new Date(point.time);
+          if (!isNaN(d.getTime())) {
+            const pad = (n: number) => String(n).padStart(2, '0');
+            timeStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+          } else {
+            timeStr = point.time;
+          }
+        } catch {
+          timeStr = point.time;
+        }
       }
 
-      el.addEventListener('click', () => {
-        onSelectSensor(point.id);
-      });
+      const pm25Str = point.pm2_5 !== null && point.pm2_5 !== undefined ? `${point.pm2_5} ug/m³` : 'N/A';
+      const tempStr = point.temperature !== null && point.temperature !== undefined ? `${point.temperature} °C` : 'N/A';
+      const humStr = point.humidity !== null && point.humidity !== undefined ? `${point.humidity} %` : 'N/A';
 
-      wrapper.appendChild(el);
-
-      // 設定當前測項名稱與測值字串
-      let metricName = '';
-      let metricValStr = '';
-      if (selectedMetric === 'pm2_5') {
-        metricName = 'PM₂.₅';
-        metricValStr = val !== null && val !== undefined ? `${val} ug/m³` : 'N/A';
-      } else if (selectedMetric === 'temperature') {
-        metricName = '溫度';
-        metricValStr = val !== null && val !== undefined ? `${val} °C` : 'N/A';
-      } else if (selectedMetric === 'humidity') {
-        metricName = '濕度';
-        metricValStr = val !== null && val !== undefined ? `${val} %` : 'N/A';
-      }
-
-      // 深色玻璃風格彈出氣泡窗，只呈現 deviceID、經緯度、測項、測值
-      const popup = new mapboxgl.Popup({ offset: 15, className: 'dark-popup' }).setHTML(`
-        <div class="font-sans min-w-[180px]">
+      // 深色玻璃風格彈出氣泡窗，一次呈現 DeviceID、經緯度、資料時間、PM2.5、溫度、濕度
+      const popupHtml = `
+        <div class="font-sans min-w-[200px]">
           <div style="display:grid;grid-template-columns:70px 1fr;gap:6px 8px;font-size:11px;align-items:center;">
             <span style="color:#64748b;font-weight:600;">Device ID:</span>
             <span style="font-weight:700;color:#fff;">${point.id}</span>
@@ -295,25 +276,128 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             <span style="color:#64748b;font-weight:600;">經緯度:</span>
             <span style="font-weight:700;color:#e2e8f0;">${point.lon.toFixed(5)}, ${point.lat.toFixed(5)}</span>
             
-            <span style="color:#64748b;font-weight:600;">測項:</span>
-            <span style="font-weight:700;color:#e2e8f0;">${metricName}</span>
+            <span style="color:#64748b;font-weight:600;">資料時間:</span>
+            <span style="font-weight:700;color:#e2e8f0;">${timeStr}</span>
             
-            <span style="color:#64748b;font-weight:600;">測值:</span>
-            <span style="font-weight:700;color:#f97316;font-size:12px;">${metricValStr}</span>
+            <span style="color:#64748b;font-weight:600;">PM₂.₅:</span>
+            <span style="font-weight:700;color:#f97316;font-size:12px;">${pm25Str}</span>
+            
+            <span style="color:#64748b;font-weight:600;">溫度:</span>
+            <span style="font-weight:700;color:#3b82f6;">${tempStr}</span>
+            
+            <span style="color:#64748b;font-weight:600;">濕度:</span>
+            <span style="font-weight:700;color:#10b981;">${humStr}</span>
           </div>
           ${point.anomalyType ? `<p style="margin-top:8px;font-size:11px;font-weight:700;color:#f87171;background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:6px;text-align:center;border:1px solid rgba(239,68,68,0.2);">🚨 警告：${point.anomalyType}</p>` : ''}
         </div>
-      `);
+      `;
 
-      // 建立 Marker 並加入地圖
-      const marker = new mapboxgl.Marker(wrapper)
-        .setLngLat([point.lon, point.lat])
-        .setPopup(popup)
-        .addTo(mapRef.current!);
+      const existingMarker = markersRef.current[point.id];
 
-      markersRef.current[point.id] = marker;
+      if (existingMarker) {
+        // 更新現有 Marker
+        const wrapper = existingMarker.getElement();
+        const el = wrapper.querySelector('.sensor-dot') as HTMLDivElement;
+        if (el) {
+          let baseClass = `sensor-dot w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 ${bgColor}`;
+          
+          // 如果為選中狀態，保留白框樣式
+          if (point.id === selectedSensorId) {
+            baseClass += ' ring-4 ring-white scale-125 z-40';
+          }
+
+          if (isFire) {
+            baseClass += ' border-red-300 ring-4 ring-orange-500/30';
+            el.innerHTML = '🔥';
+          } else if (isFactory) {
+            baseClass += ' border-purple-300 ring-4 ring-purple-500/30';
+            el.innerHTML = '🏭';
+          } else {
+            el.innerHTML = '';
+          }
+          el.className = baseClass;
+        }
+
+        // 更新雷達環 (radar-ping)
+        const oldPing = wrapper.querySelector('.radar-ping');
+        if (oldPing) oldPing.remove();
+
+        if (isFire) {
+          const ping = document.createElement('div');
+          ping.className = 'radar-ping';
+          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
+          wrapper.insertBefore(ping, el);
+        } else if (isFactory) {
+          const ping = document.createElement('div');
+          ping.className = 'radar-ping';
+          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
+          wrapper.insertBefore(ping, el);
+        } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54.4) {
+          const ping = document.createElement('div');
+          ping.className = 'radar-ping';
+          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
+          wrapper.insertBefore(ping, el);
+        }
+
+        // 更新 Popup 的內容（保留 Popup 開啟狀態與實例）
+        const popup = existingMarker.getPopup();
+        if (popup) {
+          popup.setHTML(popupHtml);
+        }
+      } else {
+        // 建立新 Marker 外層容器
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+
+        // 建立自訂 DOM 元素作為 Marker
+        const el = document.createElement('div');
+        let baseClass = `sensor-dot w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 ${bgColor}`;
+        
+        if (point.id === selectedSensorId) {
+          baseClass += ' ring-4 ring-white scale-125 z-40';
+        }
+        el.className = baseClass;
+        el.style.cssText = 'position:relative;z-index:1;';
+
+        if (isFire) {
+          el.className += ` border-red-300 ring-4 ring-orange-500/30`;
+          el.innerHTML = '🔥';
+          const ping = document.createElement('div');
+          ping.className = 'radar-ping';
+          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
+          wrapper.appendChild(ping);
+        } else if (isFactory) {
+          el.className += ` border-purple-300 ring-4 ring-purple-500/30`;
+          el.innerHTML = '🏭';
+          const ping = document.createElement('div');
+          ping.className = 'radar-ping';
+          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
+          wrapper.appendChild(ping);
+        } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54.4) {
+          const ping = document.createElement('div');
+          ping.className = 'radar-ping';
+          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
+          wrapper.appendChild(ping);
+        }
+
+        // 當點選時通知父元件 (不阻止冒泡，允許 Mapbox 原生 Click 行為同步觸發 togglePopup)
+        el.addEventListener('click', () => {
+          onSelectSensor(point.id);
+        });
+
+        wrapper.appendChild(el);
+
+        const popup = new mapboxgl.Popup({ offset: 15, className: 'dark-popup' }).setHTML(popupHtml);
+
+        const marker = new mapboxgl.Marker(wrapper)
+          .setLngLat([point.lon, point.lat])
+          .setPopup(popup)
+          .addTo(mapRef.current!);
+
+        markersRef.current[point.id] = marker;
+      }
     });
-  }, [points, isLoaded, selectedMetric]);
+  }, [points, isLoaded, selectedMetric, showSensors, selectedSensorId]);
 
   // 3.1 同步更新 Selected Sensor 的樣式與 Popup 顯示狀態
   useEffect(() => {
@@ -754,6 +838,16 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
             />
             台中產業園區
+          </label>
+          <div className="h-px sm:h-4 w-full sm:w-px bg-slate-800 self-stretch sm:self-center" />
+          <label className="flex items-center gap-1.5 text-slate-300 font-medium cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showSensors}
+              onChange={(e) => setShowSensors(e.target.checked)}
+              className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+            />
+            顯示微感測點
           </label>
         </div>
       )}
