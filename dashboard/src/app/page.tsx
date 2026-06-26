@@ -15,19 +15,39 @@ export default function DashboardPage() {
   const [selectedFilter, setSelectedFilter] = useState<{ type: 'all' | 'county' | 'zone'; value: string }>({ type: 'all', value: '' });
   const [selectedDeviceId, setSelectedDeviceId] = useState('all');
   const [showFiltersMobile, setShowFiltersMobile] = useState(false);
-  // 24h 回溯時間軸：0 = 現在，-1440 = 24 小時前（單位：分鐘）
-  const [timeOffsetMin, setTimeOffsetMin] = useState(0);
-  // currentTime 由 timeOffsetMin 衍生（API 仍傳 currentTime 字串）
-  const getTimeFromOffset = (offsetMin: number) => {
-    if (!isMounted) {
-      // 伺服器端渲染與客戶端首航使用固定時間避免 Hydration Mismatch
-      return '2026-06-26 12:00:00';
-    }
-    const d = new Date(Date.now() + offsetMin * 60 * 1000);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+  
+  // 開始時間、結束時間與當前播放時間
+  const [startDateTime, setStartDateTime] = useState('2026-06-25T12:00');
+  const [endDateTime, setEndDateTime] = useState('2026-06-26T12:00');
+  const [currentDateTime, setCurrentDateTime] = useState('2026-06-26T12:00');
+
+  // 將 YYYY-MM-DDTHH:mm 轉成 API 所需之 YYYY-MM-DD HH:mm:00
+  const currentTime = currentDateTime.replace('T', ' ') + ':00';
+
+  const getTaipeiTimeNow = () => {
+    const d = new Date();
+    const formatter = new Intl.DateTimeFormat('zh-TW', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(d);
+    const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
+    const year = getVal('year');
+    const month = getVal('month');
+    const day = getVal('day');
+    const hour = getVal('hour');
+    const minute = getVal('minute');
+    const minNum = parseInt(minute, 10);
+    const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${alignedMin}`;
   };
-  const currentTime = getTimeFromOffset(timeOffsetMin);
+
+  const maxEndDateTime = isMounted ? getTaipeiTimeNow() : '2026-06-26T23:59';
   const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity'>('pm2_5');
   const [sensorZoneMap, setSensorZoneMap] = useState<{ [id: string]: string }>({});
   const [zoneNames, setZoneNames] = useState<string[]>([]);
@@ -85,6 +105,36 @@ export default function DashboardPage() {
 
     // 標記為已掛載，開始在 Client-side 計算當前時間並避免 Hydration Mismatch
     setIsMounted(true);
+
+    const getTaipeiTime = (offsetMs = 0) => {
+      const d = new Date(Date.now() + offsetMs);
+      const formatter = new Intl.DateTimeFormat('zh-TW', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const parts = formatter.formatToParts(d);
+      const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
+      const year = getVal('year');
+      const month = getVal('month');
+      const day = getVal('day');
+      const hour = getVal('hour');
+      const minute = getVal('minute');
+      const minNum = parseInt(minute, 10);
+      const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
+      return `${year}-${month}-${day}T${hour}:${alignedMin}`;
+    };
+
+    const endVal = getTaipeiTime();
+    const startVal = getTaipeiTime(-24 * 60 * 60 * 1000); // 往回 24h
+
+    setEndDateTime(endVal);
+    setStartDateTime(startVal);
+    setCurrentDateTime(endVal);
 
     const initData = async () => {
       try {
@@ -413,22 +463,36 @@ export default function DashboardPage() {
     setMinStationsInput(systemSettings.min_cluster_stations);
   }, [systemSettings]);
 
-  // 5. 24h 時間軸播放控制（播放時從「現在」往回走，每步 -5 分鐘，走到 -1440 停止）
+  // 5. 歷史時間軸播放控制（播放時從開始時間往結束時間順向播放，每步 +5 分鐘，播放到結束時間停止）
   const handlePlayToggle = () => {
     if (isPlaying) {
       if (playIntervalRef.current) clearInterval(playIntervalRef.current);
       setIsPlaying(false);
     } else {
       setIsPlaying(true);
+      
+      const minTs = new Date(startDateTime.replace('T', ' ')).getTime();
+      const maxTs = new Date(endDateTime.replace('T', ' ')).getTime();
+      
+      // 若當前已經是結束時間，重新開始播放時跳回開始時間
+      let startTs = new Date(currentDateTime.replace('T', ' ')).getTime();
+      if (startTs >= maxTs) {
+        startTs = minTs;
+        setCurrentDateTime(startDateTime);
+      }
+
       playIntervalRef.current = setInterval(() => {
-        setTimeOffsetMin((prev) => {
-          const next = prev - 5;
-          if (next <= -1440) {
+        setCurrentDateTime((prev) => {
+          const prevTs = new Date(prev.replace('T', ' ')).getTime();
+          const nextTs = prevTs + 5 * 60 * 1000;
+          if (nextTs >= maxTs) {
             if (playIntervalRef.current) clearInterval(playIntervalRef.current);
             setIsPlaying(false);
-            return -1440;
+            return endDateTime;
           }
-          return next;
+          const nextDate = new Date(nextTs);
+          const pad = (n: number) => String(n).padStart(2, '0');
+          return `${nextDate.getFullYear()}-${pad(nextDate.getMonth()+1)}-${pad(nextDate.getDate())}T${pad(nextDate.getHours())}:${pad(nextDate.getMinutes())}`;
         });
       }, 1000);
     }
@@ -459,6 +523,12 @@ export default function DashboardPage() {
     if (selectedFilter.type === 'zone' && sensorZoneMap[pt.id] !== selectedFilter.value) return false;
     return true;
   });
+
+  const minTs = isMounted ? new Date(startDateTime.replace('T', ' ')).getTime() : 0;
+  const maxTs = isMounted ? new Date(endDateTime.replace('T', ' ')).getTime() : 0;
+  const curTs = isMounted ? new Date(currentDateTime.replace('T', ' ')).getTime() : 0;
+  const sliderPercent = maxTs === minTs ? 0 : ((curTs - minTs) / (maxTs - minTs)) * 100;
+  const isSameDay = isMounted ? new Date(startDateTime.replace('T', ' ')).toDateString() === new Date(endDateTime.replace('T', ' ')).toDateString() : true;
 
   return (
     <div className="flex flex-col h-auto lg:h-screen w-full text-slate-100 overflow-y-auto lg:overflow-hidden font-sans" style={{background: 'var(--background)'}}>
@@ -575,14 +645,25 @@ export default function DashboardPage() {
             availableDevices={availableDevices}
             selectedDeviceId={selectedDeviceId}
             onChangeDeviceId={setSelectedDeviceId}
-            startDate={currentTime.substring(0, 10)}
-            onChangeStartDate={() => {}}
-            endDate={currentTime.substring(0, 10)}
-            onChangeEndDate={() => {}}
-            startTime={currentTime.substring(11, 19)}
-            onChangeStartTime={() => {}}
-            endTime={currentTime.substring(11, 19)}
-            onChangeEndTime={() => {}}
+            startDateTime={startDateTime}
+            onChangeStartDateTime={(val) => {
+              setStartDateTime(val);
+              const curTs = new Date(currentDateTime.replace('T', ' ')).getTime();
+              const newMinTs = new Date(val.replace('T', ' ')).getTime();
+              if (curTs < newMinTs) {
+                setCurrentDateTime(val);
+              }
+            }}
+            endDateTime={endDateTime}
+            onChangeEndDateTime={(val) => {
+              setEndDateTime(val);
+              const curTs = new Date(currentDateTime.replace('T', ' ')).getTime();
+              const newMaxTs = new Date(val.replace('T', ' ')).getTime();
+              if (curTs > newMaxTs) {
+                setCurrentDateTime(val);
+              }
+            }}
+            maxEndDateTime={maxEndDateTime}
             selectedMetric={selectedMetric}
             onChangeMetric={setSelectedMetric}
             minVal={minVal}
@@ -615,7 +696,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* 24h 時間軸播放器 */}
+          {/* 歷史時間軸播放器 */}
           <div className="glass-card rounded-2xl px-4 pt-3 pb-4 shadow-lg flex flex-col gap-2">
             {/* 上排：播放控制 + 當前時間 */}
             <div className="flex items-center gap-3">
@@ -626,15 +707,15 @@ export default function DashboardPage() {
                     ? 'bg-red-500 hover:bg-red-600 text-white'
                     : 'bg-orange-500 hover:bg-orange-600 text-slate-950'
                 }`}
-                title={isPlaying ? '暫停' : '從現在往回播放 24h'}
+                title={isPlaying ? '暫停' : '開始播放'}
               >
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
               </button>
 
               <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-bold">24h 歷史回朔</span>
+                <span className="text-[10px] text-slate-500 font-bold">歷史回溯 (5分鐘級)</span>
                 <span className="text-xs font-semibold text-slate-300">
-                  {isPlaying ? '回朔中（每步 5 分鐘）' : timeOffsetMin === 0 ? '即時畫面' : `${Math.abs(timeOffsetMin)} 分鐘前`}
+                  {isPlaying ? '回溯中（每步 5 分鐘）' : curTs === maxTs ? '最新時間' : '已暫停'}
                 </span>
               </div>
 
@@ -642,16 +723,17 @@ export default function DashboardPage() {
                 {/* 當前時間標籤 */}
                 <span className="text-orange-400 font-bold text-sm bg-slate-950 border border-slate-800 px-3 py-1 rounded-full tabular-nums">
                   {(() => {
-                    const d = new Date(Date.now() + timeOffsetMin * 60 * 1000);
+                    if (!isMounted) return '';
+                    const d = new Date(currentDateTime.replace('T', ' '));
                     const pad = (n: number) => String(n).padStart(2, '0');
                     return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
                   })()}
                 </span>
-                {/* 回到現在 */}
+                {/* 回到最新時間 */}
                 <button
-                  onClick={() => { setTimeOffsetMin(0); setIsPlaying(false); }}
+                  onClick={() => { setCurrentDateTime(endDateTime); setIsPlaying(false); }}
                   className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded-xl border border-slate-800 text-slate-400 hover:text-orange-400 transition-colors cursor-pointer"
-                  title="回到現在"
+                  title="回到最新時間"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
@@ -662,26 +744,37 @@ export default function DashboardPage() {
             <div className="relative w-full flex flex-col gap-1">
               <input
                 type="range"
-                min={-1440}
-                max={0}
-                step={5}
-                value={timeOffsetMin}
-                onChange={(e) => { setTimeOffsetMin(Number(e.target.value)); setIsPlaying(false); }}
+                min={minTs}
+                max={maxTs}
+                step={5 * 60 * 1000}
+                value={curTs}
+                onChange={(e) => {
+                  const ts = Number(e.target.value);
+                  const d = new Date(ts);
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  const dtStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                  setCurrentDateTime(dtStr);
+                  setIsPlaying(false);
+                }}
                 className="w-full h-2 rounded-full appearance-none cursor-pointer"
                 style={{
-                  background: `linear-gradient(to right, #f97316 ${((timeOffsetMin + 1440) / 1440) * 100}%, #0f172a ${((timeOffsetMin + 1440) / 1440) * 100}%)`,
+                  background: `linear-gradient(to right, #f97316 ${sliderPercent}%, #0f172a ${sliderPercent}%)`,
                   accentColor: '#f97316',
                 }}
               />
-              {/* 刻度標記：每 3 小時一個 */}
+              {/* 刻度標記：均勻劃分 6 個刻度 */}
               <div className="flex justify-between text-[9px] text-slate-600 font-mono px-0.5 select-none">
-                {Array.from({ length: 9 }, (_, i) => {
-                  const offsetMin = -1440 + i * 180; // -24h, -21h ... 0h
-                  const d = new Date(Date.now() + offsetMin * 60 * 1000);
+                {isMounted && Array.from({ length: 6 }, (_, i) => {
+                  const tickTs = minTs + (maxTs - minTs) * (i / 5);
+                  const d = new Date(tickTs);
                   const pad = (n: number) => String(n).padStart(2, '0');
+                  const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                  const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+                  const label = isSameDay ? timeStr : `${dateStr} ${timeStr}`;
+                  const isCurrent = Math.abs(tickTs - curTs) < 150000; // 差距小於 2.5 分鐘視為當前刻度
                   return (
-                    <span key={i} className={offsetMin === 0 ? 'text-orange-400 font-bold' : ''}>
-                      {pad(d.getHours())}:{pad(d.getMinutes())}
+                    <span key={i} className={isCurrent ? 'text-orange-400 font-bold' : ''}>
+                      {label}
                     </span>
                   );
                 })}

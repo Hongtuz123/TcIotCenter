@@ -13,14 +13,11 @@ interface FilterPanelProps {
   selectedDeviceId: string;
   onChangeDeviceId: (id: string) => void;
  
-  startDate: string;
-  onChangeStartDate: (date: string) => void;
-  endDate: string;
-  onChangeEndDate: (date: string) => void;
-  startTime: string;
-  onChangeStartTime: (time: string) => void;
-  endTime: string;
-  onChangeEndTime: (time: string) => void;
+  startDateTime: string;
+  onChangeStartDateTime: (dt: string) => void;
+  endDateTime: string;
+  onChangeEndDateTime: (dt: string) => void;
+  maxEndDateTime: string;
  
   selectedMetric: 'pm2_5' | 'temperature' | 'humidity';
   onChangeMetric: (metric: 'pm2_5' | 'temperature' | 'humidity') => void;
@@ -42,14 +39,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   availableDevices,
   selectedDeviceId,
   onChangeDeviceId,
-  startDate,
-  onChangeStartDate,
-  endDate,
-  onChangeEndDate,
-  startTime,
-  onChangeStartTime,
-  endTime,
-  onChangeEndTime,
+  startDateTime,
+  onChangeStartDateTime,
+  endDateTime,
+  onChangeEndDateTime,
+  maxEndDateTime,
   selectedMetric,
   onChangeMetric,
   minVal,
@@ -61,22 +55,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   selectedClusterId,
   onChangeClusterId
 }) => {
-  // 產生 2026年4月份 30 天的日期選項
-  const dateOptions = Array.from({ length: 30 }, (_, i) => {
-    const day = String(i + 1).padStart(2, '0');
-    return `2026-04-${day}`;
-  });
- 
-  // 產生 24 小時的 5 分鐘級時間選項
-  const timeOptions: string[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 5) {
-      const hourStr = String(h).padStart(2, '0');
-      const minStr = String(m).padStart(2, '0');
-      timeOptions.push(`${hourStr}:${minStr}:00`);
-    }
-  }
- 
   return (
     <div className="glass-card neon-border rounded-2xl p-4 lg:p-5 flex flex-col gap-4 lg:gap-6 shadow-xl h-full overflow-y-auto">
       {/* 標題 */}
@@ -85,42 +63,31 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <h2 className="text-lg font-bold text-slate-100">空間與時間篩選</h2>
       </div>
  
-      {/* 第一層：篩選行政區 or 產業園區 */}
+      {/* 第一層：篩選產業園區 */}
       <div className="flex flex-col gap-2">
         <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-slate-500" />
-          第一層：篩選行政區/產業園區
+          第一層：篩選產業園區
         </label>
         <select
-          value={selectedFilter.type === 'all' ? 'all' : `${selectedFilter.type}_${selectedFilter.value}`}
+          value={selectedFilter.type === 'zone' ? `zone_${selectedFilter.value}` : 'all'}
           onChange={(e) => {
             const val = e.target.value;
             if (val === 'all') {
               onChangeFilter({ type: 'all', value: '' });
             } else {
-              const idx = val.indexOf('_');
-              const type = val.substring(0, idx) as 'county' | 'zone';
-              const value = val.substring(idx + 1);
-              onChangeFilter({ type, value });
+              const value = val.substring(5); // 移除 'zone_' 前綴
+              onChangeFilter({ type: 'zone', value });
             }
           }}
           className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500 transition-colors w-full cursor-pointer"
         >
-          <option value="all">All (不篩選區域)</option>
-          <optgroup label="行政區">
-            {counties.map((c) => (
-              <option key={`county_${c}`} value={`county_${c}`}>
-                {c}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="產業園區">
-            {zoneNames.map((z) => (
-              <option key={`zone_${z}`} value={`zone_${z}`}>
-                {z}
-              </option>
-            ))}
-          </optgroup>
+          <option value="all">All (不篩選園區)</option>
+          {zoneNames.map((z) => (
+            <option key={`zone_${z}`} value={`zone_${z}`}>
+              {z}
+            </option>
+          ))}
         </select>
       </div>
  
@@ -149,55 +116,33 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-500" />
-            觀測日期區間
+            開始時間
           </span>
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={startDate}
-              onChange={(e) => onChangeStartDate(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-2 py-2 text-slate-200 text-xs focus:outline-none focus:border-orange-500 cursor-pointer"
-            >
-              {dateOptions.map((d) => (
-                <option key={`start_${d}`} value={d}>{d}</option>
-              ))}
-            </select>
-            <select
-              value={endDate}
-              onChange={(e) => onChangeEndDate(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-2 py-2 text-slate-200 text-xs focus:outline-none focus:border-orange-500 cursor-pointer"
-            >
-              {dateOptions.map((d) => (
-                <option key={`end_${d}`} value={d}>{d}</option>
-              ))}
-            </select>
-          </div>
+          <input
+            type="datetime-local"
+            value={startDateTime}
+            min="2026-04-01T00:00"
+            max={endDateTime || maxEndDateTime}
+            onChange={(e) => onChangeStartDateTime(e.target.value)}
+            style={{ colorScheme: 'dark' }}
+            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-orange-500 cursor-pointer w-full"
+          />
         </div>
  
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-500" />
-            時間區間 (5分鐘級)
+            結束時間
           </span>
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={startTime}
-              onChange={(e) => onChangeStartTime(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-2 py-2 text-slate-200 text-xs focus:outline-none focus:border-orange-500 cursor-pointer"
-            >
-              {timeOptions.map((t) => (
-                <option key={`start_t_${t}`} value={t}>{t.substring(0, 5)}</option>
-              ))}
-            </select>
-            <select
-              value={endTime}
-              onChange={(e) => onChangeEndTime(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-2 py-2 text-slate-200 text-xs focus:outline-none focus:border-orange-500 cursor-pointer"
-            >
-              {timeOptions.map((t) => (
-                <option key={`end_t_${t}`} value={t}>{t.substring(0, 5)}</option>
-              ))}
-            </select>
-          </div>
+          <input
+            type="datetime-local"
+            value={endDateTime}
+            min={startDateTime || "2026-04-01T00:00"}
+            max={maxEndDateTime}
+            onChange={(e) => onChangeEndDateTime(e.target.value)}
+            style={{ colorScheme: 'dark' }}
+            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-orange-500 cursor-pointer w-full"
+          />
         </div>
       </div>
  
