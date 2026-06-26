@@ -61,16 +61,14 @@ body {
 /* ── 微感測點螢光微閃（Glow Pulse） ── */
 @keyframes glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 4px var(--glow-color, rgba(255, 255, 255, 0.35));
-    opacity: 0.85;
+    box-shadow: 0 0 2px var(--glow-color, rgba(255, 255, 255, 0.3));
   }
   50% {
-    box-shadow: 0 0 14px var(--glow-color, rgba(255, 255, 255, 0.75));
-    opacity: 1;
+    box-shadow: 0 0 6px var(--glow-color, rgba(255, 255, 255, 0.6));
   }
 }
 .glow-sensor {
-  animation: glow-pulse 2s infinite ease-in-out;
+  animation: glow-pulse 2.5s infinite ease-in-out;
 }
 
 
