@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Sensor, Cluster, Observation } from '@/types';
-import { Layers, Flame, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Layers, Flame, AlertTriangle, ShieldCheck, Compass } from 'lucide-react';
 
 interface SensorMapProps {
   points: (Sensor & Observation)[];
@@ -37,6 +37,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [showSensors, setShowSensors] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [styleVersion, setStyleVersion] = useState(0);
+  const [bearing, setBearing] = useState(0);
   const showIndustrialZonesRef = useRef(showIndustrialZones);
   const prevStyleRef = useRef(mapStyle);
 
@@ -63,6 +64,10 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     });
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-left');
+
+    map.on('rotate', () => {
+      setBearing(map.getBearing());
+    });
 
     const setupIndustrialZones = () => {
       const latestShow = showIndustrialZonesRef.current;
@@ -879,6 +884,22 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             />
             顯示污染熱區
           </label>
+          <div className="h-px sm:h-4 w-full sm:w-px bg-slate-800 self-stretch sm:self-center" />
+          <button
+            onClick={() => {
+              if (mapRef.current) {
+                mapRef.current.easeTo({ bearing: 0, pitch: 0, duration: 1000 });
+              }
+            }}
+            className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-orange-500 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+            title="地圖正北轉正"
+          >
+            <Compass 
+              className="w-4 h-4 transition-transform duration-200" 
+              style={{ transform: `rotate(${-bearing}deg)` }} 
+            />
+            <span className="hidden sm:inline">指北針</span>
+          </button>
         </div>
       )}
 
