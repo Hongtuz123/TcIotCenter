@@ -101,6 +101,45 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             }
           });
           console.log('industrial-zones-line layer added successfully.');
+
+          // 園區點擊彈出 InfoWindow
+          map.on('click', 'industrial-zones-fill', (e) => {
+            (e as any)._layerClicked = true;
+            if (!e.features || e.features.length === 0) return;
+            const props = e.features[0].properties;
+            if (!props) return;
+
+            const name = props.name || '未知園區';
+            const area = props.area !== undefined && props.area !== null ? props.area : 0;
+            const areaStr = typeof area === 'number' && area > 0 
+              ? `${(area / 10000).toFixed(2)} 公頃 (${area.toLocaleString()} m²)`
+              : '未提供';
+
+            new mapboxgl.Popup({ className: 'dark-popup' })
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div style="padding:10px;font-family:Inter,sans-serif;color:#f1f5f9;background:rgba(8,14,26,0.97);border-radius:10px;min-width:180px;border:1px solid rgba(168,85,247,0.35);">
+                  <div style="font-weight:700;color:#fff;border-b:1px solid rgba(255,255,255,0.1);padding-bottom:6px;margin-bottom:8px;font-size:12px;">🏭 產業園區基本資訊</div>
+                  <div style="display:grid;grid-template-columns:70px 1fr;gap:6px 8px;font-size:11px;align-items:center;">
+                    <span style="color:#64748b;font-weight:600;">園區名稱:</span>
+                    <span style="font-weight:700;color:#e2e8f0;">${name}</span>
+                    
+                    <span style="color:#64748b;font-weight:600;">面積:</span>
+                    <span style="font-weight:700;color:#c084fc;">${areaStr}</span>
+                  </div>
+                </div>
+              `)
+              .addTo(map);
+          });
+
+          // 滑鼠懸停指針變更
+          map.on('mouseenter', 'industrial-zones-fill', () => {
+            map.getCanvas().style.cursor = 'pointer';
+          });
+          map.on('mouseleave', 'industrial-zones-fill', () => {
+            map.getCanvas().style.cursor = '';
+          });
+
         } catch (error) {
           console.error('Error while adding industrial-zones layers:', error);
         }
@@ -118,6 +157,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       
       // 註冊地圖點擊事件，方便使用者框選位置新增事件
       map.on('click', (e) => {
+        if ((e as any)._layerClicked) return;
         const target = e.originalEvent.target as HTMLElement;
         if (target && !target.closest('.mapboxgl-marker')) {
           onMapClickCoords?.({ lat: e.lngLat.lat, lon: e.lngLat.lng });
@@ -471,6 +511,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     // 熱區滑鼠懸停與點擊事件
     map.on('click', 'clusters-fill-layer', (e) => {
+      (e as any)._layerClicked = true;
       if (!e.features || e.features.length === 0) return;
       const props = e.features[0].properties;
       
