@@ -3,53 +3,65 @@ import { supabase } from '@/lib/supabase';
 import { mockSensors } from '@/lib/mockData';
 import { getDb } from '@/lib/db';
 
+/** 分頁抓取 Supabase，突破 max_rows 設定限制 */
+async function fetchAllSensors() {
+  if (!supabase) return [];
+  const PAGE = 1000;
+  let allData: any[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('sensors')
+      .select('station_id,device_name,lat,lon,city,township,area,area_type')
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allData = allData.concat(data);
+    if (data.length < PAGE) break; // 最後一頁
+    from += PAGE;
+  }
+  return allData;
+}
+
+/** 分頁抓取最近 1 小時觀測值 */
+async function fetchLatestObs(oneHourAgo: string) {
+  if (!supabase) return {};
+  const PAGE = 1000;
+  let latestObs: Record<string, any> = {};
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('observations_5m')
+      .select('station_id,bucket_time,pm2_5,temperature,humidity,is_anomaly,anomaly_type')
+      .gte('bucket_time', oneHourAgo)
+      .order('bucket_time', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) break;
+    if (!data || data.length === 0) break;
+    for (const obs of data) {
+      if (!latestObs[obs.station_id]) latestObs[obs.station_id] = obs;
+    }
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return latestObs;
+}
+
 export async function GET() {
   try {
     // ── Tier 1: Supabase ──────────────────────────────────────────────────────
     if (supabase) {
-      // 取得所有台中測站 + 最新一筆觀測值（subquery 取最新 bucket_time）
-      const { data, error } = await supabase
-        .from('sensors')
-        .select(`
-          station_id,
-          device_name,
-          lat,
-          lon,
-          city,
-          township,
-          area,
-          area_type
-        `)
-        .range(0, 3000);
+      // 分頁抓取全部測站
+      const data = await fetchAllSensors();
 
-      if (error) throw error;
-
-      // 批次取各站最新觀測值
-      const stationIds = (data || []).map((s: any) => s.station_id);
-      let latestObs: Record<string, any> = {};
-
-      if (stationIds.length > 0) {
-        // 直接取得最近 1 小時內的觀測值，避免傳入上千個 ID 導致 URL 過長而 500
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const { data: obsData } = await supabase
-          .from('observations_5m')
-          .select('station_id, bucket_time, pm2_5, temperature, humidity, is_anomaly, anomaly_type')
-          .gte('bucket_time', oneHourAgo)
-          .order('bucket_time', { ascending: false })
-          .range(0, 25000);
-
-        if (obsData) {
-          // 每站只保留最新一筆
-          for (const obs of obsData) {
-            if (!latestObs[obs.station_id]) {
-              latestObs[obs.station_id] = obs;
-            }
-          }
-        }
-      }
+      // 分頁抓取最近 1 小時觀測值
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const latestObs = await fetchLatestObs(oneHourAgo);
 
       // 合併 sensor + observation
-      const sensors = (data || []).map((s: any) => ({
+      const sensors = data.map((s: any) => ({
         id: s.station_id,
         name: s.device_name,
         lat: s.lat,
@@ -58,7 +70,6 @@ export async function GET() {
         area: s.area || null,
         areaType: s.area_type || null,
         status: '正常',
-        // 最新觀測值
         pm2_5: latestObs[s.station_id]?.pm2_5 ?? null,
         temperature: latestObs[s.station_id]?.temperature ?? null,
         humidity: latestObs[s.station_id]?.humidity ?? null,

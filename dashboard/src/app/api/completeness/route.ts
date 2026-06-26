@@ -47,19 +47,27 @@ export async function GET() {
 
     const total = totalSensors || 0;
 
-    // 4. 找出最近 1 小時內有回報資料的測站（用站數維度計算完整率）
-    const { data: activeSensors } = await supabase
-      .from('observations_5m')
-      .select('station_id')
-      .gte('bucket_time', windowStart)
-      .lte('bucket_time', windowEnd)
-      .range(0, 25000);
+    // 4. 分頁抓取最近 1 小時內有回報資料的測站（突破 max_rows 限制）
+    const PAGE = 1000;
+    let allActiveSensorIds = new Set<string>();
+    let from = 0;
+    while (true) {
+      const { data: activePage } = await supabase
+        .from('observations_5m')
+        .select('station_id')
+        .gte('bucket_time', windowStart)
+        .lte('bucket_time', windowEnd)
+        .range(from, from + PAGE - 1);
+      if (!activePage || activePage.length === 0) break;
+      activePage.forEach((r: any) => allActiveSensorIds.add(r.station_id));
+      if (activePage.length < PAGE) break;
+      from += PAGE;
+    }
 
-    const activeSensorIds = new Set((activeSensors || []).map((r: any) => r.station_id));
-    const onlineCount = activeSensorIds.size;
+    const onlineCount = allActiveSensorIds.size;
     const offlineCount = Math.max(0, total - onlineCount);
 
-    // 完整率 = 有回報的站數 ÷ 總站數（語意：有多少比例的站還在線上）
+    // 完整率 = 有回報的站數 ÷ 總站數
     const rate = total > 0 ? onlineCount / total : 0;
 
     // 供 debug 用的桶數統計
