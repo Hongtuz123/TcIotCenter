@@ -69,3 +69,57 @@ body {
 ::-webkit-scrollbar-track { background: #080c14; }
 ::-webkit-scrollbar-thumb { background: #1e2d42; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #f97316; }
+
+/* ── Mapbox Popup 科技感/玻璃感覆寫（無白邊） ── */
+.dark-popup .mapboxgl-popup-content {
+  background: rgba(10, 18, 32, 0.92) !important;
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(249, 115, 22, 0.35) !important;
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.65), 
+    0 0 20px rgba(249, 115, 22, 0.12) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  color: #f1f5f9 !important;
+}
+
+/* 關閉按鈕樣式覆寫 */
+.dark-popup .mapboxgl-popup-close-button {
+  color: #64748b !important;
+  font-size: 16px !important;
+  padding: 4px 8px !important;
+  border-radius: 0 12px 0 6px !important;
+  outline: none !important;
+  transition: all 0.15s ease;
+}
+.dark-popup .mapboxgl-popup-close-button:hover {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
+}
+
+/* 調整 Popup 箭頭 (tip) 為相應的深色以去除白尖 */
+.dark-popup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+  border-bottom-color: rgba(10, 18, 32, 0.92) !important;
+}
+.dark-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-top-color: rgba(10, 18, 32, 0.92) !important;
+}
+.dark-popup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: rgba(10, 18, 32, 0.92) !important;
+}
+.dark-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: rgba(10, 18, 32, 0.92) !important;
+}
+.dark-popup.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip {
+  border-bottom-color: rgba(10, 18, 32, 0.92) !important;
+}
+.dark-popup.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
+  border-bottom-color: rgba(10, 18, 32, 0.92) !important;
+}
+.dark-popup.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip {
+  border-top-color: rgba(10, 18, 32, 0.92) !important;
+}
+.dark-popup.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
+  border-top-color: rgba(10, 18, 32, 0.92) !important;
+}

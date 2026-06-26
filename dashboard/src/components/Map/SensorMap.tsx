@@ -110,22 +110,18 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             if (!props) return;
 
             const name = props.name || '未知園區';
-            const area = props.area !== undefined && props.area !== null ? props.area : 0;
-            const areaStr = typeof area === 'number' && area > 0 
-              ? `${(area / 10000).toFixed(2)} 公頃 (${area.toLocaleString()} m²)`
-              : '未提供';
 
             new mapboxgl.Popup({ className: 'dark-popup' })
               .setLngLat(e.lngLat)
               .setHTML(`
-                <div style="padding:10px;font-family:Inter,sans-serif;color:#f1f5f9;background:rgba(8,14,26,0.97);border-radius:10px;min-width:180px;border:1px solid rgba(168,85,247,0.35);">
-                  <div style="font-weight:700;color:#fff;border-b:1px solid rgba(255,255,255,0.1);padding-bottom:6px;margin-bottom:8px;font-size:12px;">🏭 產業園區基本資訊</div>
-                  <div style="display:grid;grid-template-columns:70px 1fr;gap:6px 8px;font-size:11px;align-items:center;">
-                    <span style="color:#64748b;font-weight:600;">園區名稱:</span>
-                    <span style="font-weight:700;color:#e2e8f0;">${name}</span>
-                    
-                    <span style="color:#64748b;font-weight:600;">面積:</span>
-                    <span style="font-weight:700;color:#c084fc;">${areaStr}</span>
+                <div class="font-sans min-w-[160px]">
+                  <div class="font-bold text-white border-b border-slate-700/60 pb-1.5 mb-2 text-xs flex items-center gap-1">
+                    <span>🏭</span>
+                    <span>產業園區基本資訊</span>
+                  </div>
+                  <div class="grid grid-cols-[70px_1fr] gap-1.5 text-[11px] items-center">
+                    <span class="text-slate-500 font-semibold">園區名稱:</span>
+                    <span class="font-bold text-slate-200">${name}</span>
                   </div>
                 </div>
               `)
@@ -515,15 +511,27 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       if (!e.features || e.features.length === 0) return;
       const props = e.features[0].properties;
       
-      new mapboxgl.Popup()
+      new mapboxgl.Popup({ className: 'dark-popup' })
         .setLngLat(e.lngLat)
         .setHTML(`
-          <div class="p-2 text-slate-900 font-sans">
-            <h4 class="font-bold text-red-600 mb-1">🚨 異常聚集熱區</h4>
-            <p class="text-xs text-slate-700">測站總數：<strong>${props.stationsCount} 站</strong></p>
-            <p class="text-xs text-slate-700">平均 PM2.5：<strong>${parseFloat(props.avgPm25).toFixed(1)} ug/m³</strong></p>
-            <p class="text-xs text-slate-700">主導類型：<strong>${props.dominantType}</strong></p>
-            <p class="text-[10px] text-slate-400 mt-1">半徑: ${props.radiusKm} km</p>
+          <div class="font-sans min-w-[180px]">
+            <div class="font-bold text-red-400 border-b border-red-500/20 pb-1.5 mb-2 text-xs flex items-center gap-1">
+              <span>🚨</span>
+              <span>異常聚集熱區</span>
+            </div>
+            <div class="grid grid-cols-[80px_1fr] gap-1.5 text-[11px] items-center">
+              <span class="text-slate-500 font-semibold">測站總數:</span>
+              <span class="font-bold text-slate-200">${props.stationsCount} 站</span>
+              
+              <span class="text-slate-500 font-semibold">平均 PM₂.₅:</span>
+              <span class="font-bold text-red-400">${parseFloat(props.avgPm25).toFixed(1)} µg/m³</span>
+              
+              <span class="text-slate-500 font-semibold">主導類型:</span>
+              <span class="font-bold text-slate-200">${props.dominantType}</span>
+              
+              <span class="text-slate-500 font-semibold">涵蓋半徑:</span>
+              <span class="font-bold text-slate-400">${props.radiusKm} km</span>
+            </div>
           </div>
         `)
         .addTo(map);
