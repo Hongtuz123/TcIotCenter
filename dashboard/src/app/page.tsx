@@ -9,6 +9,8 @@ import { Sensor, Observation, Event, Cluster, SystemSettings } from '@/types';
 import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X } from 'lucide-react';
 
 export default function DashboardPage() {
+  const [isMounted, setIsMounted] = useState(false);
+
   // 篩選與播放狀態
   const [selectedFilter, setSelectedFilter] = useState<{ type: 'all' | 'county' | 'zone'; value: string }>({ type: 'all', value: '' });
   const [selectedDeviceId, setSelectedDeviceId] = useState('all');
@@ -17,6 +19,10 @@ export default function DashboardPage() {
   const [timeOffsetMin, setTimeOffsetMin] = useState(0);
   // currentTime 由 timeOffsetMin 衍生（API 仍傳 currentTime 字串）
   const getTimeFromOffset = (offsetMin: number) => {
+    if (!isMounted) {
+      // 伺服器端渲染與客戶端首航使用固定時間避免 Hydration Mismatch
+      return '2026-06-26 12:00:00';
+    }
     const d = new Date(Date.now() + offsetMin * 60 * 1000);
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
@@ -77,41 +83,8 @@ export default function DashboardPage() {
       return inside;
     };
 
-    // 初始化為當前台灣時間的日期與時間，解決 Hydration mismatch 問題
-    try {
-      const formatter = new Intl.DateTimeFormat('zh-TW', {
-        timeZone: 'Asia/Taipei',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
-      const parts = formatter.formatToParts(new Date());
-      const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
-      
-      const year = getVal('year');
-      const month = getVal('month');
-      const day = getVal('day');
-      const hour = getVal('hour');
-      const minute = getVal('minute');
-      
-      const dateStr = `${year}-${month}-${day}`;
-      
-      // 計算對齊到 5 分鐘的當前時間
-      const minNum = parseInt(minute, 10);
-      const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
-      const timeStr = `${hour}:${alignedMin}:00`;
-      
-      setStartDate(dateStr);
-      setEndDate(dateStr);
-      setStartTime(timeStr);
-      setEndTime('23:59:59');
-    } catch (e) {
-      console.error('設定現實時間失敗:', e);
-    }
+    // 標記為已掛載，開始在 Client-side 計算當前時間並避免 Hydration Mismatch
+    setIsMounted(true);
 
     const initData = async () => {
       try {
