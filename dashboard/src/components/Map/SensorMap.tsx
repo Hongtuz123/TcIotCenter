@@ -300,20 +300,22 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const wrapper = existingMarker.getElement();
         const el = wrapper.querySelector('.sensor-dot') as HTMLDivElement;
         if (el) {
-          // 尺寸縮小 10% (w-[21px] h-[21px])，移除 border-2 描邊，加入 glow-sensor 類別
-          let baseClass = `sensor-dot w-[21px] h-[21px] rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 glow-sensor ${bgColor}`;
+          // 尺寸縮小為 10px (w-[10px] h-[10px])，移除原本的 border-2 描邊，加入 glow-sensor 類別
+          let baseClass = `sensor-dot w-[10px] h-[10px] rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 glow-sensor ${bgColor}`;
           
-          // 如果為選中狀態，保留白框樣式
+          // 如果為選中狀態，保留白色描邊樣式
           if (point.id === selectedSensorId) {
-            baseClass += ' ring-4 ring-white scale-125 z-40';
+            baseClass += ' border-2 border-white scale-125 z-40';
           }
 
           if (isFire) {
             baseClass += ' ring-4 ring-orange-500/30';
             el.innerHTML = '🔥';
+            el.style.fontSize = '7px';
           } else if (isFactory) {
             baseClass += ' ring-4 ring-purple-500/30';
             el.innerHTML = '🏭';
+            el.style.fontSize = '7px';
           } else {
             el.innerHTML = '';
           }
@@ -328,17 +330,17 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         if (isFire) {
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
+          ping.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
           wrapper.insertBefore(ping, el);
         } else if (isFactory) {
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
+          ping.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
           wrapper.insertBefore(ping, el);
         } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54.4) {
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
+          ping.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
           wrapper.insertBefore(ping, el);
         }
 
@@ -352,12 +354,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const wrapper = document.createElement('div');
         wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;';
 
-        // 建立自訂 DOM 元素作為 Marker (做小 10%，無描邊，加螢光閃爍)
+        // 建立自訂 DOM 元素作為 Marker (做小至 10px，無描邊，加螢光閃爍)
         const el = document.createElement('div');
-        let baseClass = `sensor-dot w-[21px] h-[21px] rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 glow-sensor ${bgColor}`;
+        let baseClass = `sensor-dot w-[10px] h-[10px] rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 glow-sensor ${bgColor}`;
         
         if (point.id === selectedSensorId) {
-          baseClass += ' ring-4 ring-white scale-125 z-40';
+          baseClass += ' border-2 border-white scale-125 z-40';
         }
         el.className = baseClass;
         el.style.cssText = 'position:relative;z-index:1;';
@@ -366,21 +368,23 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         if (isFire) {
           el.className += ` ring-4 ring-orange-500/30`;
           el.innerHTML = '🔥';
+          el.style.fontSize = '7px';
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
+          ping.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
           wrapper.appendChild(ping);
         } else if (isFactory) {
           el.className += ` ring-4 ring-purple-500/30`;
           el.innerHTML = '🏭';
+          el.style.fontSize = '7px';
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
+          ping.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
           wrapper.appendChild(ping);
         } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54.4) {
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
+          ping.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
           wrapper.appendChild(ping);
         }
 
@@ -414,7 +418,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const wrapper = marker.getElement();
         const dot = wrapper.querySelector('.sensor-dot');
         if (dot) {
-          dot.classList.remove('ring-4', 'ring-white', 'scale-125', 'z-40');
+          dot.classList.remove('border-2', 'border-white', 'scale-125', 'z-40');
         }
       }
     });
@@ -426,7 +430,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const wrapper = marker.getElement();
         const dot = wrapper.querySelector('.sensor-dot');
         if (dot) {
-          dot.classList.add('ring-4', 'ring-white', 'scale-125', 'z-40');
+          dot.classList.add('border-2', 'border-white', 'scale-125', 'z-40');
         }
 
         const popup = marker.getPopup();
