@@ -7,6 +7,27 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
+
+// ---- 載入鄰近的 .env.local 環境變數 ----
+try {
+  const envPath = path.join(__dirname, '../dashboard/.env.local');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    envContent.split(/\r?\n/).forEach(line => {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match) {
+        let value = match[2] ? match[2].trim() : '';
+        if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+        if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+        process.env[match[1]] = value;
+      }
+    });
+  }
+} catch (e: any) {
+  console.warn('⚠️ 無法載入 .env.local:', e.message);
+}
 
 // ---- 環境變數 ----
 const SUPABASE_URL = process.env.SUPABASE_URL!;

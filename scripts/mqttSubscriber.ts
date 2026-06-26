@@ -47,8 +47,15 @@ const cache = new Map<string, any>();
 /** 對齊到 5 分鐘 UTC ISO 時間 */
 function alignTo5Min(timeStr: string): string {
   try {
-    // 傳入格式一般為: "2016-03-30 08:28:47"
-    const parsedStr = timeStr.replace(/-/g, '/'); // 相容性
+    let parsedStr = timeStr.trim();
+    // 如果是 YYYY-MM-DD HH:mm:ss 這種格式，沒有帶 Z 或時區偏移，則視為台灣時間 (GMT+8)
+    if (parsedStr.match(/^\d{4}[-/]\d{2}[-/]\d{2}\s+\d{2}:\d{2}:\d{2}$/)) {
+      parsedStr = parsedStr.replace(/-/g, '/');
+      parsedStr += ' +08:00';
+    } else {
+      parsedStr = parsedStr.replace(/-/g, '/');
+    }
+
     const d = new Date(parsedStr);
     if (isNaN(d.getTime())) {
       const now = new Date();
@@ -56,11 +63,14 @@ function alignTo5Min(timeStr: string): string {
       now.setUTCMinutes(Math.floor(now.getUTCMinutes() / 5) * 5);
       return now.toISOString();
     }
-    d.setSeconds(0, 0);
-    d.setMinutes(Math.floor(d.getMinutes() / 5) * 5);
+    d.setUTCSeconds(0, 0);
+    d.setUTCMinutes(Math.floor(d.getUTCMinutes() / 5) * 5);
     return d.toISOString();
   } catch {
-    return new Date().toISOString();
+    const now = new Date();
+    now.setUTCSeconds(0, 0);
+    now.setUTCMinutes(Math.floor(now.getUTCMinutes() / 5) * 5);
+    return now.toISOString();
   }
 }
 
@@ -200,20 +210,20 @@ function run() {
     }
   });
 
-  // 每 30 秒自動 Flush 一次，避免佔用過多記憶體
-  const intervalId = setInterval(flushCache, 30000);
-
   // 若設定了執行時間 (例如 GitHub Actions 限制)，到期自動關閉
   if (duration && duration > 0) {
     console.log(`⏱️ 設定限時執行: ${duration} 秒，時間到後將自動退出並寫入資料庫...`);
+    // 限時執行模式下：不使用定時 Flush，避免 30 秒清空 Cache 造成 upsert 欄位覆蓋
     setTimeout(async () => {
       console.log('⏱️ 執行時間結束。開始進行最後的資料寫入...');
-      clearInterval(intervalId);
       client.end();
       await flushCache();
       console.log('👋 訂閱器安全退出。');
       process.exit(0);
     }, duration * 1000);
+  } else {
+    // 長連線模式下：改用 5 分鐘大週期 Flush，以減少 upsert 覆蓋機率
+    setInterval(flushCache, 300000);
   }
 }
 
