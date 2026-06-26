@@ -222,24 +222,25 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       // 根據當前展示測項設定數值與顏色分級
       const val = point[selectedMetric];
       let bgColor = 'bg-slate-500'; // 預設灰色（無資料）
+      let glowColor = 'rgba(100, 116, 139, 0.5)'; // 預設灰色發光
 
       if (val !== null && val !== undefined) {
         if (selectedMetric === 'pm2_5') {
-          if (val < 15.5) bgColor = 'bg-emerald-500'; // 良好
-          else if (val <= 35.4) bgColor = 'bg-yellow-500'; // 普通
-          else if (val <= 54.4) bgColor = 'bg-orange-500'; // 敏感不健康
-          else if (val <= 150.4) bgColor = 'bg-red-500'; // 對所有族群不健康
-          else if (val <= 250.4) bgColor = 'bg-purple-500'; // 非常不健康
-          else bgColor = 'bg-[#3f000f]'; // 危害
+          if (val < 15.5) { bgColor = 'bg-emerald-500'; glowColor = 'rgba(16, 185, 129, 0.7)'; }
+          else if (val <= 35.4) { bgColor = 'bg-yellow-500'; glowColor = 'rgba(234, 179, 8, 0.7)'; }
+          else if (val <= 54.4) { bgColor = 'bg-orange-500'; glowColor = 'rgba(249, 115, 22, 0.7)'; }
+          else if (val <= 150.4) { bgColor = 'bg-red-500'; glowColor = 'rgba(239, 68, 68, 0.7)'; }
+          else if (val <= 250.4) { bgColor = 'bg-purple-500'; glowColor = 'rgba(168, 85, 247, 0.7)'; }
+          else { bgColor = 'bg-[#3f000f]'; glowColor = 'rgba(63, 0, 15, 0.75)'; }
         } else if (selectedMetric === 'temperature') {
-          if (val < 20.0) bgColor = 'bg-blue-500'; // 涼爽
-          else if (val <= 28.0) bgColor = 'bg-emerald-500'; // 舒適
-          else if (val <= 35.0) bgColor = 'bg-yellow-500'; // 偏熱
-          else bgColor = 'bg-red-500'; // 炎熱
+          if (val < 20.0) { bgColor = 'bg-blue-500'; glowColor = 'rgba(59, 130, 246, 0.7)'; }
+          else if (val <= 28.0) { bgColor = 'bg-emerald-500'; glowColor = 'rgba(16, 185, 129, 0.7)'; }
+          else if (val <= 35.0) { bgColor = 'bg-yellow-500'; glowColor = 'rgba(234, 179, 8, 0.7)'; }
+          else { bgColor = 'bg-red-500'; glowColor = 'rgba(239, 68, 68, 0.7)'; }
         } else if (selectedMetric === 'humidity') {
-          if (val < 40) bgColor = 'bg-orange-500'; // 乾燥
-          else if (val <= 70) bgColor = 'bg-emerald-500'; // 舒適
-          else bgColor = 'bg-blue-500'; // 潮濕
+          if (val < 40) { bgColor = 'bg-orange-500'; glowColor = 'rgba(249, 115, 22, 0.7)'; }
+          else if (val <= 70) { bgColor = 'bg-emerald-500'; glowColor = 'rgba(16, 185, 129, 0.7)'; }
+          else { bgColor = 'bg-blue-500'; glowColor = 'rgba(59, 130, 246, 0.7)'; }
         }
       }
 
@@ -299,7 +300,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const wrapper = existingMarker.getElement();
         const el = wrapper.querySelector('.sensor-dot') as HTMLDivElement;
         if (el) {
-          let baseClass = `sensor-dot w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 ${bgColor}`;
+          // 尺寸縮小 10% (w-[21px] h-[21px])，移除 border-2 描邊，加入 glow-sensor 類別
+          let baseClass = `sensor-dot w-[21px] h-[21px] rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 glow-sensor ${bgColor}`;
           
           // 如果為選中狀態，保留白框樣式
           if (point.id === selectedSensorId) {
@@ -307,15 +309,16 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           }
 
           if (isFire) {
-            baseClass += ' border-red-300 ring-4 ring-orange-500/30';
+            baseClass += ' ring-4 ring-orange-500/30';
             el.innerHTML = '🔥';
           } else if (isFactory) {
-            baseClass += ' border-purple-300 ring-4 ring-purple-500/30';
+            baseClass += ' ring-4 ring-purple-500/30';
             el.innerHTML = '🏭';
           } else {
             el.innerHTML = '';
           }
           el.className = baseClass;
+          el.style.setProperty('--glow-color', glowColor);
         }
 
         // 更新雷達環 (radar-ping)
@@ -349,25 +352,26 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const wrapper = document.createElement('div');
         wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;';
 
-        // 建立自訂 DOM 元素作為 Marker
+        // 建立自訂 DOM 元素作為 Marker (做小 10%，無描邊，加螢光閃爍)
         const el = document.createElement('div');
-        let baseClass = `sensor-dot w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 ${bgColor}`;
+        let baseClass = `sensor-dot w-[21px] h-[21px] rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 glow-sensor ${bgColor}`;
         
         if (point.id === selectedSensorId) {
           baseClass += ' ring-4 ring-white scale-125 z-40';
         }
         el.className = baseClass;
         el.style.cssText = 'position:relative;z-index:1;';
+        el.style.setProperty('--glow-color', glowColor);
 
         if (isFire) {
-          el.className += ` border-red-300 ring-4 ring-orange-500/30`;
+          el.className += ` ring-4 ring-orange-500/30`;
           el.innerHTML = '🔥';
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
           ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
           wrapper.appendChild(ping);
         } else if (isFactory) {
-          el.className += ` border-purple-300 ring-4 ring-purple-500/30`;
+          el.className += ` ring-4 ring-purple-500/30`;
           el.innerHTML = '🏭';
           const ping = document.createElement('div');
           ping.className = 'radar-ping';

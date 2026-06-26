@@ -58,6 +58,22 @@ body {
   animation: radar-ping 1.6s ease-out infinite;
 }
 
+/* ── 微感測點螢光微閃（Glow Pulse） ── */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px var(--glow-color, rgba(255, 255, 255, 0.35));
+    opacity: 0.85;
+  }
+  50% {
+    box-shadow: 0 0 14px var(--glow-color, rgba(255, 255, 255, 0.75));
+    opacity: 1;
+  }
+}
+.glow-sensor {
+  animation: glow-pulse 2s infinite ease-in-out;
+}
+
+
 /* ── 數值卡片頂部亮線 ── */
 .stat-card-orange { border-top: 2px solid rgba(249, 115, 22, 0.7); }
 .stat-card-rose   { border-top: 2px solid rgba(244,  63, 94, 0.7); }
