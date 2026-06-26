@@ -183,10 +183,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       if (val !== null && val !== undefined) {
         if (selectedMetric === 'pm2_5') {
-          if (val < 15.5) bgColor = 'bg-emerald-500'; // 良好
-          else if (val <= 35.4) bgColor = 'bg-yellow-500'; // 普通
-          else if (val <= 54.4) bgColor = 'bg-orange-500'; // 敏感不健康
-          else bgColor = 'bg-red-500'; // 不健康
+          if (val < 12.5) bgColor = 'bg-emerald-500'; // 良好
+          else if (val <= 30.4) bgColor = 'bg-yellow-500'; // 普通
+          else if (val <= 50.4) bgColor = 'bg-orange-500'; // 敏感不健康
+          else if (val <= 125.4) bgColor = 'bg-red-500'; // 不健康
+          else if (val <= 225.4) bgColor = 'bg-purple-500'; // 非常不健康
+          else bgColor = 'bg-[#3f000f]'; // 危害
         } else if (selectedMetric === 'temperature') {
           if (val < 20.0) bgColor = 'bg-blue-500'; // 涼爽
           else if (val <= 28.0) bgColor = 'bg-emerald-500'; // 舒適
@@ -217,7 +219,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         ping.className = 'radar-ping';
         ping.style.cssText = 'position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
         wrapper.appendChild(ping);
-      } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54) {
+      } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 50.4) {
         el.className += ` ${bgColor}`;
         const ping = document.createElement('div');
         ping.className = 'radar-ping';
@@ -318,7 +320,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     // 根據 selectedMetric 動態調整權重插值範圍
     let maxVal = 100;
-    if (selectedMetric === 'pm2_5') maxVal = 75;
+    if (selectedMetric === 'pm2_5') maxVal = 325.4;
     else if (selectedMetric === 'temperature') maxVal = 40;
     else if (selectedMetric === 'humidity') maxVal = 100;
 
@@ -368,11 +370,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               ['linear'],
               ['heatmap-density'],
               0, 'rgba(0,0,0,0)',
-              0.2, '#10b981', // 良好
-              0.4, '#eab308', // 普通
-              0.6, '#f97316', // 敏感橘
-              0.8, '#ef4444', // 不健康
-              1.0, '#a855f7'  // 非常不健康
+              0.15, '#10b981', // 良好 (綠)
+              0.3, '#eab308',  // 普通 (黃)
+              0.45, '#f97316', // 敏感橘 (橘)
+              0.6, '#ef4444',  // 不健康 (紅)
+              0.8, '#a855f7',  // 非常不健康 (紫)
+              1.0, '#3f000f'   // 危害 (危害深褐色/黑紅)
             ],
         'heatmap-radius': [
           'interpolate',
@@ -555,14 +558,15 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     if (selectedMetric === 'pm2_5') {
       title = 'PM₂.₅ 熱區密度';
-      gradientStyle = 'linear-gradient(to right, #10b981, #eab308, #f97316, #ef4444, #a855f7)';
+      gradientStyle = 'linear-gradient(to right, #10b981, #eab308, #f97316, #ef4444, #a855f7, #3f000f)';
       unit = 'µg/m³';
       steps = [
-        { value: 0, label: '0' },
-        { value: 15, label: '15' },
-        { value: 35, label: '35' },
-        { value: 55, label: '55' },
-        { value: 75, label: '75+' }
+        { value: 12.4, label: '12.4' },
+        { value: 30.4, label: '30.4' },
+        { value: 50.4, label: '50.4' },
+        { value: 125.4, label: '125.4' },
+        { value: 225.4, label: '225.4' },
+        { value: 325.4, label: '325.4' }
       ];
     } else if (selectedMetric === 'temperature') {
       title = '溫度熱區密度';
@@ -591,7 +595,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const actualMaxStr = validVals.length > 0 ? `${actualMax.toFixed(1)} ${unit}` : 'N/A';
 
     return (
-      <div className="absolute bottom-4 right-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex flex-col gap-2 min-w-[210px] max-w-[240px] border border-slate-800 bg-slate-950/80 backdrop-blur-md">
+      <div className="absolute bottom-4 right-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex flex-col gap-2 min-w-[240px] max-w-[280px] border border-slate-800 bg-slate-950/80 backdrop-blur-md">
         <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-0.5">
           <h5 className="font-bold text-slate-200">{title}</h5>
           <span className="text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded-full font-semibold">
@@ -608,7 +612,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         </div>
 
         {/* 顏色對應的測值切點 */}
-        <div className="flex justify-between text-[10px] text-slate-400 font-bold px-1 mb-0.5">
+        <div className="flex justify-between text-[9px] text-slate-400 font-bold px-0.5 mb-0.5">
           {steps.map((step, idx) => (
             <span key={idx}>{step.label}</span>
           ))}
@@ -674,25 +678,33 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       )}
 
       {/* 圖例說明 */}
-      <div className="hidden sm:flex absolute bottom-4 left-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-2 min-w-[150px]">
+      <div className="hidden sm:flex absolute bottom-4 left-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-2 min-w-[170px]">
         {selectedMetric === 'pm2_5' && (
           <>
-            <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">PM₂.₅ 圖例 (ug/m³)</h5>
+            <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">PM₂.₅ 圖例 (µg/m³)</h5>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-slate-400">良好 (0.0 ~ 15.4)</span>
+              <span className="text-slate-400">良好 (&lt; 12.5)</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-yellow-500" />
-              <span className="text-slate-400">普通 (15.5 ~ 35.4)</span>
+              <span className="text-slate-400">普通 (12.5 ~ 30.4)</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-orange-500" />
-              <span className="text-slate-400">敏感不健康 (35.5 ~ 54.4)</span>
+              <span className="text-slate-400">敏感不健康 (30.5 ~ 50.4)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-slate-400">不健康 (54.5+)</span>
+              <span className="w-3 h-3 rounded-full bg-red-500" />
+              <span className="text-slate-400">不健康 (50.5 ~ 125.4)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-purple-500" />
+              <span className="text-slate-400">非常不健康 (125.5 ~ 225.4)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-[#3f000f] animate-pulse" />
+              <span className="text-slate-400">危害 (225.5 ~ 325.4+)</span>
             </div>
           </>
         )}
