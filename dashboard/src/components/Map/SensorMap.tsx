@@ -540,6 +540,48 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     }
   }, [selectedFilter, regionCenters, isLoaded]);
 
+  const renderScaleBar = () => {
+    let gradientStyle = '';
+    let minText = '0';
+    let maxText = '100';
+    let unit = '';
+    let title = '';
+
+    if (selectedMetric === 'pm2_5') {
+      title = 'PM₂.₅ 熱區密度';
+      gradientStyle = 'linear-gradient(to right, #10b981, #eab308, #f97316, #ef4444, #a855f7)';
+      minText = '0';
+      maxText = '75';
+      unit = 'ug/m³';
+    } else if (selectedMetric === 'temperature') {
+      title = '溫度熱區密度';
+      gradientStyle = 'linear-gradient(to right, #3b82f6, #10b981, #f59e0b, #ef4444)';
+      minText = '0';
+      maxText = '40';
+      unit = '°C';
+    } else if (selectedMetric === 'humidity') {
+      title = '濕度熱區密度';
+      gradientStyle = 'linear-gradient(to right, #f97316, #10b981, #3b82f6)';
+      minText = '0';
+      maxText = '100';
+      unit = '%';
+    }
+
+    return (
+      <div className="hidden sm:flex absolute bottom-4 right-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex-col gap-1.5 min-w-[200px] border border-slate-800">
+        <h5 className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1">{title}</h5>
+        <div 
+          className="w-full h-3 rounded-md shadow-inner" 
+          style={{ background: gradientStyle }}
+        />
+        <div className="flex justify-between text-[10px] text-slate-400 font-semibold px-0.5 mt-0.5">
+          <span>{minText} {unit}</span>
+          <span>{maxText} {unit}</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
       {/* 地圖容器 */}
@@ -646,6 +688,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           </>
         )}
       </div>
+      {renderScaleBar()}
     </div>
   );
 };
