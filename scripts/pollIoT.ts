@@ -34,7 +34,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const STA_BASE = 'https://sta.colife.org.tw/STA_AirQuality_EPAIoT/v1.0';
 const CITY_FILTER = "properties/city eq '臺中市'";
-const PAGE_SIZE = 100; // API 每頁筆數
+const PAGE_SIZE = 200; // API 每頁筆數（加大減少分頁次數）
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error('❌ 缺少 SUPABASE_URL 或 SUPABASE_SERVICE_ROLE_KEY 環境變數');
@@ -110,10 +110,37 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// ---- Phase 1: 同步測站基本資料 ----
-async function syncSensors(): Promise<Map<string, StaThing['properties']>> {
-  console.log('\n📡 Phase 1: 同步台中市測站清單...');
+// ---- Phase 1: 同步測站基本資料（只在每天 UTC 00:xx 執行一次，其餘時間讀 Supabase 快取）----
+async function syncSensors(force = false): Promise<Map<string, StaThing['properties']>> {
+  const nowHour = new Date().getUTCHours();
+  const shouldFetchFromAPI = force || nowHour === 0;
 
+  if (!shouldFetchFromAPI) {
+    // 非每日同步時段 → 直接從 Supabase 讀取快取站清單
+    console.log('\n📡 Phase 1: 從 Supabase 讀取測站快取（非每日同步時段）...');
+    const { data, error } = await supabase
+      .from('sensors')
+      .select('station_id,device_name,city,township,area,area_type');
+    if (error) {
+      console.error('  sensors 快取讀取失敗:', error.message);
+    }
+    const propMap = new Map<string, StaThing['properties']>();
+    (data || []).forEach((row: any) =>
+      propMap.set(row.station_id, {
+        stationID: row.station_id,
+        deviceName: row.device_name,
+        city: row.city,
+        township: row.township,
+        area: row.area,
+        areaType: row.area_type,
+      })
+    );
+    console.log(`  ✅ 快取讀取 ${propMap.size} 站`);
+    return propMap;
+  }
+
+  // 每日同步時段 → 從 STA API 抓取最新測站清單
+  console.log('\n📡 Phase 1: 從 STA API 同步台中市測站清單...');
   const url = `${STA_BASE}/Things?$expand=Locations&$select=name,properties&$filter=${encodeURIComponent(CITY_FILTER)}&$top=${PAGE_SIZE}`;
   const things = await fetchAllPages<StaThing>(url);
 

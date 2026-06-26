@@ -2,8 +2,8 @@ name: IoT Data Poller - 台中市微感測站
 
 on:
   schedule:
-    # 每 5 分鐘執行一次（UTC 時間，台灣為 UTC+8）
-    - cron: '*/5 * * * *'
+    # 每 10 分鐘執行一次（PAGE_SIZE=200 後每次約 2–3 分鐘，10 分鐘間隔有充裕緩衝）
+    - cron: '*/10 * * * *'
   workflow_dispatch:
     # 允許手動觸發（用於測試）
     inputs:
@@ -15,7 +15,7 @@ on:
 jobs:
   poll-iot-data:
     runs-on: ubuntu-latest
-    timeout-minutes: 4  # 必須在 5 分鐘內完成，否則下一次觸發會重疊
+    timeout-minutes: 8  # 延長至 8 分鐘，確保 STA API 分頁抓取不被強制中斷
 
     steps:
       - name: Checkout repository

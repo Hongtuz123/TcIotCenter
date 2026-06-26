@@ -46,11 +46,8 @@ export async function GET() {
       .select('*', { count: 'exact', head: true });
 
     const total = totalSensors || 0;
-    const actual = actualCount || 0;
-    const expected = total * 12; // 1 小時 × 每 5 分鐘 = 12 個桶
-    const rate = expected > 0 ? Math.min(actual / expected, 1.0) : 0;
 
-    // 4. 找出最近 1 小時完全無資料的測站（判定為離線）
+    // 4. 找出最近 1 小時內有回報資料的測站（用站數維度計算完整率）
     const { data: activeSensors } = await supabase
       .from('observations_5m')
       .select('station_id')
@@ -58,17 +55,27 @@ export async function GET() {
       .lte('bucket_time', windowEnd);
 
     const activeSensorIds = new Set((activeSensors || []).map((r: any) => r.station_id));
-    const offlineCount = Math.max(0, total - activeSensorIds.size);
+    const onlineCount = activeSensorIds.size;
+    const offlineCount = Math.max(0, total - onlineCount);
+
+    // 完整率 = 有回報的站數 ÷ 總站數（語意：有多少比例的站還在線上）
+    const rate = total > 0 ? onlineCount / total : 0;
+
+    // 供 debug 用的桶數統計
+    const actual = actualCount || 0;
+    const expected = total * 12; // 理論上 1h × 每 5 分鐘 = 12 個桶
 
     return NextResponse.json({
       rate: Math.round(rate * 1000) / 10, // 百分比，一位小數
       mode: 'supabase',
       debug_host: process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).host : null,
       total_sensors: total,
+      online_count: onlineCount,
+      offline_count: offlineCount,
+      // 桶數 debug 資訊
       expected_obs: expected,
       actual_obs: actual,
-      offline_count: offlineCount,
-      online_count: activeSensorIds.size,
+      bucket_completeness: expected > 0 ? Math.round((actual / expected) * 1000) / 10 : 0,
       window_start: windowStart,
       window_end: windowEnd,
       // 歷史快照（最新一筆）
