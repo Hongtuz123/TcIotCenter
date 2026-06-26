@@ -287,7 +287,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       // 深色玻璃風格彈出氣泡窗，只呈現 deviceID、經緯度、測項、測值
       const popup = new mapboxgl.Popup({ offset: 15, className: 'dark-popup' }).setHTML(`
-        <div style="padding:10px;font-family:Inter,sans-serif;color:#f1f5f9;background:rgba(8,14,26,0.97);border-radius:10px;min-width:180px;border:1px solid rgba(249,115,22,0.35);">
+        <div class="font-sans min-w-[180px]">
           <div style="display:grid;grid-template-columns:70px 1fr;gap:6px 8px;font-size:11px;align-items:center;">
             <span style="color:#64748b;font-weight:600;">Device ID:</span>
             <span style="font-weight:700;color:#fff;">${point.id}</span>
