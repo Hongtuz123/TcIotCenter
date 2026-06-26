@@ -210,7 +210,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       // 建立自訂 DOM 元素作為 Marker
       const el = document.createElement('div');
-      el.className = `w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50`;
+      el.className = `sensor-dot w-6 h-6 rounded-full border-2 border-slate-900 cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50`;
       el.style.cssText = 'position:relative;z-index:1;';
 
       // 根據當前展示測項設定數值與顏色分級
@@ -265,13 +265,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         el.className += ` ${bgColor}`;
       }
 
-      if (!isFire && !isFactory && point.id === selectedSensorId) {
-        el.className += ' ring-4 ring-white scale-125 z-40';
-      }
-
       el.addEventListener('click', () => {
         onSelectSensor(point.id);
       });
+
+      wrapper.appendChild(el);
 
       // 設定當前測項名稱與測值字串
       let metricName = '';
@@ -315,7 +313,41 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       markersRef.current[point.id] = marker;
     });
-  }, [points, selectedSensorId, isLoaded, selectedMetric]);
+  }, [points, isLoaded, selectedMetric]);
+
+  // 3.1 同步更新 Selected Sensor 的樣式與 Popup 顯示狀態
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    // 清除所有 Marker 的選中效果
+    Object.keys(markersRef.current).forEach((id) => {
+      const marker = markersRef.current[id];
+      if (marker) {
+        const wrapper = marker.getElement();
+        const dot = wrapper.querySelector('.sensor-dot');
+        if (dot) {
+          dot.classList.remove('ring-4', 'ring-white', 'scale-125', 'z-40');
+        }
+      }
+    });
+
+    // 幫選中的 Marker 加上樣式並開啟 Popup
+    if (selectedSensorId) {
+      const marker = markersRef.current[selectedSensorId];
+      if (marker) {
+        const wrapper = marker.getElement();
+        const dot = wrapper.querySelector('.sensor-dot');
+        if (dot) {
+          dot.classList.add('ring-4', 'ring-white', 'scale-125', 'z-40');
+        }
+
+        const popup = marker.getPopup();
+        if (popup && !popup.isOpen()) {
+          marker.togglePopup();
+        }
+      }
+    }
+  }, [selectedSensorId, isLoaded]);
 
   // 3.5 更新核密度圖 (Heatmap Layer)
   useEffect(() => {
