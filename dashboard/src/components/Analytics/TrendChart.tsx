@@ -74,7 +74,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   return (
     <div className="glass-card neon-border rounded-2xl p-5 flex flex-col gap-5 shadow-xl h-full">
       {/* 頂部控制列 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+      <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row justify-between items-start sm:items-center lg:items-start xl:items-center gap-3 border-b border-slate-800 pb-3">
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
             <Activity className="text-orange-500 w-4 h-4" />
@@ -102,7 +102,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
       </div>
 
       {/* 資料摘要卡片 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3">
         <div className="stat-card-orange bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-orange-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">最大觀測值</span>
           <span className="text-lg font-bold text-slate-200">

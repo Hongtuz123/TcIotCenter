@@ -9,6 +9,23 @@ import { Sensor, Observation, Event, Cluster, SystemSettings } from '@/types';
 import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X } from 'lucide-react';
 
 export default function DashboardPage() {
+  // 時間對齊輔助函數：將 YYYY-MM-DDTHH:mm 無條件捨去至最近的 5 分鐘
+  const alignTo5Minutes = (datetimeStr: string): string => {
+    if (!datetimeStr) return datetimeStr;
+    try {
+      const [datePart, timePart] = datetimeStr.split('T');
+      if (!timePart) return datetimeStr;
+      const [hour, minute] = timePart.split(':');
+      const minNum = parseInt(minute, 10);
+      if (isNaN(minNum)) return datetimeStr;
+      
+      const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
+      return `${datePart}T${hour}:${alignedMin}`;
+    } catch {
+      return datetimeStr;
+    }
+  };
+
   const [isMounted, setIsMounted] = useState(false);
 
   // 篩選與播放狀態
@@ -19,7 +36,14 @@ export default function DashboardPage() {
   // 開始時間、結束時間與當前播放時間
   const [startDateTime, setStartDateTime] = useState('2026-06-25T12:00');
   const [endDateTime, setEndDateTime] = useState('2026-06-26T12:00');
-  const [currentDateTime, setCurrentDateTime] = useState('2026-06-26T12:00');
+  const [currentDateTime, setCurrentDateTimeRaw] = useState('2026-06-26T12:00');
+  const setCurrentDateTime = (val: string | ((prev: string) => string)) => {
+    if (typeof val === 'function') {
+      setCurrentDateTimeRaw((prev) => alignTo5Minutes(val(prev)));
+    } else {
+      setCurrentDateTimeRaw(alignTo5Minutes(val));
+    }
+  };
 
   // 將 YYYY-MM-DDTHH:mm 轉成 API 所需之 YYYY-MM-DD HH:mm:00
   const currentTime = currentDateTime.replace('T', ' ') + ':00';
@@ -89,23 +113,6 @@ export default function DashboardPage() {
     online_count: number;
     offline_count: number;
   } | null>(null);
-
-  // 時間對齊輔助函數：將 YYYY-MM-DDTHH:mm 無條件捨去至最近的 5 分鐘
-  const alignTo5Minutes = (datetimeStr: string): string => {
-    if (!datetimeStr) return datetimeStr;
-    try {
-      const [datePart, timePart] = datetimeStr.split('T');
-      if (!timePart) return datetimeStr;
-      const [hour, minute] = timePart.split(':');
-      const minNum = parseInt(minute, 10);
-      if (isNaN(minNum)) return datetimeStr;
-      
-      const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
-      return `${datePart}T${hour}:${alignedMin}`;
-    } catch {
-      return datetimeStr;
-    }
-  };
 
   // 時間防抖：拖曳時防抖 250ms，自動播放時 0ms 即時反應
   useEffect(() => {
@@ -260,19 +267,6 @@ export default function DashboardPage() {
     initData();
     fetchEvents();
 
-    // 立即抓完整率，之後每 5 分鐘刷新一次
-    const fetchCompleteness = async () => {
-      try {
-        const res = await fetch('/api/completeness');
-        const data = await res.json();
-        setCompleteness(data);
-      } catch (e) {
-        console.error('載入完整率失敗:', e);
-      }
-    };
-    fetchCompleteness();
-    const completenessInterval = setInterval(fetchCompleteness, 5 * 60 * 1000);
-    return () => clearInterval(completenessInterval);
   }, []);
 
   // currentTime 由 timeOffsetMin 直接衍生，無需額外 useEffect
@@ -322,6 +316,21 @@ export default function DashboardPage() {
 
     fetch24hClusters();
   }, [debouncedTime, systemSettings]);
+
+  // 2.7. 當時間改變時，載入感測器資料完整率（1h）
+  useEffect(() => {
+    const fetchCompleteness = async () => {
+      try {
+        const res = await fetch(`/api/completeness?time=${encodeURIComponent(debouncedTime)}`);
+        const data = await res.json();
+        setCompleteness(data);
+      } catch (e) {
+        console.error('載入完整率失敗:', e);
+      }
+    };
+
+    fetchCompleteness();
+  }, [debouncedTime]);
 
   // 3. 當選取的感測站改變時，載入該站在日期區間內的歷史趨勢
   useEffect(() => {

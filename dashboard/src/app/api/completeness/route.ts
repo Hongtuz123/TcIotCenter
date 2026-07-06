@@ -5,8 +5,11 @@ import { supabase } from '@/lib/supabase';
  * GET /api/completeness
  * 回傳過去 1 小時的資料完整率統計
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const timeParam = searchParams.get('time');
+
     if (!supabase) {
       // Mock mode：回傳假資料
       return NextResponse.json({
@@ -31,8 +34,32 @@ export async function GET() {
       .single();
 
     // 2. 即時計算過去 1 小時內有資料的站數
-    const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const windowEnd = new Date().toISOString();
+    let windowEndStr = '';
+    
+    if (timeParam) {
+      const normalizedTime = timeParam.replace('T', ' ').replace(/\//g, '-');
+      const d = new Date(normalizedTime);
+      if (!isNaN(d.getTime())) {
+        windowEndStr = d.toISOString();
+      }
+    }
+
+    if (!windowEndStr) {
+      const { data: latestObs } = await supabase
+        .from('observations_5m')
+        .select('bucket_time')
+        .order('bucket_time', { ascending: false })
+        .limit(1);
+      
+      if (latestObs && latestObs.length > 0) {
+        windowEndStr = latestObs[0].bucket_time;
+      } else {
+        windowEndStr = new Date().toISOString();
+      }
+    }
+
+    const windowEnd = windowEndStr;
+    const windowStart = new Date(new Date(windowEnd).getTime() - 60 * 60 * 1000).toISOString();
 
     const { count: actualCount } = await supabase
       .from('observations_5m')
