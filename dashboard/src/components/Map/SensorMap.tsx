@@ -420,22 +420,22 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
     });
 
-    // 幫選中的 Marker 加上樣式並開啟 Popup
-    if (selectedSensorId) {
-      const marker = markersRef.current[selectedSensorId];
-      if (marker) {
-        const wrapper = marker.getElement();
-        const dot = wrapper.querySelector('.sensor-dot');
-        if (dot) {
-          dot.classList.add('border', 'border-white', 'scale-125', 'z-40');
-        }
+      // 幫選中的 Marker 加上樣式並開啟 Popup
+      if (selectedSensorId) {
+        const marker = markersRef.current[selectedSensorId];
+        if (marker) {
+          const wrapper = marker.getElement();
+          const dot = wrapper.querySelector('.sensor-dot');
+          if (dot) {
+            dot.classList.add('border', 'border-white', 'scale-125', 'z-40');
+          }
 
-        const popup = marker.getPopup();
-        if (popup && !popup.isOpen()) {
-          marker.togglePopup();
+          const popup = marker.getPopup();
+          if (popup && !popup.isOpen()) {
+            marker.togglePopup();
+          }
         }
       }
-    }
   }, [selectedSensorId, isLoaded]);
 
   // 3.2 監聽 selectedSensorId 變更，地圖平滑飛越與縮放至該設備
@@ -461,14 +461,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
 
-    // 先清除舊的 Layer 和 Source
-    if (map.getLayer('sensors-heatmap-layer')) map.removeLayer('sensors-heatmap-layer');
-    if (map.getSource('sensors-heatmap-source')) map.removeSource('sensors-heatmap-source');
-
-    if (!showHeatmap) return;
-
     // 建立 GeoJSON FeatureCollection
-    const features = points
+    const features: any = points
       .filter((pt) => {
         const val = pt[selectedMetric];
         return val !== null && val !== undefined && !isNaN(val);
@@ -485,86 +479,110 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       }));
 
-    if (features.length === 0) return;
-
-    map.addSource('sensors-heatmap-source', {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: features as any
-      }
-    });
-
     // 根據 selectedMetric 動態調整權重插值範圍
     let maxVal = 100;
     if (selectedMetric === 'pm2_5') maxVal = 250.5;
     else if (selectedMetric === 'temperature') maxVal = 40;
     else if (selectedMetric === 'humidity') maxVal = 100;
 
-    map.addLayer({
-      id: 'sensors-heatmap-layer',
-      type: 'heatmap',
-      source: 'sensors-heatmap-source',
-      maxzoom: 15,
-      paint: {
-        'heatmap-weight': [
-          'interpolate',
-          ['linear'],
-          ['get', 'value'],
-          0, 0,
-          maxVal, 1
-        ],
-        'heatmap-intensity': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          0, 1,
-          15, 3
-        ],
-        'heatmap-color': selectedMetric === 'temperature'
-          ? [
-              'interpolate',
-              ['linear'],
-              ['heatmap-density'],
-              0, 'rgba(0,0,0,0)',
-              0.2, '#3b82f6', // 涼爽
-              0.5, '#10b981', // 舒適
-              0.8, '#f59e0b', // 偏熱
-              1.0, '#ef4444'  // 炎熱
-            ]
-          : selectedMetric === 'humidity'
-          ? [
-              'interpolate',
-              ['linear'],
-              ['heatmap-density'],
-              0, 'rgba(0,0,0,0)',
-              0.3, '#f97316', // 乾燥
-              0.6, '#10b981', // 舒適
-              1.0, '#3b82f6'  // 潮濕
-            ]
-          : [
-              'interpolate',
-              ['linear'],
-              ['heatmap-density'],
-              0, 'rgba(0,0,0,0)',
-              0.15, '#10b981', // 良好 (綠)
-              0.3, '#eab308',  // 普通 (黃)
-              0.45, '#f97316', // 敏感橘 (橘)
-              0.6, '#ef4444',  // 不健康 (紅)
-              0.8, '#a855f7',  // 非常不健康 (紫)
-              1.0, '#3f000f'   // 危害 (危害深褐色/黑紅)
-            ],
-        'heatmap-radius': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          0, 15,
-          15, 45
-        ],
-        'heatmap-opacity': 0.55
-      }
-    }, map.getLayer('industrial-zones-fill') ? 'industrial-zones-fill' : undefined);
+    const heatmapWeight = [
+      'interpolate',
+      ['linear'],
+      ['get', 'value'],
+      0, 0,
+      maxVal, 1
+    ];
 
+    const heatmapColor = selectedMetric === 'temperature'
+      ? [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0, 'rgba(0,0,0,0)',
+          0.2, '#3b82f6', // 涼爽
+          0.4, '#60a5fa',
+          0.6, '#10b981',
+          0.8, '#f59e0b',
+          1.0, '#ef4444'  // 炎熱
+        ]
+      : selectedMetric === 'humidity'
+      ? [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0, 'rgba(0,0,0,0)',
+          0.3, '#f97316', // 乾燥
+          0.6, '#10b981', // 舒適
+          1.0, '#3b82f6'  // 潮濕
+        ]
+      : [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0, 'rgba(0,0,0,0)',
+          0.15, '#10b981', // 良好 (綠)
+          0.3, '#eab308',  // 普通 (黃)
+          0.45, '#f97316', // 敏感橘 (橘)
+          0.6, '#ef4444',  // 不健康 (紅)
+          0.8, '#a855f7',  // 非常不健康 (紫)
+          1.0, '#3f000f'   // 危害 (危害深褐色/黑紅)
+        ];
+
+    const sourceId = 'sensors-heatmap-source';
+    const layerId = 'sensors-heatmap-layer';
+
+    const existingSource: any = map.getSource(sourceId);
+
+    if (existingSource) {
+      // 1. 若已存在，直接更新數據與屬性
+      existingSource.setData({
+        type: 'FeatureCollection',
+        features: features
+      });
+
+      if (map.getLayer(layerId)) {
+        map.setPaintProperty(layerId, 'heatmap-weight', heatmapWeight);
+        map.setPaintProperty(layerId, 'heatmap-color', heatmapColor);
+        map.setLayoutProperty(layerId, 'visibility', showHeatmap && features.length > 0 ? 'visible' : 'none');
+      }
+    } else {
+      // 2. 若不存在，且需要顯示時才建立
+      if (!showHeatmap || features.length === 0) return;
+
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: features
+        }
+      });
+
+      map.addLayer({
+        id: layerId,
+        type: 'heatmap',
+        source: sourceId,
+        maxzoom: 15,
+        paint: {
+          'heatmap-weight': heatmapWeight,
+          'heatmap-intensity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            0, 1,
+            15, 3
+          ],
+          'heatmap-color': heatmapColor,
+          'heatmap-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            0, 15,
+            15, 45
+          ],
+          'heatmap-opacity': 0.55
+        }
+      }, map.getLayer('industrial-zones-fill') ? 'industrial-zones-fill' : undefined);
+    }
   }, [points, selectedMetric, isLoaded, styleVersion, showHeatmap]);
 
   // 4. 更新聚類熱區 Layer
@@ -573,21 +591,16 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     const map = mapRef.current;
 
-    // 若 source 與 layer 存在，先移除
-    if (map.getLayer('clusters-fill-layer')) map.removeLayer('clusters-fill-layer');
-    if (map.getLayer('clusters-outline-layer')) map.removeLayer('clusters-outline-layer');
-    if (map.getSource('clusters-source')) map.removeSource('clusters-source');
-
     // 建立 GeoJSON FeatureCollection 畫出所有聚類熱區圓形
-    const features = clusters.map((cluster) => {
+    const features: any = clusters.map((cluster) => {
       // 藉由畫出 Polygon 圓圈模擬 cluster 半徑
       const center = [cluster.center.lon, cluster.center.lat];
       const radius = cluster.radiusKm;
-      const points = 64;
+      const pointsCount = 64;
       const coords: number[][] = [];
       
-      for (let i = 0; i < points; i++) {
-        const angle = (i / points) * 360;
+      for (let i = 0; i < pointsCount; i++) {
+        const angle = (i / pointsCount) * 360;
         const radian = (angle * Math.PI) / 180;
         const dx = radius * Math.cos(radian);
         const dy = radius * Math.sin(radian);
@@ -615,76 +628,91 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       };
     });
 
-    map.addSource('clusters-source', {
-      type: 'geojson',
-      data: {
+    const sourceId = 'clusters-source';
+    const fillLayerId = 'clusters-fill-layer';
+    const outlineLayerId = 'clusters-outline-layer';
+
+    const existingSource: any = map.getSource(sourceId);
+
+    if (existingSource) {
+      // 1. 若 Source 已存在，直接更新數據
+      existingSource.setData({
         type: 'FeatureCollection',
-        features: features as any
-      }
-    });
+        features: features
+      });
+    } else {
+      // 2. 若不存在，進行初始化建立
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: features
+        }
+      });
 
-    // 填充圓圈顏色 (紅色半透明)
-    map.addLayer({
-      id: 'clusters-fill-layer',
-      type: 'fill',
-      source: 'clusters-source',
-      paint: {
-        'fill-color': '#ef4444',
-        'fill-opacity': 0.15
-      }
-    });
+      // 填充圓圈顏色 (紅色半透明)
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#ef4444',
+          'fill-opacity': 0.15
+        }
+      });
 
-    // 圓圈描邊
-    map.addLayer({
-      id: 'clusters-outline-layer',
-      type: 'line',
-      source: 'clusters-source',
-      paint: {
-        'line-color': '#ef4444',
-        'line-width': 2,
-        'line-dasharray': [2, 2]
-      }
-    });
+      // 圓圈描邊
+      map.addLayer({
+        id: outlineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#ef4444',
+          'line-width': 2,
+          'line-dasharray': [2, 2]
+        }
+      });
 
-    // 熱區滑鼠懸停與點擊事件
-    map.on('click', 'clusters-fill-layer', (e) => {
-      (e as any)._layerClicked = true;
-      if (!e.features || e.features.length === 0) return;
-      const props = e.features[0].properties;
-      
-      new mapboxgl.Popup({ className: 'dark-popup' })
-        .setLngLat(e.lngLat)
-        .setHTML(`
-          <div class="font-sans min-w-[180px]">
-            <div class="font-bold text-red-400 border-b border-red-500/20 pb-1.5 mb-2 text-xs flex items-center gap-1">
-              <span>🚨</span>
-              <span>異常聚集熱區</span>
+      // 熱區滑鼠懸停與點擊事件 (只需註冊一次)
+      map.on('click', fillLayerId, (e) => {
+        (e as any)._layerClicked = true;
+        if (!e.features || e.features.length === 0) return;
+        const props = e.features[0].properties;
+        if (!props) return;
+        
+        new mapboxgl.Popup({ className: 'dark-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div class="font-sans min-w-[180px]">
+              <div class="font-bold text-red-400 border-b border-red-500/20 pb-1.5 mb-2 text-xs flex items-center gap-1">
+                <span>🚨</span>
+                <span>異常聚集熱區</span>
+              </div>
+              <div class="grid grid-cols-[80px_1fr] gap-1.5 text-[11px] items-center">
+                <span class="text-slate-500 font-semibold">測站總數:</span>
+                <span class="font-bold text-slate-200">${props.stationsCount} 站</span>
+                
+                <span class="text-slate-500 font-semibold">平均 PM₂.₅:</span>
+                <span class="font-bold text-red-400">${parseFloat(props.avgPm25).toFixed(1)} µg/m³</span>
+                
+                <span class="text-slate-500 font-semibold">主導類型:</span>
+                <span class="font-bold text-slate-200">${props.dominantType}</span>
+                
+                <span class="text-slate-500 font-semibold">涵蓋半徑:</span>
+                <span class="font-bold text-slate-400">${props.radiusKm} km</span>
+              </div>
             </div>
-            <div class="grid grid-cols-[80px_1fr] gap-1.5 text-[11px] items-center">
-              <span class="text-slate-500 font-semibold">測站總數:</span>
-              <span class="font-bold text-slate-200">${props.stationsCount} 站</span>
-              
-              <span class="text-slate-500 font-semibold">平均 PM₂.₅:</span>
-              <span class="font-bold text-red-400">${parseFloat(props.avgPm25).toFixed(1)} µg/m³</span>
-              
-              <span class="text-slate-500 font-semibold">主導類型:</span>
-              <span class="font-bold text-slate-200">${props.dominantType}</span>
-              
-              <span class="text-slate-500 font-semibold">涵蓋半徑:</span>
-              <span class="font-bold text-slate-400">${props.radiusKm} km</span>
-            </div>
-          </div>
-        `)
-        .addTo(map);
-    });
+          `)
+          .addTo(map);
+      });
 
-    map.on('mouseenter', 'clusters-fill-layer', () => {
-      map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', 'clusters-fill-layer', () => {
-      map.getCanvas().style.cursor = '';
-    });
-
+      map.on('mouseenter', fillLayerId, () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+      map.on('mouseleave', fillLayerId, () => {
+        map.getCanvas().style.cursor = '';
+      });
+    }
   }, [clusters, isLoaded, styleVersion]);
 
   // 5. 監聽 selectedClusterId 變更，地圖平滑飛越與縮放

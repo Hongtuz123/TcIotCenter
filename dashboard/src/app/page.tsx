@@ -24,6 +24,8 @@ export default function DashboardPage() {
   // 將 YYYY-MM-DDTHH:mm 轉成 API 所需之 YYYY-MM-DD HH:mm:00
   const currentTime = currentDateTime.replace('T', ' ') + ':00';
 
+  const [debouncedTime, setDebouncedTime] = useState(currentTime);
+
   const getTaipeiTimeNow = () => {
     const d = new Date();
     const formatter = new Intl.DateTimeFormat('zh-TW', {
@@ -87,6 +89,37 @@ export default function DashboardPage() {
     online_count: number;
     offline_count: number;
   } | null>(null);
+
+  // 時間對齊輔助函數：將 YYYY-MM-DDTHH:mm 無條件捨去至最近的 5 分鐘
+  const alignTo5Minutes = (datetimeStr: string): string => {
+    if (!datetimeStr) return datetimeStr;
+    try {
+      const [datePart, timePart] = datetimeStr.split('T');
+      if (!timePart) return datetimeStr;
+      const [hour, minute] = timePart.split(':');
+      const minNum = parseInt(minute, 10);
+      if (isNaN(minNum)) return datetimeStr;
+      
+      const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
+      return `${datePart}T${hour}:${alignedMin}`;
+    } catch {
+      return datetimeStr;
+    }
+  };
+
+  // 時間防抖：拖曳時防抖 250ms，自動播放時 0ms 即時反應
+  useEffect(() => {
+    if (isPlaying) {
+      setDebouncedTime(currentTime);
+      return;
+    }
+
+    const handler = setTimeout(() => {
+      setDebouncedTime(currentTime);
+    }, 250);
+
+    return () => clearTimeout(handler);
+  }, [currentTime, isPlaying]);
 
   // 1. 初始化行政區列表與系統設定
   useEffect(() => {
@@ -249,7 +282,7 @@ export default function DashboardPage() {
     const fetchPoints = async () => {
       setIsLoadingPoints(true);
       try {
-        const res = await fetch(`/api/anomalies?time=${encodeURIComponent(currentTime)}`);
+        const res = await fetch(`/api/anomalies?time=${encodeURIComponent(debouncedTime)}`);
         const data = await res.json();
         
         if (data.points) {
@@ -266,14 +299,14 @@ export default function DashboardPage() {
     };
 
     fetchPoints();
-  }, [currentTime]);
+  }, [debouncedTime]);
 
   // 2.5. 載入過去 24 小時的熱區列表
   useEffect(() => {
     const fetch24hClusters = async () => {
       try {
         const res = await fetch(
-          `/api/clusters-24h?time=${encodeURIComponent(currentTime)}` +
+          `/api/clusters-24h?time=${encodeURIComponent(debouncedTime)}` +
             `&radius=${systemSettings.cluster_radius_km}` +
             `&min_stations=${systemSettings.min_cluster_stations}` +
             `&pm25_threshold=${systemSettings.pm25_threshold}`
@@ -288,7 +321,7 @@ export default function DashboardPage() {
     };
 
     fetch24hClusters();
-  }, [currentTime, systemSettings]);
+  }, [debouncedTime, systemSettings]);
 
   // 3. 當選取的感測站改變時，載入該站在日期區間內的歷史趨勢
   useEffect(() => {
@@ -311,8 +344,8 @@ export default function DashboardPage() {
     const fetchHistory = async () => {
       setIsLoadingHistory(true);
       try {
-        // 以 currentTime 為基準，往回 30 天的歷史觀測
-        const endDt = new Date(currentTime.replace(/-/g, '/'));
+        // 以 debouncedTime 為基準，往回 30 天的歷史觀測
+        const endDt = new Date(debouncedTime.replace(/-/g, '/'));
         const startDt = new Date(endDt.getTime() - 30 * 24 * 60 * 60 * 1000);
         const pad = (n: number) => String(n).padStart(2, '0');
         const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
@@ -332,9 +365,8 @@ export default function DashboardPage() {
       }
     };
 
-
     fetchHistory();
-  }, [selectedSensorId, currentTime]);
+  }, [selectedSensorId, debouncedTime]);
 
   // 4. 事件管理 API 串接
   const fetchEvents = async () => {
@@ -647,20 +679,22 @@ export default function DashboardPage() {
             onChangeDeviceId={setSelectedDeviceId}
             startDateTime={startDateTime}
             onChangeStartDateTime={(val) => {
-              setStartDateTime(val);
+              const alignedVal = alignTo5Minutes(val);
+              setStartDateTime(alignedVal);
               const curTs = new Date(currentDateTime.replace('T', ' ')).getTime();
-              const newMinTs = new Date(val.replace('T', ' ')).getTime();
+              const newMinTs = new Date(alignedVal.replace('T', ' ')).getTime();
               if (curTs < newMinTs) {
-                setCurrentDateTime(val);
+                setCurrentDateTime(alignedVal);
               }
             }}
             endDateTime={endDateTime}
             onChangeEndDateTime={(val) => {
-              setEndDateTime(val);
+              const alignedVal = alignTo5Minutes(val);
+              setEndDateTime(alignedVal);
               const curTs = new Date(currentDateTime.replace('T', ' ')).getTime();
-              const newMaxTs = new Date(val.replace('T', ' ')).getTime();
+              const newMaxTs = new Date(alignedVal.replace('T', ' ')).getTime();
               if (curTs > newMaxTs) {
-                setCurrentDateTime(val);
+                setCurrentDateTime(alignedVal);
               }
             }}
             maxEndDateTime={maxEndDateTime}
