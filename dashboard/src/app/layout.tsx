@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "微感監測中心",
   description: "台中空氣品質與排污事件監測中心",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({
