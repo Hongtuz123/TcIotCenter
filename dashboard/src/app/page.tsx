@@ -449,7 +449,7 @@ export default function DashboardPage() {
           const seconds = String(d.getSeconds()).padStart(2, '0');
           timeStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         }
-        setCurrentTime(timeStr);
+        setCurrentDateTime(timeStr);
       }
     }
   };

@@ -46,6 +46,8 @@ export interface Event {
 
 export interface Cluster {
   id: string;
+  time: string;
+  name?: string;
   center: { lat: number; lon: number };
   radiusKm: number;
   stationsCount: number;
