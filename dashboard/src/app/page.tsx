@@ -916,7 +916,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 下半部: 被選定測站趨勢圖 */}
-          <div className="w-full md:w-1/2 lg:w-full h-[350px] lg:h-[300px]">
+          <div className="w-full md:w-1/2 lg:w-full h-[350px] lg:h-[390px]">
             <TrendChart
               selectedSensor={selectedSensor}
               historyData={historyData}

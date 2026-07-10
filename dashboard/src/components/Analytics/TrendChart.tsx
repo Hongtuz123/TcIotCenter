@@ -72,9 +72,9 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   }
 
   return (
-    <div className="glass-card neon-border rounded-2xl p-5 flex flex-col gap-5 shadow-xl h-full">
+    <div className="glass-card neon-border rounded-2xl p-4 flex flex-col gap-4 shadow-xl h-full">
       {/* 頂部控制列 */}
-      <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row justify-between items-start sm:items-center lg:items-start xl:items-center gap-3 border-b border-slate-800 pb-3">
+      <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row justify-between items-start sm:items-center lg:items-start xl:items-center gap-2.5 border-b border-slate-800 pb-2.5">
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
             <Activity className="text-orange-500 w-4 h-4" />
