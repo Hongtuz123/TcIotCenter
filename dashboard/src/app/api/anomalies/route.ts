@@ -65,7 +65,10 @@ export async function GET(request: NextRequest) {
       let since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
       if (time) {
-        const normalizedTime = time.replace('T', ' ').replace(/\//g, '-');
+        let normalizedTime = time.replace('T', ' ').replace(/\//g, '-');
+        if (!normalizedTime.includes('+') && !normalizedTime.includes('Z') && !normalizedTime.includes('GMT')) {
+          normalizedTime = normalizedTime.trim() + '+08:00';
+        }
         const d = new Date(normalizedTime);
         if (!isNaN(d.getTime())) {
           until = d.toISOString();

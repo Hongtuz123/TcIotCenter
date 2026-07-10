@@ -37,7 +37,10 @@ export async function GET(request: Request) {
     let windowEndStr = '';
     
     if (timeParam) {
-      const normalizedTime = timeParam.replace('T', ' ').replace(/\//g, '-');
+      let normalizedTime = timeParam.replace('T', ' ').replace(/\//g, '-');
+      if (!normalizedTime.includes('+') && !normalizedTime.includes('Z') && !normalizedTime.includes('GMT')) {
+        normalizedTime = normalizedTime.trim() + '+08:00';
+      }
       const d = new Date(normalizedTime);
       if (!isNaN(d.getTime())) {
         windowEndStr = d.toISOString();
