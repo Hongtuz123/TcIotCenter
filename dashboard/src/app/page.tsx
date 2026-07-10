@@ -885,9 +885,9 @@ export default function DashboardPage() {
         </section>
 
         {/* 右側欄: 事件清單 & 詳細趨勢圖 */}
-        <section className="w-full lg:w-[27%] lg:min-w-[320px] lg:max-w-[380px] h-auto lg:h-full flex flex-col md:flex-row lg:flex-col gap-3 lg:gap-4">
+        <section className="w-full lg:w-[27%] lg:min-w-[320px] lg:max-w-[380px] h-auto lg:h-full flex flex-col md:flex-row lg:flex-col gap-3 lg:gap-4 lg:overflow-hidden">
           {/* 上半部: 事件管理列表 */}
-          <div className="w-full md:w-1/2 lg:w-full h-[350px] md:h-[400px] lg:h-auto lg:flex-1">
+          <div className="w-full md:w-1/2 lg:w-full h-[350px] md:h-[400px] lg:h-auto lg:flex-[3] lg:min-h-0 lg:overflow-hidden">
             <EventManager
               selectedSensor={selectedSensor}
               onSelectSensor={setSelectedSensorId}
@@ -916,7 +916,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 下半部: 被選定測站趨勢圖 */}
-          <div className="w-full md:w-1/2 lg:w-full h-[350px] lg:h-[390px]">
+          <div className="w-full md:w-1/2 lg:w-full h-[350px] lg:flex-[2] lg:min-h-0 lg:overflow-hidden">
             <TrendChart
               selectedSensor={selectedSensor}
               historyData={historyData}

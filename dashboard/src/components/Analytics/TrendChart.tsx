@@ -146,7 +146,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
       </div>
 
       {/* 趨勢圖表主區 */}
-      <div className="flex-1 w-full min-h-[220px] bg-slate-950/30 rounded-xl p-2 border border-slate-850/50">
+      <div className="flex-1 w-full min-h-0 bg-slate-950/30 rounded-xl p-2 border border-slate-850/50">
         {chartData.length === 0 ? (
           <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs italic">
             此站點在當前時間範圍內無觀測值。
