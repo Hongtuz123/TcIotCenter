@@ -13,10 +13,10 @@ export async function GET() {
     // 獲取所有事件
     const events = await db.all('SELECT * FROM events ORDER BY created_at DESC');
     
-    // 獲取每個事件關聯的感測器
+    // 獲取每個事件關聯的感測器（包含當時測值）
     for (const event of events) {
       const sensors = await db.all(`
-        SELECT s.id, s.name, s.lat, s.lon, s.county
+        SELECT s.id, s.name, s.lat, s.lon, s.county, s.status, es.pm25 AS pm2_5, es.temperature, es.humidity, es.voc
         FROM event_sensors es
         JOIN sensors s ON es.sensor_id = s.id
         WHERE es.event_id = ?
@@ -42,7 +42,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, status, bounds, sensorIds } = body;
+    const { title, description, status, bounds, event_time, sensors } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Missing title' }, { status: 400 });
@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
 
     if (!db) {
       // 降級為 Mock 並在記憶體中建立
-      const associatedSensors = mockSensors.filter(s => (sensorIds || []).includes(s.id));
       const newEvent = {
         id: eventId,
         title,
@@ -62,10 +61,11 @@ export async function POST(request: NextRequest) {
         status: status || '待確認',
         created_at: nowStr,
         updated_at: nowStr,
+        event_time: event_time || null,
         bounds: bounds || null,
-        sensors: associatedSensors
+        sensors: sensors || []
       };
-      globalMockState.events.unshift(newEvent);
+      globalMockState.events.unshift(newEvent as any);
       return NextResponse.json({ success: true, id: eventId });
     }
 
@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
 
     try {
       await db.run(`
-        INSERT INTO events (id, title, description, status, created_at, updated_at, bounds)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO events (id, title, description, status, created_at, updated_at, bounds, event_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         eventId,
         title,
@@ -82,15 +82,16 @@ export async function POST(request: NextRequest) {
         status || '待確認',
         nowStr,
         nowStr,
-        bounds ? JSON.stringify(bounds) : null
+        bounds ? JSON.stringify(bounds) : null,
+        event_time || null
       ]);
 
-      if (Array.isArray(sensorIds)) {
-        for (const sensorId of sensorIds) {
+      if (Array.isArray(sensors)) {
+        for (const s of sensors) {
           await db.run(`
-            INSERT OR IGNORE INTO event_sensors (event_id, sensor_id)
-            VALUES (?, ?)
-          `, [eventId, sensorId]);
+            INSERT OR IGNORE INTO event_sensors (event_id, sensor_id, pm25, temperature, humidity, voc)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `, [eventId, s.id, s.pm2_5 ?? null, s.temperature ?? null, s.humidity ?? null, s.voc ?? null]);
         }
       }
 

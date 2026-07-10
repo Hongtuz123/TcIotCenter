@@ -34,9 +34,10 @@ export default function DashboardPage() {
   const [showFiltersMobile, setShowFiltersMobile] = useState(false);
   
   // 開始時間、結束時間與當前播放時間
-  const [startDateTime, setStartDateTime] = useState('2026-06-25T12:00');
-  const [endDateTime, setEndDateTime] = useState('2026-06-26T12:00');
-  const [currentDateTime, setCurrentDateTimeRaw] = useState('2026-06-26T12:00');
+  const [startDateTime, setStartDateTime] = useState('2026-04-01T00:00');
+  const [endDateTime, setEndDateTime] = useState('2026-04-03T23:59');
+  const [currentDateTime, setCurrentDateTimeRaw] = useState('2026-04-01T00:00');
+  const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const setCurrentDateTime = (val: string | ((prev: string) => string)) => {
     if (typeof val === 'function') {
       setCurrentDateTimeRaw((prev) => alignTo5Minutes(val(prev)));
@@ -545,8 +546,46 @@ export default function DashboardPage() {
     };
   }, []);
 
+  // 覆蓋/補齊歷史事件當下的觀測值
+  const displayPoints = React.useMemo(() => {
+    if (!activeEventId) return points;
+    const event = events.find(e => e.id === activeEventId);
+    if (!event || !event.sensors) return points;
+
+    const updatedPoints = [...points];
+    for (const es of event.sensors) {
+      const idx = updatedPoints.findIndex(p => p.id === es.id);
+      const formattedSensorObs = {
+        id: es.id,
+        name: es.name,
+        lat: es.lat,
+        lon: es.lon,
+        county: es.county,
+        status: es.status,
+        sensor_id: es.id,
+        time: event.event_time || '',
+        pm2_5: es.pm2_5,
+        temperature: es.temperature,
+        humidity: es.humidity,
+        voc: es.voc,
+        isAnomaly: (es.pm2_5 !== null && es.pm2_5 >= systemSettings.pm25_threshold) ||
+                   (es.voc !== null && es.voc >= systemSettings.voc_threshold) ||
+                   (es.temperature !== null && (es as any).tempDiff >= systemSettings.temp_increase_threshold),
+        anomalyType: (es.pm2_5 !== null && es.pm2_5 >= systemSettings.pm25_threshold) ? '疑似工廠排污' : '數值異常',
+        score: (es.pm2_5 || 0) * 0.5 + (es.voc || 0) * 20
+      };
+
+      if (idx !== -1) {
+        updatedPoints[idx] = { ...updatedPoints[idx], ...formattedSensorObs };
+      } else {
+        updatedPoints.push(formattedSensorObs as any);
+      }
+    }
+    return updatedPoints;
+  }, [points, activeEventId, events, systemSettings]);
+
   // 篩選後要渲染在地圖上的點位
-  const filteredPoints = points.filter((pt) => {
+  const filteredPoints = displayPoints.filter((pt) => {
     if (selectedFilter.type === 'county' && pt.county !== selectedFilter.value) return false;
     if (selectedFilter.type === 'zone' && sensorZoneMap[pt.id] !== selectedFilter.value) return false;
     if (selectedDeviceId !== 'all' && pt.id !== selectedDeviceId) return false;
@@ -559,7 +598,7 @@ export default function DashboardPage() {
   });
 
   // 取得符合第一層篩選的所有設備清單，供第二層 DeviceID 下拉選單選擇
-  const availableDevices = points.filter((pt) => {
+  const availableDevices = displayPoints.filter((pt) => {
     if (selectedFilter.type === 'county' && pt.county !== selectedFilter.value) return false;
     if (selectedFilter.type === 'zone' && sensorZoneMap[pt.id] !== selectedFilter.value) return false;
     return true;
@@ -724,6 +763,25 @@ export default function DashboardPage() {
         <section className="w-full lg:flex-1 h-[450px] md:h-[500px] lg:h-full flex flex-col gap-3 lg:gap-4">
           {/* 地圖區域 */}
           <div className="flex-1 relative min-h-[300px]">
+            {activeEventId && (
+              <div className="absolute top-4 left-4 right-4 bg-orange-900/80 border border-orange-500/40 text-orange-200 px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs z-[1000] backdrop-blur-md shadow-lg shadow-orange-500/10 animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-orange-500 animate-pulse" />
+                  <span>
+                    正在檢視歷史事件：<strong>{events.find(e => e.id === activeEventId)?.title}</strong> 
+                    （事件時間：{events.find(e => e.id === activeEventId)?.event_time}）
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveEventId(null);
+                  }}
+                  className="bg-orange-500 hover:bg-orange-600 text-slate-950 px-2.5 py-1 rounded-xl font-bold cursor-pointer transition-colors shadow-md shadow-orange-500/10 active:scale-95 shrink-0 font-sans"
+                >
+                  返回即時監測
+                </button>
+              </div>
+            )}
             <SensorMap
               points={filteredPoints}
               clusters={clusters}
@@ -838,6 +896,22 @@ export default function DashboardPage() {
               onUpdateEvent={handleUpdateEvent}
               onDeleteEvent={handleDeleteEvent}
               isLoading={isLoadingPoints}
+              activeEventId={activeEventId}
+              onViewEvent={(event) => {
+                if (event) {
+                  setActiveEventId(event.id);
+                  if (event.event_time) {
+                    const newTime = event.event_time.replace(' ', 'T').substring(0, 16);
+                    setCurrentDateTime(newTime);
+                  }
+                  if (event.sensors && event.sensors.length > 0) {
+                    setSelectedSensorId(event.sensors[0].id);
+                  }
+                } else {
+                  setActiveEventId(null);
+                }
+              }}
+              currentDateTime={currentDateTime}
             />
           </div>
 

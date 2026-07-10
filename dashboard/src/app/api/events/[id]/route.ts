@@ -9,7 +9,7 @@ export async function PUT(
   try {
     const { id } = params;
     const body = await request.json();
-    const { title, description, status, bounds, sensorIds } = body;
+    const { title, description, status, bounds, event_time, sensors } = body;
 
     const db = await getDb();
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -22,19 +22,16 @@ export async function PUT(
       }
 
       const existingEvent = globalMockState.events[idx];
-      const associatedSensors = sensorIds 
-        ? mockSensors.filter(s => sensorIds.includes(s.id))
-        : existingEvent.sensors;
-
       globalMockState.events[idx] = {
         ...existingEvent,
         title: title || existingEvent.title,
         description: description !== undefined ? description : existingEvent.description,
         status: status || existingEvent.status,
         updated_at: nowStr,
+        event_time: event_time !== undefined ? event_time : existingEvent.event_time,
         bounds: bounds || existingEvent.bounds,
-        sensors: associatedSensors
-      };
+        sensors: sensors || existingEvent.sensors
+      } as any;
 
       return NextResponse.json({ success: true });
     }
@@ -50,7 +47,7 @@ export async function PUT(
 
       await db.run(`
         UPDATE events 
-        SET title = ?, description = ?, status = ?, updated_at = ?, bounds = ?
+        SET title = ?, description = ?, status = ?, updated_at = ?, bounds = ?, event_time = ?
         WHERE id = ?
       `, [
         title || event.title,
@@ -58,16 +55,17 @@ export async function PUT(
         status || event.status,
         nowStr,
         bounds ? JSON.stringify(bounds) : event.bounds,
+        event_time !== undefined ? event_time : event.event_time,
         id
       ]);
 
-      if (Array.isArray(sensorIds)) {
+      if (Array.isArray(sensors)) {
         await db.run('DELETE FROM event_sensors WHERE event_id = ?', [id]);
-        for (const sensorId of sensorIds) {
+        for (const s of sensors) {
           await db.run(`
-            INSERT OR IGNORE INTO event_sensors (event_id, sensor_id)
-            VALUES (?, ?)
-          `, [id, sensorId]);
+            INSERT OR IGNORE INTO event_sensors (event_id, sensor_id, pm25, temperature, humidity, voc)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `, [id, s.id, s.pm2_5 ?? null, s.temperature ?? null, s.humidity ?? null, s.voc ?? null]);
         }
       }
 

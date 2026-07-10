@@ -5,10 +5,13 @@ export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
 
-    // 帳號：tim，密碼：pstcom
-    if (username === "tim" && password === "pstcom") {
+    const validUsers = (process.env.SYS_VALID_USERS || "tim,wenhe,frank,jason,oscar,levi,ren,allison").split(",");
+    const systemPassword = process.env.SYS_PASSWORD || "pstcom";
+
+    // 帳號驗證
+    if (validUsers.includes(username) && password === systemPassword) {
       const cookieStore = await cookies();
-      cookieStore.set("auth_session", "session_verified_tim", {
+      cookieStore.set("auth_session", `session_verified_${username}`, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",

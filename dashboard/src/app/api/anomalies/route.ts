@@ -61,8 +61,17 @@ export async function GET(request: NextRequest) {
 
     // ── Tier 1: Supabase ──────────────────────────────────────────────────────
     if (supabase) {
-      // 取最近 2 小時內的資料（擴大窗口，避免 Actions 偶爾延遲導致全空）
-      const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      let until = new Date().toISOString();
+      let since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
+      if (time) {
+        const normalizedTime = time.replace('T', ' ').replace(/\//g, '-');
+        const d = new Date(normalizedTime);
+        if (!isNaN(d.getTime())) {
+          until = d.toISOString();
+          since = new Date(d.getTime() - 15 * 60 * 1000).toISOString(); // 歷史模式窗口取 15 分鐘
+        }
+      }
 
       // 分頁迴圈抓取，突破 Supabase max_rows=1000 限制
       const latestMap = new Map<string, any>();
@@ -81,6 +90,7 @@ export async function GET(request: NextRequest) {
             sensors!inner(device_name, lat, lon, township, area)
           `)
           .gte('bucket_time', since)
+          .lte('bucket_time', until)
           .order('bucket_time', { ascending: false })
           .range(from, from + 999);
 

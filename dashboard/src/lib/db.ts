@@ -39,6 +39,23 @@ export async function getDb(): Promise<any> {
     await dbInstance.run('PRAGMA journal_mode = WAL');
     await dbInstance.run('PRAGMA busy_timeout = 5000');
 
+    // 自動升級資料表結構，新增永久紀錄測值與時間所需之欄位
+    try {
+      await dbInstance.run('ALTER TABLE events ADD COLUMN event_time TEXT');
+    } catch (e) {}
+    try {
+      await dbInstance.run('ALTER TABLE event_sensors ADD COLUMN pm25 REAL');
+    } catch (e) {}
+    try {
+      await dbInstance.run('ALTER TABLE event_sensors ADD COLUMN temperature REAL');
+    } catch (e) {}
+    try {
+      await dbInstance.run('ALTER TABLE event_sensors ADD COLUMN humidity REAL');
+    } catch (e) {}
+    try {
+      await dbInstance.run('ALTER TABLE event_sensors ADD COLUMN voc REAL');
+    } catch (e) {}
+
     return dbInstance;
   } catch (err) {
     console.error("SQLite connection failed. Falling back to Mock mode:", err);

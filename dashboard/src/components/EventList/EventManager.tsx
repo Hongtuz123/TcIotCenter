@@ -9,10 +9,15 @@ interface EventManagerProps {
   onSelectSensor: (sensorId: string) => void;
   // 事件 API 操作
   events: Event[];
-  onAddEvent: (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'> & { sensorIds: string[] }) => Promise<void>;
-  onUpdateEvent: (eventId: string, eventData: Partial<Event> & { sensorIds?: string[] }) => Promise<void>;
+  onAddEvent: (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'> & { sensors: any[], event_time: string }) => Promise<void>;
+  onUpdateEvent: (eventId: string, eventData: Partial<Event> & { sensors?: any[], event_time?: string }) => Promise<void>;
   onDeleteEvent: (eventId: string) => Promise<void>;
   isLoading: boolean;
+
+  // 新增 props
+  activeEventId: string | null;
+  onViewEvent: (event: Event | null) => void;
+  currentDateTime: string;
 }
 
 export const EventManager: React.FC<EventManagerProps> = ({
@@ -22,7 +27,10 @@ export const EventManager: React.FC<EventManagerProps> = ({
   onAddEvent,
   onUpdateEvent,
   onDeleteEvent,
-  isLoading
+  isLoading,
+  activeEventId,
+  onViewEvent,
+  currentDateTime
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -67,21 +75,37 @@ export const EventManager: React.FC<EventManagerProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const sensorIds = associatedSensors.map((s) => s.id);
+    // 將 associatedSensors 當時的測值打包
+    const sensorsWithData = associatedSensors.map((s) => ({
+      id: s.id,
+      name: s.name,
+      lat: s.lat,
+      lon: s.lon,
+      county: s.county,
+      status: s.status,
+      pm2_5: (s as any).pm2_5 !== undefined ? (s as any).pm2_5 : null,
+      temperature: (s as any).temperature !== undefined ? (s as any).temperature : null,
+      humidity: (s as any).humidity !== undefined ? (s as any).humidity : null,
+      voc: (s as any).voc !== undefined ? (s as any).voc : null,
+    }));
+
+    const eventTimeStr = currentDateTime.replace('T', ' ') + ':00';
 
     if (editingEventId) {
       await onUpdateEvent(editingEventId, {
         title,
         description,
         status,
-        sensorIds
+        sensors: sensorsWithData,
+        event_time: eventTimeStr
       });
     } else {
       await onAddEvent({
         title,
         description,
         status,
-        sensorIds,
+        sensors: sensorsWithData,
+        event_time: eventTimeStr,
         bounds: associatedSensors.length > 0 ? {
           center: { lat: associatedSensors[0].lat, lon: associatedSensors[0].lon },
           radiusKm: 1.0
@@ -97,7 +121,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
       <div className="border-b border-slate-800 pb-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <AlertCircle className="text-orange-500 w-5 h-5" />
-          <h2 className="text-lg font-bold text-slate-100">疑似排污事件管理</h2>
+          <h2 className="text-lg font-bold text-slate-100">事件管理</h2>
         </div>
         {!showAddForm && (
           <button
@@ -115,7 +139,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto pr-1">
           <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-1">
             <h3 className="text-sm font-bold text-orange-400">
-              {editingEventId ? '編輯排污事件' : '新增疑似排污事件'}
+              {editingEventId ? '編輯事件' : '新增事件'}
             </h3>
             <button
               type="button"
@@ -225,31 +249,52 @@ export const EventManager: React.FC<EventManagerProps> = ({
               </p>
             </div>
           ) : (
-            events.map((event) => (
-              <div
-                key={event.id}
-                className="bg-slate-950/60 border border-slate-850 hover:border-slate-800 rounded-xl p-4 flex flex-col gap-3 transition-colors relative group"
-              >
-                {/* 狀態標籤 */}
-                <div className="absolute top-4 right-4 flex items-center gap-2">
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      event.status === '已結案'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : event.status === '調查中'
-                        ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                        : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                    }`}
-                  >
-                    {event.status}
-                  </span>
-                </div>
+            events.map((event) => {
+              const isActive = activeEventId === event.id;
+              return (
+                <div
+                  key={event.id}
+                  className={`bg-slate-950/60 border rounded-xl p-4 flex flex-col gap-3 transition-all relative group cursor-pointer ${
+                    isActive ? 'border-orange-500 shadow-lg shadow-orange-500/10' : 'border-slate-850 hover:border-slate-800'
+                  }`}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button')) return;
+                    onViewEvent(isActive ? null : event);
+                  }}
+                >
+                  {/* 狀態標籤與檢視狀態 */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2">
+                    {isActive && (
+                      <span className="text-[9px] bg-orange-500 text-slate-950 px-1.5 py-0.5 rounded font-black tracking-wider animate-pulse flex items-center gap-0.5 shadow-sm shadow-orange-500/30">
+                        檢視中
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        event.status === '已結案'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          : event.status === '調查中'
+                          ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                          : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                      }`}
+                    >
+                      {event.status}
+                    </span>
+                  </div>
 
-                {/* 標題與更新時間 */}
-                <div>
-                  <h4 className="font-bold text-slate-200 text-sm max-w-[70%]">{event.title}</h4>
-                  <span className="text-[10px] text-slate-500">{event.updated_at}</span>
-                </div>
+                  {/* 標題與更新時間 */}
+                  <div>
+                    <h4 className="font-bold text-slate-200 text-sm max-w-[70%]">{event.title}</h4>
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      {event.event_time && (
+                        <span className="text-[10px] text-orange-400 font-semibold flex items-center gap-1">
+                          <span>⏱️</span>
+                          <span>事件時間: {event.event_time}</span>
+                        </span>
+                      )}
+                      <span className="text-[9px] text-slate-500">更新於: {event.updated_at}</span>
+                    </div>
+                  </div>
 
                 {/* 描述 */}
                 {event.description && (
@@ -298,7 +343,8 @@ export const EventManager: React.FC<EventManagerProps> = ({
                   </button>
                 </div>
               </div>
-            ))
+            );
+          })
           )}
         </div>
       )}

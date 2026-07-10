@@ -22,6 +22,13 @@ export interface Observation {
   score?: number;
 }
 
+export interface EventSensorDetail extends Sensor {
+  pm2_5: number | null;
+  temperature: number | null;
+  humidity: number | null;
+  voc: number | null;
+}
+
 export interface Event {
   id: string;
   title: string;
@@ -29,11 +36,12 @@ export interface Event {
   status: '待確認' | '調查中' | '已結案';
   created_at: string;
   updated_at: string;
+  event_time?: string;
   bounds?: {
     center: { lat: number; lon: number };
     radiusKm: number;
   } | null;
-  sensors?: Sensor[];
+  sensors?: EventSensorDetail[];
 }
 
 export interface Cluster {
