@@ -34,9 +34,9 @@ export default function DashboardPage() {
   const [showFiltersMobile, setShowFiltersMobile] = useState(false);
   
   // 開始時間、結束時間與當前播放時間
-  const [startDateTime, setStartDateTime] = useState('2026-04-01T00:00');
-  const [endDateTime, setEndDateTime] = useState('2026-04-03T23:59');
-  const [currentDateTime, setCurrentDateTimeRaw] = useState('2026-04-01T00:00');
+  const [startDateTime, setStartDateTime] = useState('2026-07-10T00:00');
+  const [endDateTime, setEndDateTime] = useState('2026-07-10T23:59');
+  const [currentDateTime, setCurrentDateTimeRaw] = useState('2026-07-10T12:00');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const setCurrentDateTime = (val: string | ((prev: string) => string)) => {
     if (typeof val === 'function') {
