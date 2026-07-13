@@ -105,6 +105,7 @@ export default function DashboardPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const prevSensorIdRef = useRef<string | null>(null);
 
   // 完整率狀態
   const [completeness, setCompleteness] = useState<{
@@ -340,9 +341,20 @@ export default function DashboardPage() {
 
   // 3. 當選取的感測站改變時，載入該站在日期區間內的歷史趨勢
   useEffect(() => {
-    if (!selectedSensorId) return;
+    if (!selectedSensorId) {
+      prevSensorIdRef.current = null;
+      return;
+    }
 
-    setHistoryData([]);
+    // 在播放狀態中不重複抓取歷史，避免視覺反覆載入閃爍與效能耗損
+    if (isPlaying) return;
+
+    // 只有在更換感測器時，才清空歷史數據以顯示加載狀態；
+    // 如果只是時間微幅改變，則不先清空，而是背景靜默載入，避免視覺上反覆出現空白閃爍。
+    if (prevSensorIdRef.current !== selectedSensorId) {
+      setHistoryData([]);
+      prevSensorIdRef.current = selectedSensorId;
+    }
 
     const sensor = points.find((p) => p.id === selectedSensorId);
     if (sensor) {
@@ -381,7 +393,7 @@ export default function DashboardPage() {
     };
 
     fetchHistory();
-  }, [selectedSensorId, debouncedTime]);
+  }, [selectedSensorId, debouncedTime, isPlaying]);
 
   // 4. 事件管理 API 串接
   const fetchEvents = async () => {
@@ -681,17 +693,10 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="text-xs bg-slate-950/60 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center gap-2">
             <span className="text-slate-500 font-medium">更新狀態:</span>
-            {isLoadingPoints ? (
-              <span className="text-orange-400 flex items-center gap-1 animate-pulse font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-                正在載入...
-              </span>
-            ) : (
-              <span className="text-emerald-400 flex items-center gap-1 font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                連線正常
-              </span>
-            )}
+            <span className={`flex items-center gap-1.5 font-semibold transition-all duration-300 ${isLoadingPoints ? 'text-orange-400 animate-pulse' : 'text-emerald-400'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${isLoadingPoints ? 'bg-orange-500' : 'bg-emerald-500'}`} />
+              {isLoadingPoints ? '正在載入' : '連線正常'}
+            </span>
           </div>
           <button
             onClick={() => setShowSettingsModal(true)}
