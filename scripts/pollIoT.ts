@@ -110,6 +110,30 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+async function getLocalSettings(): Promise<{ pm25_threshold?: number }> {
+  const dbPath = path.resolve(__dirname, '../dashboard/iot.db');
+  if (!fs.existsSync(dbPath)) {
+    console.log('ℹ️ 本地 SQLite 資料庫 iot.db 不存在，使用預設門檻。');
+    return {};
+  }
+  try {
+    const sqlite3 = require('sqlite3');
+    const { open } = require('sqlite');
+    const db = await open({ filename: dbPath, driver: sqlite3.Database });
+    const rows = await db.all('SELECT * FROM settings');
+    await db.close();
+    const settings: any = {};
+    rows.forEach((row: any) => {
+      settings[row.key] = parseFloat(row.value);
+    });
+    return settings;
+  } catch (e) {
+    console.warn('⚠️ 無法從本地 SQLite 讀取設定:', e);
+    return {};
+  }
+}
+
+
 // ---- Phase 1: 同步測站基本資料（只在每天 UTC 00:xx 執行一次，其餘時間讀 Supabase 快取）----
 async function syncSensors(force = false): Promise<Map<string, StaThing['properties']>> {
   const nowHour = new Date().getUTCHours();
@@ -360,8 +384,13 @@ async function main() {
       fetchLatestObservations('Relative humidity'),
     ]);
 
+    // 讀取本地設定
+    const localSettings = await getLocalSettings();
+    const pm25Threshold = localSettings.pm25_threshold ?? 54;
+    console.log(`   使用 PM2.5 異常門檻值: ${pm25Threshold} ug/m³`);
+
     // Phase 3: 聚合寫入
-    const { total, success } = await upsertObservations(pm25Map, tempMap, humMap);
+    const { total, success } = await upsertObservations(pm25Map, tempMap, humMap, pm25Threshold);
 
     // Phase 4: 完整率
     await logCompleteness(60, totalSensors, success);
