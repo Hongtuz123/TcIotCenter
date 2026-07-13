@@ -41,6 +41,16 @@ export const EventManager: React.FC<EventManagerProps> = ({
 
   // 根據事件關聯的測站或 bounds 經緯度座標推算行政區
   const getEventCounty = (event: Event) => {
+    // 1. 優先從 title 裡面正則解析，這是因為後端自動生成時，已將行政區寫死在 title 中 (例如 "[自動] 沙鹿區-微感事件")
+    if (event.title) {
+      const match = event.title.match(/\[自動\] (.*?)-微感事件/);
+      if (match && match[1]) return match[1];
+
+      const areaMatch = event.title.match(/(\w+區)/);
+      if (areaMatch && areaMatch[1]) return areaMatch[1];
+    }
+
+    // 2. 次要從關聯 sensors 陣列中尋找第一個有 county 欄位的
     if (event.sensors && event.sensors.length > 0) {
       const c = event.sensors.find((s) => s.county)?.county;
       if (c) return c;
