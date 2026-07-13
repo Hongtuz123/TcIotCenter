@@ -55,6 +55,8 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
 
   // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
   if (supabase && clusters.length > 0) {
+    // 捕捉至區域變數，讓 TypeScript 在 Promise.all 閉包內正確縮窄型別（non-null）
+    const client = supabase;
     await Promise.all(clusters.map(async (cluster) => {
       const lat = cluster.center.lat;
       const lon = cluster.center.lon;
@@ -66,7 +68,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
           : '微感超標-群聚';
 
       try {
-        const { error } = await supabase.from('events').upsert({
+        const { error } = await client.from('events').upsert({
           id: eventId,
           title: `[自動] 微感超標群聚事件 (門檻: PM₂.₅ ${pm25Thresh})`,
           description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${dominantType}。`,
