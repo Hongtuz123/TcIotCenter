@@ -686,10 +686,10 @@ export default function DashboardPage() {
           <button
             onClick={() => setShowSettingsModal(true)}
             className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white p-2 lg:px-4 lg:py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
-            title="判定參數與回測設定"
+            title="事件門檻設定"
           >
             <Settings className="w-4 h-4 text-orange-500" />
-            <span className="hidden sm:inline">判定參數與回測設定</span>
+            <span className="hidden sm:inline">事件門檻設定</span>
           </button>
         </div>
       </header>
@@ -934,7 +934,7 @@ export default function DashboardPage() {
             <div className="flex justify-between items-center border-b border-slate-850 pb-3">
               <h3 className="font-bold text-slate-100 flex items-center gap-1.5">
                 <Settings className="w-5 h-5 text-orange-500" />
-                排污判定引數與回測設定
+                事件門檻設定
               </h3>
               <button
                 onClick={() => setShowSettingsModal(false)}
