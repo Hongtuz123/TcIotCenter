@@ -277,7 +277,12 @@ export default function DashboardPage() {
     const fetchPoints = async () => {
       setIsLoadingPoints(true);
       try {
-        const res = await fetch(`/api/anomalies?time=${encodeURIComponent(debouncedTime)}`);
+        const res = await fetch(
+          `/api/anomalies?time=${encodeURIComponent(debouncedTime)}` +
+            `&radius=${systemSettings.cluster_radius_km}` +
+            `&min_stations=${systemSettings.min_cluster_stations}` +
+            `&pm25_threshold=${systemSettings.pm25_threshold}`
+        );
         const data = await res.json();
         
         if (data.points) {
@@ -486,7 +491,12 @@ export default function DashboardPage() {
         });
         setShowSettingsModal(false);
         // 強制刷新當前點位資料
-        const refreshRes = await fetch(`/api/anomalies?time=${encodeURIComponent(currentTime)}`);
+        const refreshRes = await fetch(
+          `/api/anomalies?time=${encodeURIComponent(currentTime)}` +
+            `&radius=${systemSettings.cluster_radius_km}` +
+            `&min_stations=${systemSettings.min_cluster_stations}` +
+            `&pm25_threshold=${systemSettings.pm25_threshold}`
+        );
         const refreshData = await refreshRes.json();
         if (refreshData.points) setPoints(refreshData.points);
         if (refreshData.clusters) setClusters(refreshData.clusters);

@@ -55,9 +55,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const time = searchParams.get('time');
 
-    const pm25Thresh = 54;
-    const clusterRadius = 1.0;
-    const minStations = 2;
+    const pm25Thresh = parseFloat(searchParams.get('pm25_threshold') || '54');
+    const clusterRadius = parseFloat(searchParams.get('radius') || '1.0');
+    const minStations = parseInt(searchParams.get('min_stations') || '2', 10);
 
     // ── Tier 1: Supabase ──────────────────────────────────────────────────────
     if (supabase) {
