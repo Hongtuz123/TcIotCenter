@@ -289,15 +289,17 @@ export const EventManager: React.FC<EventManagerProps> = ({
                     </div>
                     {/* 右側：狀態標籤 + 箭頭 */}
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
-                        event.status === '已結案'
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          : event.status === '調查中'
-                          ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
-                          : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
-                      }`}>
-                        {event.status}
-                      </span>
+                      {event.status !== '待確認' && (
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
+                          event.status === '已結案'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : event.status === '調查中'
+                            ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                            : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                        }`}>
+                          {event.status}
+                        </span>
+                      )}
                       <span className={`text-slate-500 text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                     </div>
                   </button>

@@ -781,7 +781,7 @@ export default function DashboardPage() {
           {/* 地圖區域 */}
           <div className="flex-1 relative min-h-[300px]">
             {activeEventId && (
-              <div className="absolute top-4 left-4 right-4 bg-orange-900/80 border border-orange-500/40 text-orange-200 px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs z-[1000] backdrop-blur-md shadow-lg shadow-orange-500/10 animate-fade-in">
+              <div className="absolute top-16 left-4 right-4 lg:right-28 bg-orange-900/80 border border-orange-500/40 text-orange-200 px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs z-[1000] backdrop-blur-md shadow-lg shadow-orange-500/10 animate-fade-in">
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-orange-500 animate-pulse" />
                   <span>
@@ -811,6 +811,7 @@ export default function DashboardPage() {
               selectedFilter={selectedFilter}
               regionCenters={regionCenters}
               selectedMetric={selectedMetric}
+              activeEvent={events.find(e => e.id === activeEventId)}
             />
           </div>
 

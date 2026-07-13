@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { Sensor, Cluster, Observation } from '@/types';
+import { Sensor, Cluster, Observation, Event } from '@/types';
 import { Layers, Flame, AlertTriangle, ShieldCheck, Compass } from 'lucide-react';
 
 interface SensorMapProps {
@@ -15,6 +15,7 @@ interface SensorMapProps {
   selectedFilter: { type: 'all' | 'county' | 'zone'; value: string };
   regionCenters: { [key: string]: [number, number] };
   selectedMetric: 'pm2_5' | 'temperature' | 'humidity';
+  activeEvent?: Event | null;
 }
 
 export const SensorMap: React.FC<SensorMapProps> = ({
@@ -26,7 +27,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   selectedClusterId,
   selectedFilter,
   regionCenters,
-  selectedMetric
+  selectedMetric,
+  activeEvent
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -812,6 +814,25 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       });
     }
   }, [selectedClusterId, clusters, isLoaded]);
+
+  // 5.2 監聽 activeEvent 變更，地圖平滑飛越與縮放至事件中心
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded || !activeEvent || !activeEvent.bounds?.center) return;
+
+    const lat = activeEvent.bounds.center.lat;
+    const lng = (activeEvent.bounds.center as any).lng ?? (activeEvent.bounds.center as any).lon;
+
+    if (lat !== undefined && lng !== undefined) {
+      console.log(`Zooming in to active event center at [${lng}, ${lat}]`);
+      mapRef.current.flyTo({
+        center: [lng, lat],
+        zoom: 14.5,
+        speed: 1.2,
+        curve: 1.4,
+        essential: true
+      });
+    }
+  }, [activeEvent, isLoaded]);
 
   // 5.5 監聽第一層篩選變更，地圖平滑飛越與縮放至區域中心
   useEffect(() => {
