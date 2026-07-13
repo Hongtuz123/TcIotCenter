@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [endDateTime, setEndDateTime] = useState('2026-07-10T23:59');
   const [currentDateTime, setCurrentDateTimeRaw] = useState('2026-07-10T12:00');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
+  const [showHistoryBanner, setShowHistoryBanner] = useState(false);
   const setCurrentDateTime = (val: string | ((prev: string) => string)) => {
     if (typeof val === 'function') {
       setCurrentDateTimeRaw((prev) => alignTo5Minutes(val(prev)));
@@ -777,7 +778,7 @@ export default function DashboardPage() {
         <section className="w-full lg:flex-1 h-[450px] md:h-[500px] lg:h-full flex flex-col gap-3 lg:gap-4">
           {/* 地圖區域 */}
           <div className="flex-1 relative min-h-[300px]">
-            {activeEventId && (
+            {activeEventId && showHistoryBanner && (
               <div className="absolute top-16 left-4 right-4 lg:right-28 bg-orange-900/80 border border-orange-500/40 text-orange-200 px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs z-[1000] backdrop-blur-md shadow-lg shadow-orange-500/10 animate-fade-in gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                   <ShieldAlert className="w-4 h-4 text-orange-500 shrink-0 animate-pulse" />
@@ -790,6 +791,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() => {
                       setActiveEventId(null);
+                      setShowHistoryBanner(false);
                     }}
                     className="bg-orange-500 hover:bg-orange-600 text-slate-950 px-2.5 py-1 rounded-xl font-bold cursor-pointer transition-colors shadow-md shadow-orange-500/10 active:scale-95 shrink-0 font-sans"
                   >
@@ -797,10 +799,10 @@ export default function DashboardPage() {
                   </button>
                   <button
                     onClick={() => {
-                      setActiveEventId(null);
+                      setShowHistoryBanner(false);
                     }}
                     className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 p-1.5 rounded-xl cursor-pointer transition-colors active:scale-90"
-                    title="關閉通知並退出檢視"
+                    title="關閉通知"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -927,6 +929,7 @@ export default function DashboardPage() {
               onViewEvent={(event) => {
                 if (event) {
                   setActiveEventId(event.id);
+                  setShowHistoryBanner(true);
                   if (event.event_time) {
                     const newTime = event.event_time.replace(' ', 'T').substring(0, 16);
                     setCurrentDateTime(newTime);
@@ -936,6 +939,7 @@ export default function DashboardPage() {
                   }
                 } else {
                   setActiveEventId(null);
+                  setShowHistoryBanner(false);
                 }
               }}
               currentDateTime={currentDateTime}

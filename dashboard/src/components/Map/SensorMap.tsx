@@ -884,24 +884,24 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       });
 
-      // 橘色半透明填充
+      // 紅色半透明填充
       map.addLayer({
         id: fillLayerId,
         type: 'fill',
         source: sourceId,
         paint: {
-          'fill-color': '#f97316',
-          'fill-opacity': 0.15
+          'fill-color': '#ef4444',
+          'fill-opacity': 0.3
         }
       });
 
-      // 橘色虛線描邊
+      // 紅色虛線描邊
       map.addLayer({
         id: outlineLayerId,
         type: 'line',
         source: sourceId,
         paint: {
-          'line-color': '#f97316',
+          'line-color': '#ef4444',
           'line-width': 2.5,
           'line-dasharray': [3, 2]
         }
