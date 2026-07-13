@@ -778,22 +778,33 @@ export default function DashboardPage() {
           {/* 地圖區域 */}
           <div className="flex-1 relative min-h-[300px]">
             {activeEventId && (
-              <div className="absolute top-16 left-4 right-4 lg:right-28 bg-orange-900/80 border border-orange-500/40 text-orange-200 px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs z-[1000] backdrop-blur-md shadow-lg shadow-orange-500/10 animate-fade-in">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-orange-500 animate-pulse" />
-                  <span>
+              <div className="absolute top-16 left-4 right-4 lg:right-28 bg-orange-900/80 border border-orange-500/40 text-orange-200 px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs z-[1000] backdrop-blur-md shadow-lg shadow-orange-500/10 animate-fade-in gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ShieldAlert className="w-4 h-4 text-orange-500 shrink-0 animate-pulse" />
+                  <span className="truncate">
                     正在檢視歷史事件：<strong>{events.find(e => e.id === activeEventId)?.title}</strong> 
                     （事件時間：{events.find(e => e.id === activeEventId)?.event_time}）
                   </span>
                 </div>
-                <button
-                  onClick={() => {
-                    setActiveEventId(null);
-                  }}
-                  className="bg-orange-500 hover:bg-orange-600 text-slate-950 px-2.5 py-1 rounded-xl font-bold cursor-pointer transition-colors shadow-md shadow-orange-500/10 active:scale-95 shrink-0 font-sans"
-                >
-                  返回即時監測
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      setActiveEventId(null);
+                    }}
+                    className="bg-orange-500 hover:bg-orange-600 text-slate-950 px-2.5 py-1 rounded-xl font-bold cursor-pointer transition-colors shadow-md shadow-orange-500/10 active:scale-95 shrink-0 font-sans"
+                  >
+                    返回即時監測
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveEventId(null);
+                    }}
+                    className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 p-1.5 rounded-xl cursor-pointer transition-colors active:scale-90"
+                    title="關閉通知並退出檢視"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
             <SensorMap
