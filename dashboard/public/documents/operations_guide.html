@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微感監測中心 - 操作手冊</title>
+  <style>
+    :root {
+      --primary: #f97316;
+      --primary-hover: #ea580c;
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      line-height: 1.8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 950px;
+      margin: 40px auto;
+      padding: 50px;
+      background-color: var(--bg-card);
+      border-radius: 28px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+    }
+    .header-section {
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 25px;
+      margin-bottom: 35px;
+    }
+    h1 {
+      font-size: 2.4rem;
+      color: var(--primary);
+      margin: 0 0 10px 0;
+      font-weight: 800;
+    }
+    .meta-info {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 20px;
+    }
+    .meta-info strong {
+      color: #38bdf8;
+    }
+    h2 {
+      font-size: 1.6rem;
+      color: #38bdf8;
+      margin-top: 40px;
+      margin-bottom: 20px;
+      border-left: 5px solid var(--primary);
+      padding-left: 15px;
+    }
+    h3 {
+      font-size: 1.25rem;
+      color: #e2e8f0;
+      margin-top: 25px;
+      margin-bottom: 10px;
+    }
+    p, li {
+      color: #cbd5e1;
+      font-size: 1.05rem;
+    }
+    ul, ol {
+      padding-left: 25px;
+    }
+    li {
+      margin-bottom: 10px;
+    }
+    .image-container {
+      margin: 30px 0;
+      text-align: center;
+      background-color: #0f172a;
+      padding: 15px;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+    }
+    .image-container img {
+      max-width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .image-caption {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .highlight-card {
+      background-color: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      padding: 20px;
+      border-radius: 16px;
+      margin: 25px 0;
+    }
+    .highlight-card strong {
+      color: #38bdf8;
+    }
+    .footer {
+      margin-top: 60px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 25px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-section">
+      <h1>微感監測中心 - 操作手冊</h1>
+      <div class="meta-info">
+        <span><strong>作者</strong>：PST-Tim (Technical Product Manager)</span>
+        <span><strong>版本</strong>：v1.0.0</span>
+        <span><strong>發佈時間</strong>：2026年7月</span>
+      </div>
+    </div>
+    
+    <h2>1. 系統主介面佈局功能導覽</h2>
+    <p>登入微感監測系統後，您將看到如圖 1 所示的 3D 地圖與雙側資訊控制面板佈局：</p>
+    
+    <div class="image-container">
+      <img src="assets/overview.png" alt="主介面佈局全景">
+      <div class="image-caption">圖 1：微感監測中心 - 主儀表板全景</div>
+    </div>
+
+    <p>主要操作區塊功能如下：</p>
+    <ul>
+      <li><strong>A. 空間與時間篩選欄 (左側)</strong>：包含行政區快速飛越選單、特定測站 ID 選取、歷史時間段過濾以及首要展示指標（PM₂.₅/溫度/濕度）切換。</li>
+      <li><strong>B. 3D GIS 地圖畫布 (中央)</strong>：Mapbox 引擎渲染，負責載入全台中市 1,100+ 測站，並透過顏色與呼吸燈動畫即時顯示超標狀態，背景紫色半透明多邊形為產業園區劃分範圍。</li>
+      <li><strong>C. 微感事件列表 (右側)</strong>：顯示所有系統判定的超標群聚事件，包含事件所屬園區、時間與關聯之超標測站列表。</li>
+      <li><strong>D. 歷史播放器 (底部)</strong>：用以拖曳時間軸並以 5 分鐘為刻度動態播放歷史污染擴散。</li>
+    </ul>
+
+    <h2>2. 時間與空間篩選操作步驟</h2>
+    <h3>2.1 行政區與工業區快速飛越定位</h3>
+    <p>當您需要聚焦特定區域時，請在左側選單的「第一層：地區或園區」中點選。地圖會平滑飛越至該區域中心（例如點選大里區，地圖相機將自動飛越至大里並自動過濾其他非該區之點位）。</p>
+    
+    <h3>2.2 設定觀測區間與播放</h3>
+    <p>您可以在左側面板中輸入「開始時間」與「結束時間」，然後點選下方歷史播放器的「播放 (Play)」按鈕。此時地圖上的所有測站標記會隨著時間軸跳動，以 5 分鐘為一期重繪顏色與熱區，讓您能夠觀測污染源隨時間移動的擴散路徑。</p>
+
+    <h2>3. 微感事件之動態標註與警示範圍</h2>
+    <h3>3.1 動態產業園區標註與「規則」按鈕</h3>
+    <p>在右側的微感事件面板中，系統會依據點位是否落在 GeoJSON 園區邊界內，動態為事件命名。例如點選 <code>大里產業園區-微感事件</code>，地圖會飛越至大里產業園區並顯著顯示。
+    點擊事件名稱後方的<strong>「規則」按鈕</strong>，系統會顯示彈出視窗，條列此事件產生時的參數（如 PM₂.₅ 超標閾值、空間半徑、連續判定筆數等），便於後續法規問責。</p>
+
+    <h3>3.2 歷史通知 Banner 的關閉 X 與事件範圍解耦操作</h3>
+    <div class="highlight-card">
+      <strong>💡 重要操作指引 (Banner 關閉解耦)：</strong><br>
+      選取事件後，地圖上方會滑出橘色通知 Banner（正在檢視歷史事件：...）。
+      <ul>
+        <li><strong>點擊橫幅最右側的「X」關閉按鈕</strong>：此操作<strong>僅會關閉/隱藏上方的橘色橫幅通知</strong>（使地圖頂部不受遮擋，方便操作），但地圖上的<strong>紅色事件影響範圍圓圈（透明度 0.3 的顯眼圓圈）與時間定位仍會繼續保留在畫面上</strong>。</li>
+        <li><strong>點擊橫幅中的「返回即時監測」按鈕</strong>：此操作會清除所有選取狀態，<strong>隱藏地圖上的紅色警示圈圈</strong>，並將時間軸與地圖還原回最新即時時間。</li>
+      </ul>
+    </div>
+
+    <h2>4. 系統門檻設定 Modal 操作說明</h2>
+    <p>點選系統右上角的「事件門檻設定」按鈕，會開啟設定對話框，如圖 2 所示：</p>
+
+    <div class="image-container">
+      <img src="assets/settings.png" alt="事件門檻設定彈窗">
+      <div class="image-caption">圖 2：事件門檻設定模態彈窗</div>
+    </div>
+
+    <p>參數設定欄位說明：</p>
+    <ol>
+      <li><strong>PM₂.₅ 閾值 (µg/m³)</strong>：微感器超標的判定基準。</li>
+      <li><strong>連續超標判定筆數</strong>：連續超標多少筆數據才算為異常種子點，有效避免雜訊虛報。</li>
+      <li><strong>半徑距離 (公里)</strong>：空間聚集分析的最大 Haversine 球面距離。</li>
+      <li><strong>聚集最少站數</strong>：此半徑內至少要包含多少個連續超標站點才判定為群聚事件。</li>
+    </ol>
+    <p>修改參數後點擊儲存，後端與前端將重新計算並刷新事件列表與地圖標記。</p>
+
+    <div class="footer">
+      <p>© 2026 微感監測中心. 操作手冊. 作者: PST-Tim</p>
+    </div>
+  </div>
+</body>
+</html>
