@@ -19,6 +19,7 @@ interface EventManagerProps {
   onViewEvent: (event: Event | null) => void;
   currentDateTime: string;
   systemSettings?: any;
+  points: any[];
 }
 
 export const EventManager: React.FC<EventManagerProps> = ({
@@ -32,10 +33,39 @@ export const EventManager: React.FC<EventManagerProps> = ({
   activeEventId,
   onViewEvent,
   currentDateTime,
-  systemSettings
+  systemSettings,
+  points
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+
+  // 根據事件關聯的測站或 bounds 經緯度座標推算行政區
+  const getEventCounty = (event: Event) => {
+    if (event.sensors && event.sensors.length > 0) {
+      const c = event.sensors.find((s) => s.county)?.county;
+      if (c) return c;
+    }
+    const center = event.bounds?.center;
+    if (center && points && points.length > 0) {
+      const lat = center.lat;
+      const lon = (center as any).lon !== undefined ? (center as any).lon : (center as any).lng;
+      if (lat !== undefined && lon !== undefined) {
+        let nearestSensor = null;
+        let minDistanceSq = Infinity;
+        for (const p of points) {
+          const dSq = Math.pow(p.lat - lat, 2) + Math.pow(p.lon - lon, 2);
+          if (dSq < minDistanceSq) {
+            minDistanceSq = dSq;
+            nearestSensor = p;
+          }
+        }
+        if (nearestSensor && nearestSensor.county) {
+          return nearestSensor.county;
+        }
+      }
+    }
+    return '';
+  };
 
   // 表單狀態
   const [title, setTitle] = useState('');
@@ -285,7 +315,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className={`text-xs font-bold truncate ${isExpanded ? 'text-orange-300' : 'text-slate-200'}`}>
-                            微感超標群聚事件{threshSuffix}
+                            {getEventCounty(event) || '臺中市'}-微感事件
                           </p>
                           <button
                             type="button"
