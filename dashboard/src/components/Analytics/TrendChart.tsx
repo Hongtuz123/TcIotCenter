@@ -103,45 +103,49 @@ export const TrendChart: React.FC<TrendChartProps> = ({
 
       {/* 資料摘要卡片 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3">
-        <div className="stat-card-orange bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-orange-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
+        <div className="stat-card-orange bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-orange-500 border border-slate-800/60 p-3 rounded-xl flex flex-col justify-between">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">最大觀測值</span>
-          <span className="text-lg font-bold text-slate-200">
-            {maxVal.toFixed(1)}
-            <span className="text-xs text-slate-400 font-normal ml-0.5">{unit}</span>
-          </span>
+          <div className="flex justify-between items-baseline w-full">
+            <span className="text-lg font-bold text-slate-200">{maxVal.toFixed(1)}</span>
+            <span className="text-xs text-slate-400 font-normal">{unit.trim()}</span>
+          </div>
         </div>
 
-        <div className="stat-card-cyan bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-cyan-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
+        <div className="stat-card-cyan bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-cyan-500 border border-slate-800/60 p-3 rounded-xl flex flex-col justify-between">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">平均觀測值</span>
-          <span className="text-lg font-bold text-slate-200">
-            {avgVal.toFixed(1)}
-            <span className="text-xs text-slate-400 font-normal ml-0.5">{unit}</span>
-          </span>
+          <div className="flex justify-between items-baseline w-full">
+            <span className="text-lg font-bold text-slate-200">{avgVal.toFixed(1)}</span>
+            <span className="text-xs text-slate-400 font-normal">{unit.trim()}</span>
+          </div>
         </div>
 
-        <div className="stat-card-rose bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-rose-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
+        <div className="stat-card-rose bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-rose-500 border border-slate-800/60 p-3 rounded-xl flex flex-col justify-between">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">最小觀測值</span>
-          <span className="text-lg font-bold text-slate-200">
-            {minVal.toFixed(1)}
-            <span className="text-xs text-slate-400 font-normal ml-0.5">{unit}</span>
-          </span>
+          <div className="flex justify-between items-baseline w-full">
+            <span className="text-lg font-bold text-slate-200">{minVal.toFixed(1)}</span>
+            <span className="text-xs text-slate-400 font-normal">{unit.trim()}</span>
+          </div>
         </div>
 
-        <div className="stat-card-red bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-red-500 border border-slate-800/60 p-3 rounded-xl flex flex-col">
+        <div className="stat-card-red bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-red-500 border border-slate-800/60 p-3 rounded-xl flex flex-col justify-between">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">PM₂.₅ 超標次數</span>
-          <span className="text-lg font-bold text-slate-200 flex items-center gap-1.5">
+          <div className="flex justify-between items-center w-full">
             {exceedCount > 0 ? (
               <>
-                <span className="text-red-400">{exceedCount} 次</span>
-                <ShieldAlert className="w-4 h-4 text-red-500 animate-pulse" />
+                <span className="text-lg font-bold text-red-400">{exceedCount}</span>
+                <span className="text-xs text-slate-400 font-normal flex items-center gap-1">
+                  次 <ShieldAlert className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+                </span>
               </>
             ) : (
               <>
-                <span className="text-emerald-400">0 次</span>
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                <span className="text-lg font-bold text-emerald-400">0</span>
+                <span className="text-xs text-slate-400 font-normal flex items-center gap-1">
+                  次 <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                </span>
               </>
             )}
-          </span>
+          </div>
         </div>
       </div>
 
@@ -183,7 +187,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                 stroke="#64748b"
                 fontSize={9}
                 tickLine={false}
-                domain={['auto', 'auto']}
+                domain={metricTab === 'humidity' ? [0, 100] : ['auto', 'auto']}
               />
               <Tooltip
                 contentStyle={{
