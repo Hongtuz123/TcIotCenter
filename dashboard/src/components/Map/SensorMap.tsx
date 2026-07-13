@@ -31,6 +31,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({});
+  const globalPopupRef = useRef<mapboxgl.Popup | null>(null);
+  const isInternalClosingRef = useRef(false);
   const [mapStyle, setMapStyle] = useState<'dark-v11' | 'satellite-streets-v12' | 'streets-v12'>('dark-v11');
   const [isLoaded, setIsLoaded] = useState(false);
   const [showIndustrialZones, setShowIndustrialZones] = useState(true);
@@ -157,6 +159,19 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       setIsLoaded(true);
       console.log('Mapbox load event triggered.');
       setupIndustrialZones();
+
+      // 初始化全域唯一的 Popup 實例
+      globalPopupRef.current = new mapboxgl.Popup({
+        offset: 15,
+        className: 'dark-popup',
+        closeButton: true,
+        closeOnClick: false
+      });
+
+      globalPopupRef.current.on('close', () => {
+        if (isInternalClosingRef.current) return;
+        onSelectSensor('');
+      });
       
       // 註冊地圖點擊事件，方便使用者框選位置新增事件
       map.on('click', (e) => {
@@ -269,36 +284,6 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       }
 
-      const pm25Str = point.pm2_5 !== null && point.pm2_5 !== undefined ? `${point.pm2_5} ug/m³` : 'N/A';
-      const tempStr = point.temperature !== null && point.temperature !== undefined ? `${point.temperature} °C` : 'N/A';
-      const humStr = point.humidity !== null && point.humidity !== undefined ? `${point.humidity} %` : 'N/A';
-
-      // 深色玻璃風格彈出氣泡窗，一次呈現 DeviceID、經緯度、資料時間、PM2.5、溫度、濕度
-      const popupHtml = `
-        <div class="font-sans min-w-[200px]">
-          <div style="display:grid;grid-template-columns:70px 1fr;gap:6px 8px;font-size:11px;align-items:center;">
-            <span style="color:#64748b;font-weight:600;">Device ID:</span>
-            <span style="font-weight:700;color:#fff;">${point.id}</span>
-            
-            <span style="color:#64748b;font-weight:600;">經緯度:</span>
-            <span style="font-weight:700;color:#e2e8f0;">${point.lon.toFixed(5)}, ${point.lat.toFixed(5)}</span>
-            
-            <span style="color:#64748b;font-weight:600;">資料時間:</span>
-            <span style="font-weight:700;color:#e2e8f0;">${timeStr}</span>
-            
-            <span style="color:#64748b;font-weight:600;">PM₂.₅:</span>
-            <span style="font-weight:700;color:#f97316;font-size:12px;">${pm25Str}</span>
-            
-            <span style="color:#64748b;font-weight:600;">溫度:</span>
-            <span style="font-weight:700;color:#3b82f6;">${tempStr}</span>
-            
-            <span style="color:#64748b;font-weight:600;">濕度:</span>
-            <span style="font-weight:700;color:#10b981;">${humStr}</span>
-          </div>
-          ${point.anomalyType ? `<p style="margin-top:8px;font-size:11px;font-weight:700;color:#f87171;background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:6px;text-align:center;border:1px solid rgba(239,68,68,0.2);">🚨 警告：${point.anomalyType}</p>` : ''}
-        </div>
-      `;
-
       const existingMarker = markersRef.current[point.id];
 
       if (existingMarker) {
@@ -344,12 +329,6 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
           wrapper.insertBefore(ping, el);
         }
-
-        // 更新 Popup 的內容（保留 Popup 開啟狀態與實例）
-        const popup = existingMarker.getPopup();
-        if (popup) {
-          popup.setHTML(popupHtml);
-        }
       } else {
         // 建立新 Marker 外層容器
         const wrapper = document.createElement('div');
@@ -385,18 +364,15 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           wrapper.appendChild(ping);
         }
 
-        // 當點選時通知父元件 (不阻止冒泡，允許 Mapbox 原生 Click 行為同步觸發 togglePopup)
+        // 當點選時通知父元件
         el.addEventListener('click', () => {
           onSelectSensor(point.id);
         });
 
         wrapper.appendChild(el);
 
-        const popup = new mapboxgl.Popup({ offset: 15, className: 'dark-popup' }).setHTML(popupHtml);
-
         const marker = new mapboxgl.Marker(wrapper)
           .setLngLat([point.lon, point.lat])
-          .setPopup(popup)
           .addTo(mapRef.current!);
 
         markersRef.current[point.id] = marker;
@@ -404,9 +380,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     });
   }, [points, isLoaded, selectedMetric, showSensors, selectedSensorId]);
 
-  // 3.1 同步更新 Selected Sensor 的樣式與 Popup 顯示狀態
+  // 3.1 同步更新 Selected Sensor 的樣式與全域唯一 Popup 顯示狀態
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !mapRef.current) return;
 
     // 清除所有 Marker 的選中效果
     Object.keys(markersRef.current).forEach((id) => {
@@ -420,23 +396,126 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
     });
 
-      // 幫選中的 Marker 加上樣式並開啟 Popup
-      if (selectedSensorId) {
-        const marker = markersRef.current[selectedSensorId];
-        if (marker) {
-          const wrapper = marker.getElement();
-          const dot = wrapper.querySelector('.sensor-dot');
-          if (dot) {
-            dot.classList.add('border', 'border-white', 'scale-125', 'z-40');
-          }
+    // 幫選中的 Marker 加上樣式並開啟全域唯一 Popup
+    if (selectedSensorId) {
+      const marker = markersRef.current[selectedSensorId];
+      const point = points.find((p) => p.id === selectedSensorId);
+      
+      if (marker && point) {
+        const wrapper = marker.getElement();
+        const dot = wrapper.querySelector('.sensor-dot');
+        if (dot) {
+          dot.classList.add('border', 'border-white', 'scale-125', 'z-40');
+        }
 
-          const popup = marker.getPopup();
-          if (popup && !popup.isOpen()) {
-            marker.togglePopup();
+        // 初始化全域唯一的 Popup 實例
+        if (!globalPopupRef.current) {
+          globalPopupRef.current = new mapboxgl.Popup({
+            offset: 15,
+            className: 'dark-popup',
+            closeButton: true,
+            closeOnClick: false
+          });
+
+          // 綁定關閉事件，清除選中狀態
+          globalPopupRef.current.on('close', () => {
+            if (isInternalClosingRef.current) return;
+            onSelectSensor('');
+          });
+        }
+
+        // 動態判定數值分級顏色
+        let pm25Color = '#10b981';
+        if (point.pm2_5 !== null && point.pm2_5 !== undefined) {
+          const p = point.pm2_5;
+          if (p < 15.5) pm25Color = '#10b981'; // 良好
+          else if (p <= 35.4) pm25Color = '#eab308'; // 普通 (黃)
+          else if (p <= 54.4) pm25Color = '#f97316'; // 敏感橘
+          else if (p <= 150.4) pm25Color = '#ef4444'; // 不健康 (紅)
+          else if (p <= 250.4) pm25Color = '#a855f7'; // 非常不健康
+          else pm25Color = '#881337'; // 危害
+        } else {
+          pm25Color = '#64748b';
+        }
+
+        let tempColor = '#3b82f6';
+        if (point.temperature !== null && point.temperature !== undefined) {
+          const t = point.temperature;
+          if (t < 20.0) tempColor = '#3b82f6';
+          else if (t <= 28.0) tempColor = '#10b981';
+          else if (t <= 35.0) tempColor = '#eab308';
+          else tempColor = '#ef4444';
+        } else {
+          tempColor = '#64748b';
+        }
+
+        let humColor = '#10b981';
+        if (point.humidity !== null && point.humidity !== undefined) {
+          const h = point.humidity;
+          if (h < 40) humColor = '#f97316';
+          else if (h <= 70) humColor = '#10b981';
+          else humColor = '#3b82f6';
+        } else {
+          humColor = '#64748b';
+        }
+
+        let timeStr = 'N/A';
+        if (point.time) {
+          try {
+            const d = new Date(point.time);
+            if (!isNaN(d.getTime())) {
+              const pad = (n: number) => String(n).padStart(2, '0');
+              timeStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            } else {
+              timeStr = point.time;
+            }
+          } catch {
+            timeStr = point.time;
           }
         }
+
+        const pm25Str = point.pm2_5 !== null && point.pm2_5 !== undefined ? `${point.pm2_5} ug/m³` : 'N/A';
+        const tempStr = point.temperature !== null && point.temperature !== undefined ? `${point.temperature} °C` : 'N/A';
+        const humStr = point.humidity !== null && point.humidity !== undefined ? `${point.humidity} %` : 'N/A';
+
+        const popupHtml = `
+          <div class="font-sans min-w-[200px]">
+            <div style="display:grid;grid-template-columns:70px 1fr;gap:6px 8px;font-size:11px;align-items:center;">
+              <span style="color:#64748b;font-weight:600;">Device ID:</span>
+              <span style="font-weight:700;color:#fff;">${point.id}</span>
+              
+              <span style="color:#64748b;font-weight:600;">經緯度:</span>
+              <span style="font-weight:700;color:#e2e8f0;">${point.lon.toFixed(5)}, ${point.lat.toFixed(5)}</span>
+              
+              <span style="color:#64748b;font-weight:600;">資料時間:</span>
+              <span style="font-weight:700;color:#e2e8f0;">${timeStr}</span>
+              
+              <span style="color:#64748b;font-weight:600;">PM₂.₅:</span>
+              <span style="font-weight:700;color:${pm25Color};font-size:12px;">${pm25Str}</span>
+              
+              <span style="color:#64748b;font-weight:600;">溫度:</span>
+              <span style="font-weight:700;color:${tempColor};">${tempStr}</span>
+              
+              <span style="color:#64748b;font-weight:600;">濕度:</span>
+              <span style="font-weight:700;color:${humColor};">${humStr}</span>
+            </div>
+            \${point.anomalyType ? \`<p style="margin-top:8px;font-size:11px;font-weight:700;color:#f87171;background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:6px;text-align:center;border:1px solid rgba(239,68,68,0.2);">🚨 警告：\${point.anomalyType}</p>\` : ''}
+          </div>
+        `;
+
+        globalPopupRef.current
+          .setLngLat([point.lon, point.lat])
+          .setHTML(popupHtml)
+          .addTo(mapRef.current);
       }
-  }, [selectedSensorId, isLoaded]);
+    } else {
+      if (globalPopupRef.current && globalPopupRef.current.isOpen()) {
+        isInternalClosingRef.current = true;
+        globalPopupRef.current.remove();
+        isInternalClosingRef.current = false;
+      }
+    }
+  }, [selectedSensorId, points, isLoaded, selectedMetric]);
 
   // 3.2 監聽 selectedSensorId 變更，地圖平滑飛越與縮放至該設備
   useEffect(() => {
