@@ -103,18 +103,18 @@ export const TrendChart: React.FC<TrendChartProps> = ({
 
       {/* 資料摘要卡片 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3">
-        <div className="stat-card-orange bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-orange-500 border border-slate-800/60 p-3 rounded-xl flex flex-col justify-between">
-          <span className="text-[10px] text-slate-500 font-semibold mb-1">最大觀測值</span>
-          <div className="flex justify-between items-baseline w-full">
-            <span className="text-lg font-bold text-slate-200">{maxVal.toFixed(1)}</span>
-            <span className="text-xs text-slate-400 font-normal">{unit.trim()}</span>
-          </div>
-        </div>
-
         <div className="stat-card-cyan bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-cyan-500 border border-slate-800/60 p-3 rounded-xl flex flex-col justify-between">
           <span className="text-[10px] text-slate-500 font-semibold mb-1">平均觀測值</span>
           <div className="flex justify-between items-baseline w-full">
             <span className="text-lg font-bold text-slate-200">{avgVal.toFixed(1)}</span>
+            <span className="text-xs text-slate-400 font-normal">{unit.trim()}</span>
+          </div>
+        </div>
+
+        <div className="stat-card-orange bg-gradient-to-b from-slate-900/80 to-slate-950/60 border-t-2 border-t-orange-500 border border-slate-800/60 p-3 rounded-xl flex flex-col justify-between">
+          <span className="text-[10px] text-slate-500 font-semibold mb-1">最大觀測值</span>
+          <div className="flex justify-between items-baseline w-full">
+            <span className="text-lg font-bold text-slate-200">{maxVal.toFixed(1)}</span>
             <span className="text-xs text-slate-400 font-normal">{unit.trim()}</span>
           </div>
         </div>

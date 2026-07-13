@@ -373,9 +373,9 @@ export default function DashboardPage() {
     const fetchHistory = async () => {
       setIsLoadingHistory(true);
       try {
-        // 以 debouncedTime 為基準，往回 30 天的歷史觀測
+        // 以 debouncedTime 為基準，往回 7 天的歷史觀測
         const endDt = new Date(debouncedTime.replace(/-/g, '/'));
-        const startDt = new Date(endDt.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const startDt = new Date(endDt.getTime() - 7 * 24 * 60 * 60 * 1000);
         const pad = (n: number) => String(n).padStart(2, '0');
         const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
         const queryStart = fmt(startDt);
