@@ -123,15 +123,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
           <AlertCircle className="text-orange-500 w-5 h-5" />
           <h2 className="text-lg font-bold text-slate-100">事件管理</h2>
         </div>
-        {!showAddForm && (
-          <button
-            onClick={handleOpenAddForm}
-            className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            新增事件
-          </button>
-        )}
+        {/* 已改為達到門檻自動生成事件，移除手動新增事件按鈕 */}
       </div>
 
       {/* 新增或編輯事件表單 */}

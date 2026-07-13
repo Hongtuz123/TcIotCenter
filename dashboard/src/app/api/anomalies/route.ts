@@ -50,6 +50,75 @@ function buildClusters(anomalies: any[], clusterRadius: number, minStations: num
   return clusters;
 }
 
+async function autoCreateEvents(clusters: any[], timeStr: string) {
+  const db = await getDb();
+  const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+  if (db) {
+    // SQLite 模式：自動插入到 events 和 event_sensors
+    for (const cluster of clusters) {
+      const lat = cluster.center.lat;
+      const lon = cluster.center.lon;
+      const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
+      const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
+      const title = `[自動] 微感超標群聚事件`;
+      const description = `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${cluster.dominantType && cluster.dominantType !== '--' && cluster.dominantType !== 'undefined' ? cluster.dominantType : '微感超標-群聚'}。`;
+      const status = `待確認`;
+      const boundsJson = JSON.stringify({
+        center: { lat, lng: lon },
+        radiusKm: cluster.radiusKm
+      });
+
+      try {
+        await db.run(`
+          INSERT OR IGNORE INTO events (id, title, description, status, created_at, updated_at, bounds, event_time)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [eventId, title, description, status, nowStr, nowStr, boundsJson, timeStr]);
+
+        for (const station of cluster.stations) {
+          await db.run(`
+            INSERT OR IGNORE INTO event_sensors (event_id, sensor_id, pm25)
+            VALUES (?, ?, ?)
+          `, [eventId, station.id, station.pm2_5]);
+        }
+      } catch (e) {
+        console.error('自動寫入事件錯誤:', e);
+      }
+    }
+  } else {
+    // Mock 模式：寫入記憶體 globalMockState.events
+    for (const cluster of clusters) {
+      const lat = cluster.center.lat;
+      const lon = cluster.center.lon;
+      const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
+      const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
+      
+      const exists = globalMockState.events.some((ev) => ev.id === eventId);
+      if (!exists) {
+        const newEvent = {
+          id: eventId,
+          title: `[自動] 微感超標群聚事件`,
+          description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³。`,
+          status: '待確認' as const,
+          created_at: nowStr,
+          updated_at: nowStr,
+          event_time: timeStr,
+          bounds: {
+            center: { lat, lng: lon },
+            radiusKm: cluster.radiusKm
+          },
+          sensors: cluster.stations.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            pm2_5: s.pm2_5
+          }))
+        };
+        globalMockState.events.unshift(newEvent as any);
+      }
+    }
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -136,6 +205,9 @@ export async function GET(request: NextRequest) {
       const anomalies = allPoints.filter((p) => p.isAnomaly);
       const clusters = buildClusters(anomalies, clusterRadius, minStations);
 
+      // 自動將達到門檻的熱區轉換成事件寫入資料庫
+      await autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19));
+
       return NextResponse.json({
         time: time || new Date().toISOString(),
         mode: 'supabase_realtime',
@@ -188,12 +260,17 @@ export async function GET(request: NextRequest) {
       });
 
       const anomalies = allPoints.filter((p: any) => p.isAnomaly);
+      const clusters = buildClusters(anomalies, _clusterRadius, _minStations);
+
+      // 自動將達到門檻的熱區轉換成事件寫入資料庫
+      await autoCreateEvents(clusters, time);
+
       return NextResponse.json({
         time,
         mode: 'sqlite',
         points: allPoints,
         anomaliesCount: anomalies.length,
-        clusters: buildClusters(anomalies, _clusterRadius, _minStations),
+        clusters,
         settings: { pm25Thresh: _pm25Thresh, clusterRadius: _clusterRadius, minStations: _minStations },
       });
     }
@@ -202,12 +279,17 @@ export async function GET(request: NextRequest) {
     const mockTime = time || new Date().toISOString();
     const allPoints = getMockObservations(mockTime);
     const anomalies = allPoints.filter((p) => p.isAnomaly);
+    const clusters = buildClusters(anomalies as any[], clusterRadius, minStations);
+
+    // 自動將達到門檻的熱區轉換成事件寫入資料庫
+    await autoCreateEvents(clusters, mockTime);
+
     return NextResponse.json({
       time: mockTime,
       mode: 'mock',
       points: allPoints,
       anomaliesCount: anomalies.length,
-      clusters: buildClusters(anomalies as any[], clusterRadius, minStations),
+      clusters,
       settings: { pm25Thresh, clusterRadius, minStations },
     });
   } catch (error: any) {
