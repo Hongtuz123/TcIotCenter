@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Event, Sensor } from '@/types';
-import { AlertCircle, Plus, CheckCircle, FileText, Settings, Trash2, X, PlusCircle, Link, MapPin } from 'lucide-react';
+import { FileText, Trash2, X } from 'lucide-react';
 
 interface EventManagerProps {
   selectedSensor: Sensor | null;
@@ -231,109 +231,149 @@ export const EventManager: React.FC<EventManagerProps> = ({
         </form>
       ) : (
         /* 事件列表 */
-        <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
           {events.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-6 text-center">
               <FileText className="w-12 h-12 mb-3 text-slate-700" />
               <p className="text-sm font-bold text-slate-400">目前尚無事件。</p>
             </div>
           ) : (
-            events.map((event) => {
-              const isActive = activeEventId === event.id;
+            // 事件由舊到新排列，舊的編號小
+            [...events].reverse().map((event, reverseIdx) => {
+              const seqNum = reverseIdx + 1;
+              const isExpanded = activeEventId === event.id;
+
+              // 解析超標測值（從 dominant_type 或 description 推斷）
+              const domType = event.dominant_type || '';
+              const stationsCount = event.stations_count;
+              const radiusKm = (event.bounds as any)?.radiusKm;
+              const avgPm25 = event.avg_pm25;
+
+              // 判斷超標指標類型
+              const hasPm25 = domType.includes('PM') || domType.includes('超標') || domType.includes('群聚') || avgPm25 != null;
+              const hasTemp = domType.includes('溫度') || domType.includes('燃燒');
+              const hasVoc = domType.includes('VOC') || domType.includes('排污');
+
+              // 格式化事件時間（只取日期與時間，去秒數）
+              const displayTime = event.event_time
+                ? event.event_time.replace('T', ' ').substring(0, 16)
+                : event.created_at?.substring(0, 16) || '--';
+
               return (
-                <div
-                  key={event.id}
-                  className={`bg-slate-950/60 border rounded-xl p-4 flex flex-col gap-3 transition-all relative group cursor-pointer ${
-                    isActive ? 'border-orange-500 shadow-lg shadow-orange-500/10' : 'border-slate-850 hover:border-slate-800'
-                  }`}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('button')) return;
-                    onViewEvent(isActive ? null : event);
-                  }}
-                >
-                  {/* 狀態標籤與檢視狀態 */}
-                  <div className="absolute top-4 right-4 flex items-center gap-2">
-                    {isActive && (
-                      <span className="text-[9px] bg-orange-500 text-slate-950 px-1.5 py-0.5 rounded font-black tracking-wider animate-pulse flex items-center gap-0.5 shadow-sm shadow-orange-500/30">
-                        檢視中
+                <div key={event.id} className="flex flex-col">
+                  {/* 按鈕列：點擊展開/收合 */}
+                  <button
+                    type="button"
+                    onClick={() => onViewEvent(isExpanded ? null : event)}
+                    className={`w-full text-left rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 border transition-all duration-200 cursor-pointer ${
+                      isExpanded
+                        ? 'bg-orange-500/10 border-orange-500/60 shadow-sm shadow-orange-500/10'
+                        : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 hover:bg-slate-900/40'
+                    }`}
+                  >
+                    {/* 左側：流水號 + 標題 */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded border tabular-nums ${
+                        isExpanded ? 'bg-orange-500 text-white border-orange-400' : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}>
+                        #{String(seqNum).padStart(3, '0')}
                       </span>
-                    )}
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      <div className="min-w-0">
+                        <p className={`text-xs font-bold truncate ${isExpanded ? 'text-orange-300' : 'text-slate-200'}`}>
+                          微感超標群聚事件
+                        </p>
+                        <p className="text-[9px] text-slate-500 font-mono mt-0.5">
+                          ⏱ {displayTime}
+                        </p>
+                      </div>
+                    </div>
+                    {/* 右側：狀態標籤 + 箭頭 */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
                         event.status === '已結案'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                           : event.status === '調查中'
-                          ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                          : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                      }`}
-                    >
-                      {event.status}
-                    </span>
-                  </div>
+                          ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                          : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                      }`}>
+                        {event.status}
+                      </span>
+                      <span className={`text-slate-500 text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                    </div>
+                  </button>
 
-                  {/* 標題與更新時間 */}
-                  <div>
-                    <h4 className="font-bold text-slate-200 text-sm max-w-[70%]">{event.title}</h4>
-                    <div className="flex flex-col gap-0.5 mt-0.5">
-                      {event.event_time && (
-                        <span className="text-[10px] text-orange-400 font-semibold flex items-center gap-1">
-                          <span>⏱️</span>
-                          <span>事件時間: {event.event_time}</span>
-                        </span>
+                  {/* 展開內容：事件說明 */}
+                  {isExpanded && (
+                    <div className="mt-0.5 mx-1 rounded-xl border border-orange-500/20 bg-slate-950/80 p-3 flex flex-col gap-2.5">
+                      
+                      {/* 超標資訊 */}
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black text-orange-400 uppercase tracking-wider">超標資訊</span>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {stationsCount != null && (
+                            <span className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-slate-300 font-semibold">
+                              🏭 <span className="text-orange-400">{stationsCount}</span> 站超標
+                            </span>
+                          )}
+                          {radiusKm != null && (
+                            <span className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-slate-300 font-semibold">
+                              📍 距離 <span className="text-orange-400">{radiusKm}</span> km
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 超標測值指標 */}
+                      {(hasPm25 || hasTemp || hasVoc) && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] font-black text-orange-400 uppercase tracking-wider">超標測值</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {hasPm25 && (
+                              <span className="bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                PM₂.₅
+                              </span>
+                            )}
+                            {hasTemp && (
+                              <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                溫度
+                              </span>
+                            )}
+                            {hasVoc && (
+                              <span className="bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                VOC
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       )}
-                      <span className="text-[9px] text-slate-500">更新於: {event.updated_at}</span>
-                    </div>
-                  </div>
 
-                {/* 描述 */}
-                {event.description && (
-                  <p className="text-xs text-slate-400 leading-relaxed bg-slate-900/40 p-2.5 rounded-lg border border-slate-900/60">
-                    {event.description}
-                  </p>
-                )}
+                      {/* 平均測值 */}
+                      {avgPm25 != null && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] font-black text-orange-400 uppercase tracking-wider">平均 PM₂.₅ 濃度</span>
+                          <span className="text-lg font-black text-red-400 tabular-nums">
+                            {avgPm25.toFixed(1)}
+                            <span className="text-[11px] text-slate-500 font-normal ml-1">µg/m³</span>
+                          </span>
+                        </div>
+                      )}
 
-                {/* 關聯感測器 */}
-                {event.sensors && event.sensors.length > 0 && (
-                  <div className="flex flex-col gap-1.5 border-t border-slate-850 pt-2.5 mt-1">
-                    <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
-                      <Link className="w-3 h-3" />
-                      已關聯感測器 ({event.sensors.length})
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {event.sensors.map((s) => (
+                      {/* 刪除按鈕 */}
+                      <div className="flex justify-end border-t border-slate-800/60 pt-2 mt-0.5">
                         <button
-                          key={s.id}
-                          onClick={() => onSelectSensor(s.id)}
-                          className="bg-slate-900 hover:bg-slate-800 text-[9px] text-slate-300 px-2 py-0.5 rounded border border-slate-800 flex items-center gap-0.5 transition-colors cursor-pointer"
+                          type="button"
+                          onClick={() => onDeleteEvent(event.id)}
+                          className="text-[10px] text-red-500/60 hover:text-red-400 font-bold py-1 px-2 rounded hover:bg-slate-900 flex items-center gap-1 cursor-pointer transition-colors"
                         >
-                          <MapPin className="w-2.5 h-2.5 text-orange-500" />
-                          {s.name}
+                          <Trash2 className="w-3 h-3" />
+                          刪除
                         </button>
-                      ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {/* 操作按鈕 */}
-                <div className="flex justify-end gap-2 border-t border-slate-850 pt-2.5 mt-1 opacity-60 hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => handleOpenEditForm(event)}
-                    className="text-xs text-slate-400 hover:text-orange-400 font-bold py-1 px-2.5 rounded hover:bg-slate-900 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Settings className="w-3 h-3" />
-                    編輯
-                  </button>
-                  <button
-                    onClick={() => onDeleteEvent(event.id)}
-                    className="text-xs text-red-500 hover:text-red-400 font-bold py-1 px-2.5 rounded hover:bg-slate-900 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    刪除
-                  </button>
+                  )}
                 </div>
-              </div>
-            );
-          })
+              );
+            })
           )}
         </div>
       )}

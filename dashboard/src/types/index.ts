@@ -42,6 +42,10 @@ export interface Event {
     radiusKm: number;
   } | null;
   sensors?: EventSensorDetail[];
+  // Supabase 自動事件額外欄位
+  stations_count?: number;
+  avg_pm25?: number;
+  dominant_type?: string;
 }
 
 export interface Cluster {
