@@ -22,7 +22,7 @@ export async function GET() {
       }
 
       // 一次性歷史資料行政區遷移：尋找舊標題且 bounds 有中心的事件，寫死行政區到 title 中
-      const oldEvents = (data || []).filter(ev => ev.title && ev.title.includes('微感超標群聚事件') && !ev.title.includes('區-微感事件'));
+      const oldEvents = (data || []).filter((ev: any) => ev.title && ev.title.includes('微感超標群聚事件') && !ev.title.includes('區-微感事件'));
       if (oldEvents.length > 0) {
         const { data: sensors } = await client.from('sensors').select('lat, lon, township');
         if (sensors && sensors.length > 0) {
@@ -80,7 +80,7 @@ export async function GET() {
     
     // 一次性歷史資料行政區遷移（SQLite）
     const rawEvents = await db.all('SELECT * FROM events ORDER BY created_at DESC');
-    const oldSQLiteEvents = rawEvents.filter(ev => ev.title && ev.title.includes('微感超標群聚事件') && !ev.title.includes('區-微感事件'));
+    const oldSQLiteEvents = rawEvents.filter((ev: any) => ev.title && ev.title.includes('微感超標群聚事件') && !ev.title.includes('區-微感事件'));
     if (oldSQLiteEvents.length > 0) {
       const sensors = await db.all('SELECT lat, lon, county AS township FROM sensors');
       if (sensors && sensors.length > 0) {
