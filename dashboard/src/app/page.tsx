@@ -85,6 +85,7 @@ export default function DashboardPage() {
 
   // 資料狀態
   const [points, setPoints] = useState<(Sensor & Observation)[]>([]);
+  const [allSensors, setAllSensors] = useState<Sensor[]>([]);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [clusters24h, setClusters24h] = useState<Cluster[]>([]);
   const [counties, setCounties] = useState<string[]>([]);
@@ -182,6 +183,7 @@ export default function DashboardPage() {
         // 取得所有感測器以提取行政區列表
         const res = await fetch('/api/sensors');
         const sensorsData: Sensor[] = await res.json();
+        setAllSensors(sensorsData);
         const extractedCounties = Array.from(new Set(sensorsData.map((s) => s.county))).filter(Boolean);
         setCounties(extractedCounties);
 
@@ -927,7 +929,8 @@ export default function DashboardPage() {
               }}
               currentDateTime={currentDateTime}
               systemSettings={systemSettings}
-              points={points}
+              points={allSensors}
+              sensorZoneMap={sensorZoneMap}
             />
           </div>
 

@@ -20,6 +20,7 @@ interface EventManagerProps {
   currentDateTime: string;
   systemSettings?: any;
   points: any[];
+  sensorZoneMap?: Record<string, string>;
 }
 
 export const EventManager: React.FC<EventManagerProps> = ({
@@ -34,47 +35,60 @@ export const EventManager: React.FC<EventManagerProps> = ({
   onViewEvent,
   currentDateTime,
   systemSettings,
-  points
+  points,
+  sensorZoneMap
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
-  // 根據事件關聯的測站或 bounds 經緯度座標推算行政區
-  const getEventCounty = (event: Event) => {
-    // 1. 優先從 title 裡面正則解析，這是因為後端自動生成時，已將行政區寫死在 title 中 (例如 "[自動] 沙鹿區-微感事件")
-    if (event.title) {
-      const match = event.title.match(/\[自動\] (.*?)-微感事件/);
-      if (match && match[1]) return match[1];
+  // 根據事件關聯的測站或 bounds 經緯度座標推算所屬產業園區，若無則回傳空
+  const getEventTitle = (event: Event) => {
+    let zone = '';
 
-      const areaMatch = event.title.match(/(\w+區)/);
-      if (areaMatch && areaMatch[1]) return areaMatch[1];
-    }
-
-    // 2. 次要從關聯 sensors 陣列中尋找第一個有 county 欄位的
-    if (event.sensors && event.sensors.length > 0) {
-      const c = event.sensors.find((s) => s.county)?.county;
-      if (c) return c;
-    }
-    const center = event.bounds?.center;
-    if (center && points && points.length > 0) {
-      const lat = center.lat;
-      const lon = (center as any).lon !== undefined ? (center as any).lon : (center as any).lng;
-      if (lat !== undefined && lon !== undefined) {
-        let nearestSensor = null;
-        let minDistanceSq = Infinity;
-        for (const p of points) {
-          const dSq = Math.pow(p.lat - lat, 2) + Math.pow(p.lon - lon, 2);
-          if (dSq < minDistanceSq) {
-            minDistanceSq = dSq;
-            nearestSensor = p;
-          }
-        }
-        if (nearestSensor && nearestSensor.county) {
-          return nearestSensor.county;
+    // 1. 優先從 event.sensors 中查找第一個在園區內的
+    if (event.sensors && event.sensors.length > 0 && sensorZoneMap) {
+      for (const s of event.sensors) {
+        const z = sensorZoneMap[s.id];
+        if (z) {
+          zone = z;
+          break;
         }
       }
     }
-    return '';
+
+    // 2. 其次從 bounds.center 座標反查最近的 sensor，並看該 sensor 是否在園區內
+    if (!zone) {
+      const center = event.bounds?.center;
+      if (center && points && points.length > 0 && sensorZoneMap) {
+        const lat = center.lat;
+        const lon = (center as any).lon !== undefined ? (center as any).lon : (center as any).lng;
+        if (lat !== undefined && lon !== undefined) {
+          let nearestSensor = null;
+          let minDistanceSq = Infinity;
+          for (const p of points) {
+            const dSq = Math.pow(p.lat - lat, 2) + Math.pow(p.lon - lon, 2);
+            if (dSq < minDistanceSq) {
+              minDistanceSq = dSq;
+              nearestSensor = p;
+            }
+          }
+          if (nearestSensor) {
+            const z = sensorZoneMap[nearestSensor.id];
+            if (z) zone = z;
+          }
+        }
+      }
+    }
+
+    // 3. 備援：如果 title 裡面有寫死產業園區 (例如使用者手動輸入 "關連工業區-微感事件")
+    if (!zone && event.title) {
+      const match = event.title.match(/(.*產業園區|.*工業區)-微感事件/);
+      if (match && match[1]) {
+        zone = match[1];
+      }
+    }
+
+    return zone ? `${zone}-微感事件` : '微感事件';
   };
 
   // 表單狀態
@@ -163,7 +177,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
       <div className="border-b border-slate-800 pb-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <AlertCircle className="text-orange-500 w-5 h-5" />
-          <h2 className="text-lg font-bold text-slate-100">行政區-微感事件</h2>
+          <h2 className="text-lg font-bold text-slate-100">微感事件</h2>
         </div>
         {/* 已改為達到門檻自動生成事件，移除手動新增事件按鈕 */}
       </div>
@@ -325,7 +339,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className={`text-xs font-bold truncate ${isExpanded ? 'text-orange-300' : 'text-slate-200'}`}>
-                            {getEventCounty(event) || '臺中市'}-微感事件
+                            {getEventTitle(event)}
                           </p>
                           <button
                             type="button"
