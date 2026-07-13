@@ -235,10 +235,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
           {events.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-6 text-center">
               <FileText className="w-12 h-12 mb-3 text-slate-700" />
-              <p className="text-sm font-bold mb-1">尚未建立任何排污事件</p>
-              <p className="text-xs text-slate-600 max-w-[200px] leading-relaxed">
-                若在地圖上發現疑似超標的紅色熱區，可點擊上方「新增事件」進行人工追蹤管理。
-              </p>
+              <p className="text-sm font-bold text-slate-400">目前尚無事件。</p>
             </div>
           ) : (
             events.map((event) => {

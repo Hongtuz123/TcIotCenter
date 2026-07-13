@@ -24,7 +24,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
         <BarChart2 className="w-12 h-12 mb-3 text-slate-700 animate-pulse" />
         <p className="text-sm font-bold mb-1">未選取感測站點</p>
         <p className="text-xs text-slate-600 max-w-[250px] leading-relaxed">
-          請點選地圖上的任何一個微感測點以加載並查看其 30 天歷史數據與多測項變化趨勢。
+          請點選地圖上的任何一個微感測點以加載並查看其 7 天歷史數據與多測項變化趨勢。
         </p>
       </div>
     );
