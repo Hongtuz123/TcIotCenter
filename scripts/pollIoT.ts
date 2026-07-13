@@ -91,12 +91,12 @@ async function fetchAllPages<T>(url: string): Promise<T[]> {
   while (nextUrl) {
     page++;
     console.log(`  頁 ${page}: ${nextUrl.substring(0, 80)}...`);
-    const res = await fetch(nextUrl);
+    const res: any = await fetch(nextUrl);
     if (!res.ok) {
       console.error(`  ❌ HTTP ${res.status} - ${await res.text()}`);
       break;
     }
-    const json = await res.json();
+    const json: any = await res.json();
     results.push(...(json.value || []));
     nextUrl = json['@iot.nextLink'] || null;
 
