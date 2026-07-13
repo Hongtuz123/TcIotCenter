@@ -292,6 +292,8 @@ export default function DashboardPage() {
         if (data.clusters) {
           setClusters(data.clusters);
         }
+        // 核心修正：自動事件建立後，必須立即重整事件列表以反映最新狀態！
+        fetchEvents();
       } catch (e) {
         console.error('載入點位失敗:', e);
       } finally {

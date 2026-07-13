@@ -38,6 +38,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [showIndustrialZones, setShowIndustrialZones] = useState(true);
   const [showSensors, setShowSensors] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showLayerMenu, setShowLayerMenu] = useState(false);
+  const [showBaseMapMenu, setShowBaseMapMenu] = useState(false);
   const [styleVersion, setStyleVersion] = useState(0);
   const [bearing, setBearing] = useState(0);
   const showIndustrialZonesRef = useRef(showIndustrialZones);
@@ -946,67 +948,119 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         </div>
       )}
 
-      {/* 地圖樣式與控制面板 */}
+      {/* 地圖右上角浮動控制項組 */}
       {token && (
-        <div className="absolute top-3 right-3 lg:top-4 lg:right-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg p-1.5 lg:p-2 flex flex-col sm:flex-row items-start sm:items-center gap-2 lg:gap-3 z-10 shadow-lg text-[10px] lg:text-xs">
-          <div className="flex items-center gap-1.5 lg:gap-2">
-            <Layers className="text-orange-500 w-4 h-4" />
-            <select
-              value={mapStyle}
-              onChange={(e) => setMapStyle(e.target.value as any)}
-              className="bg-transparent text-slate-200 border-none outline-none cursor-pointer pr-4 font-medium"
+        <div className="absolute top-3 right-3 lg:top-4 lg:right-4 flex flex-col items-end gap-2 z-10">
+          
+          {/* 第一排：水平排列的獨立控制按鈕 */}
+          <div className="flex items-center gap-2">
+            
+            {/* 1. 底圖切換按鈕 */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowBaseMapMenu(!showBaseMapMenu);
+                  setShowLayerMenu(false); // 互斥
+                }}
+                className={`w-9 h-9 rounded-xl bg-slate-900/95 backdrop-blur-md border flex items-center justify-center text-slate-300 hover:text-orange-500 hover:border-orange-500/50 shadow-lg transition-all duration-300 cursor-pointer ${showBaseMapMenu ? 'border-orange-500 text-orange-500 ring-2 ring-orange-500/20' : 'border-slate-800'}`}
+                title="切換地圖底圖"
+              >
+                <Layers className="w-4.5 h-4.5" />
+              </button>
+              
+              {showBaseMapMenu && (
+                <div className="absolute right-0 mt-2 w-28 bg-slate-950/95 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 shadow-2xl flex flex-col gap-1 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <button
+                    onClick={() => { setMapStyle('dark-v11'); setShowBaseMapMenu(false); }}
+                    className={`px-2.5 py-1.5 text-left rounded-lg text-[11px] font-medium transition-colors cursor-pointer w-full ${mapStyle === 'dark-v11' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'}`}
+                  >
+                    深色地圖
+                  </button>
+                  <button
+                    onClick={() => { setMapStyle('satellite-streets-v12'); setShowBaseMapMenu(false); }}
+                    className={`px-2.5 py-1.5 text-left rounded-lg text-[11px] font-medium transition-colors cursor-pointer w-full ${mapStyle === 'satellite-streets-v12' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'}`}
+                  >
+                    衛星街道
+                  </button>
+                  <button
+                    onClick={() => { setMapStyle('streets-v12'); setShowBaseMapMenu(false); }}
+                    className={`px-2.5 py-1.5 text-left rounded-lg text-[11px] font-medium transition-colors cursor-pointer w-full ${mapStyle === 'streets-v12' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'}`}
+                  >
+                    街道地圖
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 2. 指北針按鈕 */}
+            <button
+              onClick={() => {
+                if (mapRef.current) {
+                  mapRef.current.easeTo({ bearing: 0, pitch: 0, duration: 1000 });
+                }
+              }}
+              className="w-9 h-9 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-800 flex items-center justify-center text-slate-300 hover:text-orange-500 hover:border-orange-500/50 shadow-lg transition-all duration-300 cursor-pointer"
+              title="地圖正北轉正"
             >
-              <option value="dark-v11" className="bg-slate-900">深色地圖</option>
-              <option value="satellite-streets-v12" className="bg-slate-900">衛星街道</option>
-              <option value="streets-v12" className="bg-slate-900">街道地圖</option>
-            </select>
+              <Compass 
+                className="w-4.5 h-4.5 transition-transform duration-200" 
+                style={{ transform: `rotate(${-bearing}deg)` }} 
+              />
+            </button>
+
+            {/* 3. 地圖圖層折疊主按鈕 */}
+            <button
+              onClick={() => {
+                setShowLayerMenu(!showLayerMenu);
+                setShowBaseMapMenu(false); // 互斥
+              }}
+              className={`h-9 px-3 rounded-xl bg-slate-900/95 backdrop-blur-md border flex items-center gap-1.5 text-xs font-bold text-slate-200 hover:text-orange-500 hover:border-orange-500/50 shadow-lg transition-all duration-300 cursor-pointer ${showLayerMenu ? 'border-orange-500 text-orange-500 ring-2 ring-orange-500/20' : 'border-slate-800'}`}
+            >
+              <span className={`transition-transform duration-300 ${showLayerMenu ? 'rotate-180 text-orange-500' : ''}`}>⚙️</span>
+              地圖圖層
+            </button>
+
           </div>
-          <div className="h-px sm:h-4 w-full sm:w-px bg-slate-800 self-stretch sm:self-center" />
-          <label className="flex items-center gap-1.5 text-slate-300 font-medium cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showIndustrialZones}
-              onChange={(e) => setShowIndustrialZones(e.target.checked)}
-              className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
-            />
-            台中產業園區
-          </label>
-          <div className="h-px sm:h-4 w-full sm:w-px bg-slate-800 self-stretch sm:self-center" />
-          <label className="flex items-center gap-1.5 text-slate-300 font-medium cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showSensors}
-              onChange={(e) => setShowSensors(e.target.checked)}
-              className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
-            />
-            顯示微感測點
-          </label>
-          <div className="h-px sm:h-4 w-full sm:w-px bg-slate-800 self-stretch sm:self-center" />
-          <label className="flex items-center gap-1.5 text-slate-300 font-medium cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showHeatmap}
-              onChange={(e) => setShowHeatmap(e.target.checked)}
-              className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
-            />
-            顯示污染熱區
-          </label>
-          <div className="h-px sm:h-4 w-full sm:w-px bg-slate-800 self-stretch sm:self-center" />
-          <button
-            onClick={() => {
-              if (mapRef.current) {
-                mapRef.current.easeTo({ bearing: 0, pitch: 0, duration: 1000 });
-              }
-            }}
-            className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-orange-500 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-            title="地圖正北轉正"
-          >
-            <Compass 
-              className="w-4 h-4 transition-transform duration-200" 
-              style={{ transform: `rotate(${-bearing}deg)` }} 
-            />
-            <span className="hidden sm:inline">指北針</span>
-          </button>
+
+          {/* 第二排：當圖層選單展開時的 Checkbox 面板 (垂直收折) */}
+          {showLayerMenu && (
+            <div className="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-3 shadow-2xl flex flex-col gap-2.5 min-w-[140px] animate-in fade-in slide-in-from-top-2 duration-200">
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer select-none text-[11px] hover:text-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showIndustrialZones}
+                  onChange={(e) => setShowIndustrialZones(e.target.checked)}
+                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+                />
+                產業園區
+              </label>
+              
+              <div className="h-px bg-slate-800/60 w-full" />
+              
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer select-none text-[11px] hover:text-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showSensors}
+                  onChange={(e) => setShowSensors(e.target.checked)}
+                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+                />
+                空品微感
+              </label>
+              
+              <div className="h-px bg-slate-800/60 w-full" />
+              
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer select-none text-[11px] hover:text-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showHeatmap}
+                  onChange={(e) => setShowHeatmap(e.target.checked)}
+                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+                />
+                微感熱區
+              </label>
+            </div>
+          )}
+
         </div>
       )}
 
