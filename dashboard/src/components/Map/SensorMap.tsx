@@ -857,13 +857,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     coords.push(coords[0]); // 閉合 polygon
 
     const geojsonFeature = {
-      type: 'Feature',
+      type: 'Feature' as const,
       properties: {
         id: activeEvent.id,
         radiusKm: radius
       },
       geometry: {
-        type: 'Polygon',
+        type: 'Polygon' as const,
         coordinates: [coords]
       }
     };
