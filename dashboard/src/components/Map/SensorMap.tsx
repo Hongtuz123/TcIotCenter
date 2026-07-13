@@ -570,9 +570,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       ['get', 'value'],
       0, 0,
       maxVal, 1
-    ];
+    ] as any;
 
-    const heatmapColor = selectedMetric === 'temperature'
+    const heatmapColor = (selectedMetric === 'temperature'
       ? [
           'interpolate',
           ['linear'],
@@ -605,7 +605,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           0.6, '#ef4444',  // 不健康 (紅)
           0.8, '#a855f7',  // 非常不健康 (紫)
           1.0, '#3f000f'   // 危害 (危害深褐色/黑紅)
-        ];
+        ]) as any;
 
     const sourceId = 'sensors-heatmap-source';
     const layerId = 'sensors-heatmap-layer';
