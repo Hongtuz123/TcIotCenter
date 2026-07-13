@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * IoT 爬蟲腳本：從 OGC SensorThings API 抓取台中市微感測站資料
  * 聚合為 5 分鐘均值後 upsert 至 Supabase
@@ -15,7 +16,7 @@ try {
   const envPath = path.join(__dirname, '../dashboard/.env.local');
   if (fs.existsSync(envPath)) {
     const envContent = fs.readFileSync(envPath, 'utf-8');
-    envContent.split(/\r?\n/).forEach(line => {
+    envContent.split(/\r?\n/).forEach((line: string) => {
       const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
       if (match) {
         let value = match[2] ? match[2].trim() : '';

@@ -39,7 +39,7 @@ export async function GET() {
       return NextResponse.json(globalMockState.settings);
     }
     const rows = await db.all('SELECT * FROM settings');
-    const settingsObj = rows.reduce((acc: any, row) => {
+    const settingsObj = rows.reduce((acc: any, row: any) => {
       acc[row.key] = parseFloat(row.value);
       return acc;
     }, {});
