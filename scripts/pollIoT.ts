@@ -111,6 +111,24 @@ function sleep(ms: number) {
 }
 
 async function getLocalSettings(): Promise<{ pm25_threshold?: number }> {
+  // ── Tier 1: 優先嘗試從 Supabase 讀取設定 ──────────────────────────
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*');
+    if (!error && data && data.length > 0) {
+      const settings: any = {};
+      data.forEach((row: any) => {
+        settings[row.key] = parseFloat(row.value);
+      });
+      console.log('   從 Supabase 雲端成功讀取門檻設定。');
+      return settings;
+    }
+  } catch (e) {
+    // 忽略錯誤，降級至 SQLite
+  }
+
+  // ── Tier 2: 降級為從本地 SQLite 讀取 ──────────────────────────────
   const dbPath = path.resolve(__dirname, '../dashboard/iot.db');
   if (!fs.existsSync(dbPath)) {
     console.log('ℹ️ 本地 SQLite 資料庫 iot.db 不存在，使用預設門檻。');
@@ -126,6 +144,7 @@ async function getLocalSettings(): Promise<{ pm25_threshold?: number }> {
     rows.forEach((row: any) => {
       settings[row.key] = parseFloat(row.value);
     });
+    console.log('   從本地 SQLite 成功讀取門檻設定。');
     return settings;
   } catch (e) {
     console.warn('⚠️ 無法從本地 SQLite 讀取設定:', e);
