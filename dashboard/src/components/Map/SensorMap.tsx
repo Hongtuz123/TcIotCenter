@@ -775,7 +775,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 <span class="font-bold text-red-400">${parseFloat(props.avgPm25).toFixed(1)} µg/m³</span>
                 
                 <span class="text-slate-500 font-semibold">主導類型:</span>
-                <span class="font-bold text-slate-200">${props.dominantType}</span>
+                <span class="font-bold text-slate-200">${props.dominantType && props.dominantType !== '--' && props.dominantType !== 'undefined' ? props.dominantType : '微感超標-群聚'}</span>
                 
                 <span class="text-slate-500 font-semibold">涵蓋半徑:</span>
                 <span class="font-bold text-slate-400">${props.radiusKm} km</span>
