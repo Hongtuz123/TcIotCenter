@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Event, Sensor } from '@/types';
-import { FileText, Trash2, X } from 'lucide-react';
+import { AlertCircle, FileText, Trash2, X, PlusCircle, Link } from 'lucide-react';
 
 interface EventManagerProps {
   selectedSensor: Sensor | null;
