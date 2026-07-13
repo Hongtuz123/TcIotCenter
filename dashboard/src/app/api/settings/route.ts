@@ -13,6 +13,14 @@ const allowedKeys = [
 ] as const;
 
 export async function GET() {
+  const DEFAULT_SETTINGS = {
+    pm25_threshold: 54,
+    temp_increase_threshold: 3,
+    voc_threshold: 1.5,
+    cluster_radius_km: 1.0,
+    min_cluster_stations: 2
+  };
+
   try {
     // ── Tier 1: 優先嘗試從 Supabase 讀取設定 ──────────────────────────
     if (supabase) {
@@ -25,7 +33,7 @@ export async function GET() {
             acc[row.key] = parseFloat(row.value);
             return acc;
           }, {});
-          return NextResponse.json(settingsObj);
+          return NextResponse.json({ ...DEFAULT_SETTINGS, ...settingsObj });
         }
       } catch (e) {
         // 忽略，降級至 SQLite
@@ -36,14 +44,14 @@ export async function GET() {
     const db = await getDb();
     if (!db) {
       // ── Tier 3: 降級為 Mock ──────────────────────────────────────────
-      return NextResponse.json(globalMockState.settings);
+      return NextResponse.json({ ...DEFAULT_SETTINGS, ...globalMockState.settings });
     }
     const rows = await db.all('SELECT * FROM settings');
     const settingsObj = rows.reduce((acc: any, row: any) => {
       acc[row.key] = parseFloat(row.value);
       return acc;
     }, {});
-    return NextResponse.json(settingsObj);
+    return NextResponse.json({ ...DEFAULT_SETTINGS, ...settingsObj });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
