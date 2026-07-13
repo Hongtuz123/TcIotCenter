@@ -926,6 +926,7 @@ export default function DashboardPage() {
                 }
               }}
               currentDateTime={currentDateTime}
+              systemSettings={systemSettings}
             />
           </div>
 

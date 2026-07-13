@@ -18,6 +18,7 @@ interface EventManagerProps {
   activeEventId: string | null;
   onViewEvent: (event: Event | null) => void;
   currentDateTime: string;
+  systemSettings?: any;
 }
 
 export const EventManager: React.FC<EventManagerProps> = ({
@@ -30,7 +31,8 @@ export const EventManager: React.FC<EventManagerProps> = ({
   isLoading,
   activeEventId,
   onViewEvent,
-  currentDateTime
+  currentDateTime,
+  systemSettings
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
       <div className="border-b border-slate-800 pb-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <AlertCircle className="text-orange-500 w-5 h-5" />
-          <h2 className="text-lg font-bold text-slate-100">事件管理</h2>
+          <h2 className="text-lg font-bold text-slate-100">行政區-微感事件</h2>
         </div>
         {/* 已改為達到門檻自動生成事件，移除手動新增事件按鈕 */}
       </div>
@@ -281,9 +283,32 @@ export const EventManager: React.FC<EventManagerProps> = ({
                         #{String(seqNum).padStart(3, '0')}
                       </span>
                       <div className="min-w-0">
-                        <p className={`text-xs font-bold truncate ${isExpanded ? 'text-orange-300' : 'text-slate-200'}`}>
-                          微感超標群聚事件{threshSuffix}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className={`text-xs font-bold truncate ${isExpanded ? 'text-orange-300' : 'text-slate-200'}`}>
+                            微感超標群聚事件{threshSuffix}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const thresh = event.title ? (event.title.match(/門檻: PM₂.₅ (\d+(\.\d+)?)/)?.[1] || systemSettings?.pm25_threshold || 54) : (systemSettings?.pm25_threshold || 54);
+                              const consecutive = systemSettings?.consecutive_exceeds || 3;
+                              const radius = (event.bounds as any)?.radiusKm || systemSettings?.cluster_radius_km || 1.0;
+                              const minStations = event.stations_count || systemSettings?.min_cluster_stations || 2;
+                              alert(
+                                `【事件判定規則】\n` +
+                                `• 判定指標：PM₂.₅ 濃度\n` +
+                                `• 異常門檻：大於等於 ${thresh} µg/m³\n` +
+                                `• 連續判定：必須「連續 ${consecutive} 筆」測值皆超標\n` +
+                                `• 空間群聚：在半徑 ${radius} km 內，至少有 ${minStations} 個測站符合上述超標條件`
+                              );
+                            }}
+                            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-orange-400 hover:text-orange-300 text-[9px] px-1 py-0.5 rounded border border-slate-750/80 font-black cursor-pointer shrink-0 transition-all select-none"
+                            title="點擊查看此事件的判定規則"
+                          >
+                            規則
+                          </button>
+                        </div>
                         <p className="text-[9px] text-slate-500 font-mono mt-0.5">
                           ⏱ {displayTime}
                         </p>
