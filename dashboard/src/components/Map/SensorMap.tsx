@@ -812,6 +812,103 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     }
   }, [clusters, isLoaded, styleVersion]);
 
+  // 4.5 更新當前選定事件 (activeEvent) 的警示範圍 Layer
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+
+    const map = mapRef.current;
+    const sourceId = 'active-event-source';
+    const fillLayerId = 'active-event-fill-layer';
+    const outlineLayerId = 'active-event-outline-layer';
+
+    // 如果沒有選中事件，清空數據
+    if (!activeEvent || !activeEvent.bounds?.center) {
+      const existingSource: any = map.getSource(sourceId);
+      if (existingSource) {
+        existingSource.setData({
+          type: 'FeatureCollection',
+          features: []
+        });
+      }
+      return;
+    }
+
+    const lat = activeEvent.bounds.center.lat;
+    const lng = (activeEvent.bounds.center as any).lng ?? (activeEvent.bounds.center as any).lon;
+    const radius = activeEvent.bounds.radiusKm || 1.0;
+
+    if (lat === undefined || lng === undefined) return;
+
+    // 計算 64 個點構成圓形 Polygon
+    const center = [lng, lat];
+    const pointsCount = 64;
+    const coords: number[][] = [];
+    
+    for (let i = 0; i < pointsCount; i++) {
+      const angle = (i / pointsCount) * 360;
+      const radian = (angle * Math.PI) / 180;
+      const dx = radius * Math.cos(radian);
+      const dy = radius * Math.sin(radian);
+      
+      const latOffset = dy / 111;
+      const lonOffset = dx / (111 * Math.cos((center[1] * Math.PI) / 180));
+      coords.push([center[0] + lonOffset, center[1] + latOffset]);
+    }
+    coords.push(coords[0]); // 閉合 polygon
+
+    const geojsonFeature = {
+      type: 'Feature',
+      properties: {
+        id: activeEvent.id,
+        radiusKm: radius
+      },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [coords]
+      }
+    };
+
+    const existingSource: any = map.getSource(sourceId);
+
+    if (existingSource) {
+      existingSource.setData({
+        type: 'FeatureCollection',
+        features: [geojsonFeature]
+      });
+    } else {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [geojsonFeature]
+        }
+      });
+
+      // 橘色半透明填充
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#f97316',
+          'fill-opacity': 0.15
+        }
+      });
+
+      // 橘色虛線描邊
+      map.addLayer({
+        id: outlineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#f97316',
+          'line-width': 2.5,
+          'line-dasharray': [3, 2]
+        }
+      });
+    }
+  }, [activeEvent, isLoaded, styleVersion]);
+
   // 5. 監聽 selectedClusterId 變更，地圖平滑飛越與縮放
   useEffect(() => {
     if (!mapRef.current || !isLoaded || !selectedClusterId) return;
