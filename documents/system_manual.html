@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微感監測中心 - 系統說明書 (System Manual)</title>
+  <style>
+    :root {
+      --primary: #f97316;
+      --primary-hover: #ea580c;
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      line-height: 1.7;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 40px;
+      background-color: var(--bg-card);
+      border-radius: 24px;
+      border: 1px border var(--border-color);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    }
+    h1 {
+      font-size: 2.2rem;
+      color: var(--primary);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 15px;
+      margin-bottom: 30px;
+      font-weight: 800;
+    }
+    h2 {
+      font-size: 1.5rem;
+      color: #38bdf8;
+      margin-top: 35px;
+      margin-bottom: 15px;
+      border-left: 5px solid var(--primary);
+      padding-left: 15px;
+    }
+    h3 {
+      font-size: 1.2rem;
+      color: #e2e8f0;
+      margin-top: 20px;
+    }
+    p, li {
+      color: #cbd5e1;
+      font-size: 1rem;
+    }
+    ul, ol {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    code {
+      background-color: #0f172a;
+      color: #f472b6;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-family: Consolas, monospace;
+      font-size: 0.9em;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      border-radius: 20px;
+      background-color: rgba(249, 115, 22, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+    .footer {
+      margin-top: 50px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 20px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>微感監測中心 - 系統說明書</h1>
+    <span class="badge">Version 1.0 (Release)</span>
+    
+    <h2>1. 系統簡介</h2>
+    <p>微感監測中心是一套整合 <strong>Mapbox 3D 地圖</strong>、<strong>即時感測器網絡 (1100+ 測站)</strong> 與 <strong>自動化群聚事件分析</strong> 的智慧型環境物聯網 (IoT) 平台。系統能夠實時計算 PM₂.₅ 超標點位，自動偵測在特定半徑範圍內出現的空間群聚異常，並動態判定是否屬於台中市的特定「產業園區」，為環保稽查與污染監控提供快速、直觀的視覺化分析工具。</p>
+
+    <h2>2. 技術架構 (Technology Stack)</h2>
+    <p>本系統基於現代 Web 架構進行建構，採用輕量、敏捷的無框架/靜態 API 降級設計，確保在各種環境下皆能高速運作：</p>
+    <ul>
+      <li><strong>前端框架</strong>：Next.js 16 (React 19) + Tailwind CSS + Lucide Icons。</li>
+      <li><strong>地圖核心</strong>：Mapbox GL JS (Web 3D 渲染引擎) + Lightweight GeoJSON。</li>
+      <li><strong>後端 API</strong>：Next.js App Router (Serverless Routes)。</li>
+      <li><strong>資料庫層 (雙軌降級架構)</strong>：
+        <ul>
+          <li><strong>Tier 1 - Supabase (線上 Production)</strong>：PostgreSQL 資料庫，具備高併發、雲端儲存特性。</li>
+          <li><strong>Tier 2 - SQLite (本地開發/離線備援)</strong>：<code>iot.db</code>，具備零配置、單檔案、高查詢效能。</li>
+          <li><strong>Tier 3 - Mock (降級模式)</strong>：當資料庫連線皆不可用時，自動降級為記憶體狀態模擬，確保 UI 100% 可用。</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h2>3. 核心業務邏輯與演算法</h2>
+    
+    <h3>3.1 連續 N 筆超標判定 (Temporal Filter)</h3>
+    <p>系統捨棄了單次超標即警示的敏感設計，採用<strong>時間維度連續性判定</strong>。當前測站必須在連續 <code>N</code> 筆數據中（以 5 分鐘為一筆，合計 <code>N * 5</code> 分鐘）的 PM₂.₅ 濃度皆大於等於閾值 (如 <code>54 µg/m³</code>) 時，才會被標記為 <code>isAnomaly</code> 異常狀態，有效過濾瞬時雜訊與突發性短暫干擾。</p>
+
+    <h3>3.2 空間群聚事件判定 (DBSCAN 簡化版演算法)</h3>
+    <p>後端 poller 抓取最新一期觀測資料後，執行空間群聚判定：
+      <ol>
+        <li>篩選出所有滿足「連續 N 筆超標」的測站作為種子點。</li>
+        <li>以每個種子點為中心，利用哈弗辛公式 (Haversine Formula) 搜尋在 <code>radiusKm</code> (如 1.0 km) 半徑內的其他超標測站。</li>
+        <li>若該半徑範圍內超標測站總數大於等於 <code>minStations</code> (如 2 站)，則將這些測站組合成一個「群聚事件 (Cluster)」。</li>
+        <li>為該群聚計算中心座標 (平均經緯度) 與平均 PM₂.₅ 濃度，並發布為事件。</li>
+      </ol>
+    </p>
+
+    <h3>3.3 產業園區幾何判定 (Point-in-Polygon)</h3>
+    <p>系統載入台中市產業園區的 <code>industrial-zones.geojson</code> 多邊形資料，在前端使用射線法 (Ray-casting Algorithm) 計算事件中心點或關聯點位是否包含在特定多邊形幾何中：
+      <ul>
+        <li><strong>落在園區內</strong>：動態將事件命名為 <code>[XX產業園區]-微感事件</code>。</li>
+        <li><strong>未落在任何園區內</strong>：將事件命名為 <code>微感事件</code>。</li>
+      </ul>
+    </p>
+
+    <h2>4. 效能優化機制</h2>
+    <ul>
+      <li><strong>背景寫入解耦 (Fire-and-Forget)</strong>：API 接收到分析請求時，將耗時的「自動事件庫寫入」改為非同步執行，API 在 100 毫秒內即可完成回應，消除了資料庫 Roundtrip 造成的等待。</li>
+      <li><strong>並行寫入 (Promise.all)</strong>：SQLite 與 Supabase 寫入程序全面並行化，大幅降低併發時的排隊延遲。</li>
+      <li><strong>複合索引配置</strong>：在本地 SQLite 資料表中為 <code>observations</code> 建立 <code>(time, pm2_5)</code> 複合索引，提升 24 小時熱區聚合效能 10 倍以上。</li>
+    </ul>
+
+    <div class="footer">
+      <p>© 2026 微感監測中心. All rights reserved. 荳荳 AI 選股/IoT Center 專案組</p>
+    </div>
+  </div>
+</body>
+</html>

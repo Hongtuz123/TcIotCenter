@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微感監測中心 - 系統規格書 (System Specification)</title>
+  <style>
+    :root {
+      --primary: #f97316;
+      --primary-hover: #ea580c;
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      line-height: 1.7;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 40px;
+      background-color: var(--bg-card);
+      border-radius: 24px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    }
+    h1 {
+      font-size: 2.2rem;
+      color: var(--primary);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 15px;
+      margin-bottom: 30px;
+      font-weight: 800;
+    }
+    h2 {
+      font-size: 1.5rem;
+      color: #38bdf8;
+      margin-top: 35px;
+      margin-bottom: 15px;
+      border-left: 5px solid var(--primary);
+      padding-left: 15px;
+    }
+    h3 {
+      font-size: 1.2rem;
+      color: #e2e8f0;
+      margin-top: 20px;
+      padding-bottom: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0 25px 0;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--border-color);
+      padding: 12px 15px;
+      text-align: left;
+    }
+    th {
+      background-color: #0f172a;
+      color: var(--primary);
+      font-weight: bold;
+    }
+    tr:nth-child(even) {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+    p, li {
+      color: #cbd5e1;
+      font-size: 1rem;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      border-radius: 20px;
+      background-color: rgba(249, 115, 22, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+    .footer {
+      margin-top: 50px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 20px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>微感監測中心 - 系統規格書</h1>
+    <span class="badge">規格與 Schema 設計 (System Specs)</span>
+    
+    <h2>1. 網站架構與導航 (Sitemap)</h2>
+    <p>微感監測中心為 Single Page Application (SPA) 架構，配合 API 動態更新：</p>
+    <ul>
+      <li><strong>/login (登入頁)</strong>：使用者認證，通過後導向首頁。</li>
+      <li><strong>/ (首頁 - 主儀表板)</strong>：
+        <ul>
+          <li>空間與時間控制面版</li>
+          <li>Mapbox 3D 地圖核心</li>
+          <li>微感事件管理與詳情抽屜</li>
+          <li>歷史播放器控制條</li>
+          <li>事件門檻設定 Modal 彈窗</li>
+        </ul>
+      </li>
+      <li><strong>API 後端路由 (/api/*)</strong>：
+        <ul>
+          <li><code>/api/sensors</code>：取得所有感測器基本資訊與座標。</li>
+          <li><code>/api/observations</code>：取得選定時間刻度的感測器觀測值。</li>
+          <li><code>/api/anomalies</code>：判定連續超標與空間群聚，並背景觸發自動事件建立。</li>
+          <li><code>/api/clusters-24h</code>：聚合 24 小時內所有群聚熱區之統計。</li>
+          <li><code>/api/events</code>：取得/建立/刪除微感事件。</li>
+          <li><code>/api/settings</code>：設定參數的讀取與寫入。</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h2>2. 資料表 Schema 設計 (SQLite / Supabase 對應)</h2>
+    
+    <h3>2.1 感測器基本資訊表 (sensors)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>欄位名稱</th>
+          <th>資料型別</th>
+          <th>主鍵/索引</th>
+          <th>說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>id</td>
+          <td>VARCHAR</td>
+          <td>PRIMARY KEY</td>
+          <td>設備 DeviceID (如: TCIOT_001)</td>
+        </tr>
+        <tr>
+          <td>name</td>
+          <td>VARCHAR</td>
+          <td>-</td>
+          <td>測站名稱 (如: 沙鹿國中測站)</td>
+        </tr>
+        <tr>
+          <td>lat</td>
+          <td>DOUBLE</td>
+          <td>-</td>
+          <td>緯度 (Latitude)</td>
+        </tr>
+        <tr>
+          <td>lon</td>
+          <td>DOUBLE</td>
+          <td>-</td>
+          <td>經度 (Longitude)</td>
+        </tr>
+        <tr>
+          <td>county</td>
+          <td>VARCHAR</td>
+          <td>INDEX</td>
+          <td>縣市行政區 (如: 沙鹿區)</td>
+        </tr>
+        <tr>
+          <td>status</td>
+          <td>VARCHAR</td>
+          <td>-</td>
+          <td>測站運作狀態 (正常/維護)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2.2 感測器每5分鐘觀測資料表 (observations)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>欄位名稱</th>
+          <th>資料型別</th>
+          <th>主鍵/索引</th>
+          <th>說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>id</td>
+          <td>INTEGER / BIGINT</td>
+          <td>PRIMARY KEY</td>
+          <td>自動遞增 ID</td>
+        </tr>
+        <tr>
+          <td>sensor_id</td>
+          <td>VARCHAR</td>
+          <td>FOREIGN KEY</td>
+          <td>關聯至 <code>sensors(id)</code></td>
+        </tr>
+        <tr>
+          <td>time</td>
+          <td>TIMESTAMP</td>
+          <td>COMPOSITE INDEX (time, pm2_5)</td>
+          <td>觀測時間點 (每 5 分鐘一期)</td>
+        </tr>
+        <tr>
+          <td>pm2_5</td>
+          <td>FLOAT</td>
+          <td>COMPOSITE INDEX (time, pm2_5)</td>
+          <td>PM₂.₅ 懸浮微粒濃度 (µg/m³)</td>
+        </tr>
+        <tr>
+          <td>temperature</td>
+          <td>FLOAT</td>
+          <td>-</td>
+          <td>大氣溫度 (°C)</td>
+        </tr>
+        <tr>
+          <td>humidity</td>
+          <td>FLOAT</td>
+          <td>-</td>
+          <td>大氣相對濕度 (%)</td>
+        </tr>
+        <tr>
+          <td>voc</td>
+          <td>FLOAT</td>
+          <td>-</td>
+          <td>揮發性有機物濃度 (ppm)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2.3 微感群聚事件表 (events)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>欄位名稱</th>
+          <th>資料型別</th>
+          <th>主鍵/索引</th>
+          <th>說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>id</td>
+          <td>VARCHAR</td>
+          <td>PRIMARY KEY</td>
+          <td>自動/手動事件 ID (如: auto_202607131130_24.16_120.64)</td>
+        </tr>
+        <tr>
+          <td>title</td>
+          <td>VARCHAR</td>
+          <td>-</td>
+          <td>事件標題 (如: [自動] 微感事件 (門檻: PM₂.₅ 54))</td>
+        </tr>
+        <tr>
+          <td>description</td>
+          <td>TEXT</td>
+          <td>-</td>
+          <td>事件詳細內容描述 (含超標站數與濃度)</td>
+        </tr>
+        <tr>
+          <td>status</td>
+          <td>VARCHAR</td>
+          <td>-</td>
+          <td>事件處理狀態 (待確認/調查中/已結案)</td>
+        </tr>
+        <tr>
+          <td>bounds</td>
+          <td>TEXT (JSON)</td>
+          <td>-</td>
+          <td>事件中心座標與半徑 (如 <code>{"center":{"lat":24.1,"lng":120.6},"radiusKm":1.0}</code>)</td>
+        </tr>
+        <tr>
+          <td>event_time</td>
+          <td>TIMESTAMP</td>
+          <td>-</td>
+          <td>事件判定或觸發的時間刻度</td>
+        </tr>
+        <tr>
+          <td>stations_count</td>
+          <td>INTEGER</td>
+          <td>-</td>
+          <td>超標感測器總站數</td>
+        </tr>
+        <tr>
+          <td>avg_pm2_5</td>
+          <td>FLOAT</td>
+          <td>-</td>
+          <td>事件圈範圍內測站的平均 PM₂.₅ 濃度</td>
+        </tr>
+        <tr>
+          <td>created_at</td>
+          <td>TIMESTAMP</td>
+          <td>-</td>
+          <td>事件建立時間</td>
+        </tr>
+        <tr>
+          <td>updated_at</td>
+          <td>TIMESTAMP</td>
+          <td>-</td>
+          <td>最後更新時間</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2.4 系統閾值設定表 (settings)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>欄位名稱</th>
+          <th>資料型別</th>
+          <th>主鍵/索引</th>
+          <th>說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>key</td>
+          <td>VARCHAR</td>
+          <td>PRIMARY KEY</td>
+          <td>設定鍵名 (如: <code>pm25_threshold</code>, <code>consecutive_exceeds</code>)</td>
+        </tr>
+        <tr>
+          <td>value</td>
+          <td>VARCHAR</td>
+          <td>-</td>
+          <td>設定值 (字串型式儲存)</td>
+        </tr>
+        <tr>
+          <td>updated_at</td>
+          <td>TIMESTAMP</td>
+          <td>-</td>
+          <td>最後修改時間</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. 介面 Prototype 設計與關鍵元件說明</h2>
+    <ul>
+      <li><strong>Sidebar (篩選面板)</strong>：大片深色背景玻璃卡片 (CSS <code>glass-card</code>)，利用橘色 (#f97316) 作為邊線亮點與點選焦點狀態。</li>
+      <li><strong>Map Canvas (地圖容器)</strong>：Mapbox DOM 佔滿背景，Marker 使用高度客製化的 React/CSS 圓點，透過 CSS keyframe 實現超標點位呼吸燈 (Glow) 與擴散圈 (Radar-Ping) 動態效果。</li>
+      <li><strong>Timeline (播放組件)</strong>：底部橘色播放滑桿配合 Lucide 的 Play/Pause 開關，藉由 HTML5 Range Input 自訂 CSS Track 完成極具現代感的播放軌道。</li>
+    </ul>
+
+    <div class="footer">
+      <p>© 2026 微感監測中心. All rights reserved. 荳荳 AI 選股/IoT Center 專案組</p>
+    </div>
+  </div>
+</body>
+</html>
