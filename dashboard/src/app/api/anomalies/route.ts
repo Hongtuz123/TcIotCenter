@@ -50,7 +50,7 @@ function buildClusters(anomalies: any[], clusterRadius: number, minStations: num
   return clusters;
 }
 
-async function autoCreateEvents(clusters: any[], timeStr: string) {
+async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: number) {
   const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
   // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
@@ -68,7 +68,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string) {
       try {
         const { error } = await supabase.from('events').upsert({
           id: eventId,
-          title: '[自動] 微感超標群聚事件',
+          title: `[自動] 微感超標群聚事件 (門檻: PM₂.₅ ${pm25Thresh})`,
           description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${dominantType}。`,
           status: '待確認',
           created_at: nowStr,
@@ -101,7 +101,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string) {
       const lon = cluster.center.lon;
       const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
       const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
-      const title = `[自動] 微感超標群聚事件`;
+      const title = `[自動] 微感超標群聚事件 (門檻: PM₂.₅ ${pm25Thresh})`;
       const description = `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${cluster.dominantType && cluster.dominantType !== '--' && cluster.dominantType !== 'undefined' ? cluster.dominantType : '微感超標-群聚'}。`;
       const boundsJson = JSON.stringify({ center: { lat, lng: lon }, radiusKm: cluster.radiusKm });
 
@@ -135,7 +135,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string) {
     if (!exists) {
       globalMockState.events.unshift({
         id: eventId,
-        title: '[自動] 微感超標群聚事件',
+        title: `[自動] 微感超標群聚事件 (門檻: PM₂.₅ ${pm25Thresh})`,
         description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³。`,
         status: '待確認' as const,
         created_at: nowStr,
@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
       const clusters = buildClusters(anomalies, clusterRadius, minStations);
 
       // 自動將達到門檻的熱區轉換成事件寫入資料庫
-      await autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19));
+      await autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh);
 
       return NextResponse.json({
         time: time || new Date().toISOString(),
@@ -278,11 +278,14 @@ export async function GET(request: NextRequest) {
         const isPm25Anomaly = r.pm2_5 >= _pm25Thresh;
         const isVocAnomaly = r.voc >= (settings.voc_threshold || 1.5);
         const isTempAnomaly = tempDiff >= (settings.temp_increase_threshold || 3);
-        const isAnomaly = isPm25Anomaly || isVocAnomaly || isTempAnomaly;
+        
+        // 核心修正：必須 PM2.5 先超標，此點才能算是異常，此時才連帶去判斷溫濕度（及VOC）是否有一起超標
+        const isAnomaly = isPm25Anomaly;
+
         let anomalyType = '';
         if (isAnomaly) {
-          if (isVocAnomaly && isPm25Anomaly) anomalyType = '疑似工廠排污';
-          else if (isTempAnomaly && isPm25Anomaly) anomalyType = '疑似露天燃燒';
+          if (isVocAnomaly) anomalyType = '疑似工廠排污';
+          else if (isTempAnomaly) anomalyType = '疑似露天燃燒';
           else anomalyType = '數值異常';
         }
         return { ...r, sensor_id: r.id, time, tempDiff, isAnomaly, anomalyType, score: (r.pm2_5 || 0) * 0.5 + (r.voc || 0) * 20 + tempDiff * 10 };
@@ -292,7 +295,7 @@ export async function GET(request: NextRequest) {
       const clusters = buildClusters(anomalies, _clusterRadius, _minStations);
 
       // 自動將達到門檻的熱區轉換成事件寫入資料庫
-      await autoCreateEvents(clusters, time);
+      await autoCreateEvents(clusters, time, _pm25Thresh);
 
       return NextResponse.json({
         time,
@@ -311,7 +314,7 @@ export async function GET(request: NextRequest) {
     const clusters = buildClusters(anomalies as any[], clusterRadius, minStations);
 
     // 自動將達到門檻的熱區轉換成事件寫入資料庫
-    await autoCreateEvents(clusters, mockTime);
+    await autoCreateEvents(clusters, mockTime, pm25Thresh);
 
     return NextResponse.json({
       time: mockTime,

@@ -248,6 +248,8 @@ export const EventManager: React.FC<EventManagerProps> = ({
               const stationsCount = event.stations_count;
               const radiusKm = (event.bounds as any)?.radiusKm;
               const avgPm25 = event.avg_pm25;
+              const threshMatch = event.title ? event.title.match(/\((門檻:[^\)]+)\)/) : null;
+              const threshSuffix = threshMatch ? ` (${threshMatch[1]})` : '';
 
               // 判斷超標指標類型
               const hasPm25 = domType.includes('PM') || domType.includes('超標') || domType.includes('群聚') || avgPm25 != null;
@@ -280,7 +282,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
                       </span>
                       <div className="min-w-0">
                         <p className={`text-xs font-bold truncate ${isExpanded ? 'text-orange-300' : 'text-slate-200'}`}>
-                          微感超標群聚事件
+                          微感超標群聚事件{threshSuffix}
                         </p>
                         <p className="text-[9px] text-slate-500 font-mono mt-0.5">
                           ⏱ {displayTime}

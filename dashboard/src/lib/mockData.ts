@@ -43,12 +43,14 @@ export function getMockObservations(time: string): (Sensor & Observation)[] {
     const isPm25Anomaly = pm25 >= globalMockState.settings.pm25_threshold;
     const isVocAnomaly = voc >= globalMockState.settings.voc_threshold;
     const isTempAnomaly = tempDiff >= globalMockState.settings.temp_increase_threshold;
-    const isAnomaly = isPm25Anomaly || isVocAnomaly || isTempAnomaly;
+    
+    // 核心修正：必須 PM2.5 先超標，此點才能算是異常，此時才連帶去判斷溫濕度（及VOC）是否有一起超標
+    const isAnomaly = isPm25Anomaly;
 
     let anomalyType = '';
     if (isAnomaly) {
-      if (isVocAnomaly && isPm25Anomaly) anomalyType = '疑似工廠排污';
-      else if (isTempAnomaly && isPm25Anomaly) anomalyType = '疑似露天燃燒';
+      if (isVocAnomaly) anomalyType = '疑似工廠排污';
+      else if (isTempAnomaly) anomalyType = '疑似露天燃燒';
       else anomalyType = '數值異常';
     }
 
