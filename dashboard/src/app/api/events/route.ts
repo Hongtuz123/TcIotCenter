@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 import { getDb } from '@/lib/db';
-import { globalMockState, mockSensors } from '@/lib/mockData';
+import { globalMockState } from '@/lib/mockData';
 
 export async function GET() {
   try {
+    // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        // 若 events 資料表不存在，降級為空陣列（不報錯）
+        if (error.message?.includes('does not exist')) {
+          return NextResponse.json([]);
+        }
+        throw error;
+      }
+
+      // 解析 bounds JSON
+      const events = (data || []).map((ev: any) => ({
+        ...ev,
+        bounds: typeof ev.bounds === 'string' ? (() => { try { return JSON.parse(ev.bounds); } catch { return ev.bounds; } })() : ev.bounds,
+        sensors: [] // Supabase 模式下感測器清單暫不 JOIN
+      }));
+
+      return NextResponse.json(events);
+    }
+
+    // ── Tier 2: SQLite（本地開發環境）─────────────────────────────────────────
     const db = await getDb();
     if (!db) {
       // 降級為 Mock
@@ -38,6 +66,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
 export async function POST(request: NextRequest) {
   try {

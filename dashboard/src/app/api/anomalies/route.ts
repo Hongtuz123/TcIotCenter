@@ -51,11 +51,51 @@ function buildClusters(anomalies: any[], clusterRadius: number, minStations: num
 }
 
 async function autoCreateEvents(clusters: any[], timeStr: string) {
-  const db = await getDb();
   const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
+  // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
+  if (supabase && clusters.length > 0) {
+    for (const cluster of clusters) {
+      const lat = cluster.center.lat;
+      const lon = cluster.center.lon;
+      const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
+      const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
+      const dominantType =
+        cluster.dominantType && cluster.dominantType !== '--' && cluster.dominantType !== 'undefined'
+          ? cluster.dominantType
+          : '微感超標-群聚';
+
+      try {
+        const { error } = await supabase.from('events').upsert({
+          id: eventId,
+          title: '[自動] 微感超標群聚事件',
+          description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${dominantType}。`,
+          status: '待確認',
+          created_at: nowStr,
+          updated_at: nowStr,
+          bounds: JSON.stringify({ center: { lat, lng: lon }, radiusKm: cluster.radiusKm }),
+          event_time: timeStr,
+          stations_count: cluster.stationsCount,
+          avg_pm25: cluster.avgPm25,
+          dominant_type: dominantType,
+        }, { onConflict: 'id', ignoreDuplicates: true });
+
+        if (error) {
+          // 若 events 資料表不存在，靜默略過
+          if (!error.message?.includes('does not exist')) {
+            console.error('Supabase 自動寫入事件錯誤:', error.message);
+          }
+        }
+      } catch (e) {
+        console.error('autoCreateEvents Supabase 例外:', e);
+      }
+    }
+    return; // Supabase 模式完成，不繼續往下
+  }
+
+  // ── Tier 2: SQLite（本地開發環境）─────────────────────────────────────────
+  const db = await getDb();
   if (db) {
-    // SQLite 模式：自動插入到 events 和 event_sensors
     for (const cluster of clusters) {
       const lat = cluster.center.lat;
       const lon = cluster.center.lon;
@@ -63,17 +103,13 @@ async function autoCreateEvents(clusters: any[], timeStr: string) {
       const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
       const title = `[自動] 微感超標群聚事件`;
       const description = `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${cluster.dominantType && cluster.dominantType !== '--' && cluster.dominantType !== 'undefined' ? cluster.dominantType : '微感超標-群聚'}。`;
-      const status = `待確認`;
-      const boundsJson = JSON.stringify({
-        center: { lat, lng: lon },
-        radiusKm: cluster.radiusKm
-      });
+      const boundsJson = JSON.stringify({ center: { lat, lng: lon }, radiusKm: cluster.radiusKm });
 
       try {
         await db.run(`
           INSERT OR IGNORE INTO events (id, title, description, status, created_at, updated_at, bounds, event_time)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [eventId, title, description, status, nowStr, nowStr, boundsJson, timeStr]);
+        `, [eventId, title, description, '待確認', nowStr, nowStr, boundsJson, timeStr]);
 
         for (const station of cluster.stations) {
           await db.run(`
@@ -85,36 +121,29 @@ async function autoCreateEvents(clusters: any[], timeStr: string) {
         console.error('自動寫入事件錯誤:', e);
       }
     }
-  } else {
-    // Mock 模式：寫入記憶體 globalMockState.events
-    for (const cluster of clusters) {
-      const lat = cluster.center.lat;
-      const lon = cluster.center.lon;
-      const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
-      const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
-      
-      const exists = globalMockState.events.some((ev) => ev.id === eventId);
-      if (!exists) {
-        const newEvent = {
-          id: eventId,
-          title: `[自動] 微感超標群聚事件`,
-          description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³。`,
-          status: '待確認' as const,
-          created_at: nowStr,
-          updated_at: nowStr,
-          event_time: timeStr,
-          bounds: {
-            center: { lat, lng: lon },
-            radiusKm: cluster.radiusKm
-          },
-          sensors: cluster.stations.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            pm2_5: s.pm2_5
-          }))
-        };
-        globalMockState.events.unshift(newEvent as any);
-      }
+    return;
+  }
+
+  // ── Tier 3: Mock（無資料庫降級模式）──────────────────────────────────────
+  for (const cluster of clusters) {
+    const lat = cluster.center.lat;
+    const lon = cluster.center.lon;
+    const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
+    const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
+
+    const exists = globalMockState.events.some((ev) => ev.id === eventId);
+    if (!exists) {
+      globalMockState.events.unshift({
+        id: eventId,
+        title: '[自動] 微感超標群聚事件',
+        description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³。`,
+        status: '待確認' as const,
+        created_at: nowStr,
+        updated_at: nowStr,
+        event_time: timeStr,
+        bounds: { center: { lat, lng: lon }, radiusKm: cluster.radiusKm },
+        sensors: cluster.stations.map((s: any) => ({ id: s.id, name: s.name, pm2_5: s.pm2_5 }))
+      } as any);
     }
   }
 }
