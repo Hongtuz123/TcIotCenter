@@ -63,8 +63,7 @@ export interface Cluster {
 
 export interface SystemSettings {
   pm25_threshold: number;
-  temp_increase_threshold: number;
-  voc_threshold: number;
+  consecutive_exceeds: number;
   cluster_radius_km: number;
   min_cluster_stations: number;
 }

@@ -6,8 +6,7 @@ import { supabase } from '@/lib/supabase';
 
 const allowedKeys = [
   'pm25_threshold',
-  'temp_increase_threshold',
-  'voc_threshold',
+  'consecutive_exceeds',
   'cluster_radius_km',
   'min_cluster_stations'
 ] as const;
@@ -15,8 +14,7 @@ const allowedKeys = [
 export async function GET() {
   const DEFAULT_SETTINGS = {
     pm25_threshold: 54,
-    temp_increase_threshold: 3,
-    voc_threshold: 1.5,
+    consecutive_exceeds: 3,
     cluster_radius_km: 1.0,
     min_cluster_stations: 2
   };

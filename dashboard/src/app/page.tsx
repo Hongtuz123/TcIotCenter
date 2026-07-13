@@ -94,8 +94,7 @@ export default function DashboardPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     pm25_threshold: 54,
-    temp_increase_threshold: 3,
-    voc_threshold: 1.5,
+    consecutive_exceeds: 3,
     cluster_radius_km: 1.0,
     min_cluster_stations: 2
   });
@@ -255,8 +254,7 @@ export default function DashboardPage() {
         if (settingsData && settingsData.pm25_threshold) {
           setSystemSettings({
             pm25_threshold: parseFloat(settingsData.pm25_threshold),
-            temp_increase_threshold: parseFloat(settingsData.temp_increase_threshold),
-            voc_threshold: parseFloat(settingsData.voc_threshold),
+            consecutive_exceeds: parseInt(settingsData.consecutive_exceeds || '3', 10),
             cluster_radius_km: parseFloat(settingsData.cluster_radius_km),
             min_cluster_stations: parseInt(settingsData.min_cluster_stations, 10)
           });
@@ -282,7 +280,8 @@ export default function DashboardPage() {
           `/api/anomalies?time=${encodeURIComponent(debouncedTime)}` +
             `&radius=${systemSettings.cluster_radius_km}` +
             `&min_stations=${systemSettings.min_cluster_stations}` +
-            `&pm25_threshold=${systemSettings.pm25_threshold}`
+            `&pm25_threshold=${systemSettings.pm25_threshold}` +
+            `&consecutive_exceeds=${systemSettings.consecutive_exceeds}`
         );
         const data = await res.json();
         
@@ -312,7 +311,8 @@ export default function DashboardPage() {
           `/api/clusters-24h?time=${encodeURIComponent(debouncedTime)}` +
             `&radius=${systemSettings.cluster_radius_km}` +
             `&min_stations=${systemSettings.min_cluster_stations}` +
-            `&pm25_threshold=${systemSettings.pm25_threshold}`
+            `&pm25_threshold=${systemSettings.pm25_threshold}` +
+            `&consecutive_exceeds=${systemSettings.consecutive_exceeds}`
         );
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -476,8 +476,7 @@ export default function DashboardPage() {
   // 4.5. 儲存判定門檻設定並重新載入點位
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [pm25Input, setPm25Input] = useState(54);
-  const [tempInput, setTempInput] = useState(3);
-  const [vocInput, setVocInput] = useState(1.5);
+  const [consecutiveInput, setConsecutiveInput] = useState(3);
   const [radiusInput, setRadiusInput] = useState(1.0);
   const [minStationsInput, setMinStationsInput] = useState(2);
 
@@ -489,8 +488,7 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pm25_threshold: pm25Input,
-          temp_increase_threshold: tempInput,
-          voc_threshold: vocInput,
+          consecutive_exceeds: consecutiveInput,
           cluster_radius_km: radiusInput,
           min_cluster_stations: minStationsInput
         })
@@ -498,8 +496,7 @@ export default function DashboardPage() {
       if (res.ok) {
         setSystemSettings({
           pm25_threshold: pm25Input,
-          temp_increase_threshold: tempInput,
-          voc_threshold: vocInput,
+          consecutive_exceeds: consecutiveInput,
           cluster_radius_km: radiusInput,
           min_cluster_stations: minStationsInput
         });
@@ -507,9 +504,10 @@ export default function DashboardPage() {
         // 強制刷新當前點位資料
         const refreshRes = await fetch(
           `/api/anomalies?time=${encodeURIComponent(currentTime)}` +
-            `&radius=${systemSettings.cluster_radius_km}` +
-            `&min_stations=${systemSettings.min_cluster_stations}` +
-            `&pm25_threshold=${systemSettings.pm25_threshold}`
+            `&radius=${radiusInput}` +
+            `&min_stations=${minStationsInput}` +
+            `&pm25_threshold=${pm25Input}` +
+            `&consecutive_exceeds=${consecutiveInput}`
         );
         const refreshData = await refreshRes.json();
         if (refreshData.points) setPoints(refreshData.points);
@@ -523,8 +521,7 @@ export default function DashboardPage() {
   useEffect(() => {
     // 當系統設定加載完成後更新輸入欄位狀態
     setPm25Input(systemSettings.pm25_threshold);
-    setTempInput(systemSettings.temp_increase_threshold);
-    setVocInput(systemSettings.voc_threshold);
+    setConsecutiveInput(systemSettings.consecutive_exceeds);
     setRadiusInput(systemSettings.cluster_radius_km);
     setMinStationsInput(systemSettings.min_cluster_stations);
   }, [systemSettings]);
@@ -592,11 +589,9 @@ export default function DashboardPage() {
         temperature: es.temperature,
         humidity: es.humidity,
         voc: es.voc,
-        isAnomaly: (es.pm2_5 !== null && es.pm2_5 >= systemSettings.pm25_threshold) ||
-                   (es.voc !== null && es.voc >= systemSettings.voc_threshold) ||
-                   (es.temperature !== null && (es as any).tempDiff >= systemSettings.temp_increase_threshold),
-        anomalyType: (es.pm2_5 !== null && es.pm2_5 >= systemSettings.pm25_threshold) ? '疑似工廠排污' : '數值異常',
-        score: (es.pm2_5 || 0) * 0.5 + (es.voc || 0) * 20
+        isAnomaly: es.pm2_5 !== null && es.pm2_5 >= systemSettings.pm25_threshold,
+        anomalyType: (es.pm2_5 !== null && es.pm2_5 >= systemSettings.pm25_threshold) ? 'PM₂.₅ 超標' : '',
+        score: (es.pm2_5 || 0) * 0.5
       };
 
       if (idx !== -1) {
@@ -978,29 +973,17 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-slate-400 font-semibold">溫度突升閾值 (°C / 15分鐘)</label>
+                <label className="text-xs text-slate-400 font-semibold">連續超標判定筆數 (5分鐘一筆)</label>
                 <input
                   type="number"
-                  step="0.1"
+                  min="1"
+                  max="12"
                   required
-                  value={tempInput}
-                  onChange={(e) => setTempInput(parseFloat(e.target.value))}
+                  value={consecutiveInput}
+                  onChange={(e) => setConsecutiveInput(parseInt(e.target.value, 10))}
                   className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500"
                 />
-                <span className="text-[10px] text-slate-500">標準：短時間內溫度升溫超過此值，極可能為燃燒起火點。</span>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-slate-400 font-semibold">VOC (揮發性有機物) 異常值 (ppm)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  required
-                  value={vocInput}
-                  onChange={(e) => setVocInput(parseFloat(e.target.value))}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500"
-                />
-                <span className="text-[10px] text-slate-500">標準：用於區分工業工廠排污與一般垃圾燃燒。</span>
+                <span className="text-[10px] text-slate-500">標準：測站需要連續多少筆資料都高於 PM₂.₅ 異常門檻值，才判定為異常點。</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

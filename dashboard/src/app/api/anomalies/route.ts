@@ -160,6 +160,19 @@ export async function GET(request: NextRequest) {
 
     // ── Tier 1: Supabase ──────────────────────────────────────────────────────
     if (supabase) {
+      // 讀取設定中的 consecutive_exceeds
+      let consecutiveExceeds = 3;
+      try {
+        const { data: setRows } = await supabase.from('settings').select('*');
+        const setObj = setRows?.reduce((acc: any, r: any) => {
+          acc[r.key] = parseFloat(r.value);
+          return acc;
+        }, {});
+        if (setObj && setObj.consecutive_exceeds !== undefined) {
+          consecutiveExceeds = parseInt(setObj.consecutive_exceeds, 10);
+        }
+      } catch (e) {}
+
       let until = new Date().toISOString();
       let since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
@@ -171,15 +184,17 @@ export async function GET(request: NextRequest) {
         const d = new Date(normalizedTime);
         if (!isNaN(d.getTime())) {
           until = d.toISOString();
-          since = new Date(d.getTime() - 15 * 60 * 1000).toISOString(); // 歷史模式窗口取 15 分鐘
+          // 將 window 窗口設為能包含 N 筆的範圍，多給 5 分鐘緩衝
+          since = new Date(d.getTime() - consecutiveExceeds * 5 * 60 * 1000).toISOString(); 
         }
       }
 
-      // 分頁迴圈抓取，突破 Supabase max_rows=1000 限制
-      const latestMap = new Map<string, any>();
+      // 用 Map 記錄每個測站的觀測值列表
+      const stationObsListMap = new Map<string, any[]>();
       let from = 0;
+      const client = supabase;
       while (true) {
-        const { data: obsPage, error: obsErr } = await supabase
+        const { data: obsPage, error: obsErr } = await client
           .from('observations_5m')
           .select(`
             station_id,
@@ -199,34 +214,46 @@ export async function GET(request: NextRequest) {
         if (obsErr) throw obsErr;
         if (!obsPage || obsPage.length === 0) break;
 
-        // 每站只保留最新一筆
         for (const row of obsPage) {
-          if (!latestMap.has(row.station_id)) {
-            latestMap.set(row.station_id, row);
+          if (!stationObsListMap.has(row.station_id)) {
+            stationObsListMap.set(row.station_id, []);
           }
+          stationObsListMap.get(row.station_id)!.push(row);
         }
         if (obsPage.length < 1000) break;
         from += 1000;
       }
 
-      const allPoints = Array.from(latestMap.values()).map((row) => {
-        const sensor = (row as any).sensors;
-        const pm25 = row.pm2_5;
-        const isAnomaly = pm25 != null && pm25 >= pm25Thresh;
+      const allPoints = Array.from(stationObsListMap.keys()).map((stationId) => {
+        const obsList = stationObsListMap.get(stationId)!;
+        // 已按 bucket_time 降序排序，所以第一筆就是最新的一筆作為代表
+        const latestRow = obsList[0];
+        const sensor = (latestRow as any).sensors;
+        const pm25 = latestRow.pm2_5;
+        
+        // 判定是否連續 N 筆超標
+        let isAnomaly = false;
+        if (obsList.length >= consecutiveExceeds) {
+          const checkSlice = obsList.slice(0, consecutiveExceeds);
+          isAnomaly = checkSlice.every((row) => row.pm2_5 != null && row.pm2_5 >= pm25Thresh);
+        }
+
+        const anomalyType = isAnomaly ? `連續 ${consecutiveExceeds} 筆 PM₂.₅ 超標` : '';
+
         return {
-          id: row.station_id,
-          name: sensor?.device_name || row.station_id,
+          id: latestRow.station_id,
+          name: sensor?.device_name || latestRow.station_id,
           lat: sensor?.lat || 0,
           lon: sensor?.lon || 0,
           county: sensor?.township || '臺中市',
-          sensor_id: row.station_id,
-          time: row.bucket_time,
+          sensor_id: latestRow.station_id,
+          time: latestRow.bucket_time,
           pm2_5: pm25,
-          temperature: row.temperature,
-          humidity: row.humidity,
+          temperature: latestRow.temperature,
+          humidity: latestRow.humidity,
           voc: null,
-          isAnomaly: row.is_anomaly || isAnomaly,
-          anomalyType: row.anomaly_type || '',
+          isAnomaly,
+          anomalyType,
           score: (pm25 || 0) * 0.5,
           status: '正常',
         };
@@ -259,37 +286,62 @@ export async function GET(request: NextRequest) {
       const _pm25Thresh = settings.pm25_threshold || 54.0;
       const _clusterRadius = settings.cluster_radius_km || 1.0;
       const _minStations = settings.min_cluster_stations || 2;
+      const _consecutive = parseInt(settings.consecutive_exceeds || '3', 10);
 
       const dateObj = new Date(time.replace(' ', 'T'));
-      dateObj.setMinutes(dateObj.getMinutes() - 15);
-      const prevTime = dateObj.toISOString().replace('T', ' ').substring(0, 19);
+      const startTimeObj = new Date(dateObj.getTime() - _consecutive * 5 * 60 * 1000);
+      const startTimeStr = startTimeObj.toISOString().replace('T', ' ').substring(0, 19);
 
       const records = await db.all(
         `SELECT s.id, s.name, s.lat, s.lon, s.county,
-                o.pm2_5, o.temperature, o.humidity, o.voc,
-                prev.temperature AS prev_temperature
+                o.pm2_5, o.time, o.temperature, o.humidity, o.voc
          FROM sensors s
-         JOIN observations o ON s.id = o.sensor_id AND o.time = ?
-         LEFT JOIN observations prev ON s.id = prev.sensor_id AND prev.time = ?`,
-        [time, prevTime]
+         JOIN observations o ON s.id = o.sensor_id
+         WHERE o.time BETWEEN ? AND ?`,
+        [startTimeStr, time]
       );
 
-      const allPoints = records.map((r: any) => {
-        const tempDiff = r.prev_temperature ? r.temperature - r.prev_temperature : 0;
-        const isPm25Anomaly = r.pm2_5 >= _pm25Thresh;
-        const isVocAnomaly = r.voc >= (settings.voc_threshold || 1.5);
-        const isTempAnomaly = tempDiff >= (settings.temp_increase_threshold || 3);
-        
-        // 核心修正：必須 PM2.5 先超標，此點才能算是異常，此時才連帶去判斷溫濕度（及VOC）是否有一起超標
-        const isAnomaly = isPm25Anomaly;
-
-        let anomalyType = '';
-        if (isAnomaly) {
-          if (isVocAnomaly) anomalyType = '疑似工廠排污';
-          else if (isTempAnomaly) anomalyType = '疑似露天燃燒';
-          else anomalyType = '數值異常';
+      // 按 sensor_id 分組
+      const groups: Record<string, any[]> = {};
+      for (const r of records) {
+        if (!groups[r.id]) {
+          groups[r.id] = [];
         }
-        return { ...r, sensor_id: r.id, time, tempDiff, isAnomaly, anomalyType, score: (r.pm2_5 || 0) * 0.5 + (r.voc || 0) * 20 + tempDiff * 10 };
+        groups[r.id].push(r);
+      }
+
+      const allPoints = Object.keys(groups).map((sensorId) => {
+        const obsList = groups[sensorId];
+        // 按時間降序排序（最新在最前）
+        obsList.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+        const latest = obsList[0];
+        
+        let isAnomaly = false;
+        if (obsList.length >= _consecutive) {
+          const checkSlice = obsList.slice(0, _consecutive);
+          isAnomaly = checkSlice.every((r) => r.pm2_5 != null && r.pm2_5 >= _pm25Thresh);
+        }
+
+        const anomalyType = isAnomaly ? `連續 ${_consecutive} 筆 PM₂.₅ 超標` : '';
+
+        return {
+          id: latest.id,
+          name: latest.name,
+          lat: latest.lat,
+          lon: latest.lon,
+          county: latest.county,
+          sensor_id: latest.id,
+          time: latest.time,
+          pm2_5: latest.pm2_5,
+          temperature: latest.temperature,
+          humidity: latest.humidity,
+          voc: latest.voc,
+          isAnomaly,
+          anomalyType,
+          score: (latest.pm2_5 || 0) * 0.5,
+          status: '正常'
+        };
       });
 
       const anomalies = allPoints.filter((p: any) => p.isAnomaly);

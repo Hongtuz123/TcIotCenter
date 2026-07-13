@@ -15,8 +15,7 @@ export const globalMockState = {
   events: [] as Event[],
   settings: {
     pm25_threshold: 54,
-    temp_increase_threshold: 3,
-    voc_threshold: 1.5,
+    consecutive_exceeds: 3,
     cluster_radius_km: 1.0,
     min_cluster_stations: 2
   } as SystemSettings
@@ -40,18 +39,11 @@ export function getMockObservations(time: string): (Sensor & Observation)[] {
     const tempDiff = isStationAnomaly ? 3.5 : 0.2;
     const temperature = isStationAnomaly ? temp + tempDiff : temp;
 
-    const isPm25Anomaly = pm25 >= globalMockState.settings.pm25_threshold;
-    const isVocAnomaly = voc >= globalMockState.settings.voc_threshold;
-    const isTempAnomaly = tempDiff >= globalMockState.settings.temp_increase_threshold;
-    
-    // 核心修正：必須 PM2.5 先超標，此點才能算是異常，此時才連帶去判斷溫濕度（及VOC）是否有一起超標
-    const isAnomaly = isPm25Anomaly;
+    const isAnomaly = pm25 >= globalMockState.settings.pm25_threshold;
 
     let anomalyType = '';
     if (isAnomaly) {
-      if (isVocAnomaly) anomalyType = '疑似工廠排污';
-      else if (isTempAnomaly) anomalyType = '疑似露天燃燒';
-      else anomalyType = '數值異常';
+      anomalyType = 'PM₂.₅ 超標';
     }
 
     return {
@@ -65,7 +57,7 @@ export function getMockObservations(time: string): (Sensor & Observation)[] {
       tempDiff: parseFloat(tempDiff.toFixed(1)),
       isAnomaly,
       anomalyType,
-      score: pm25 * 0.5 + voc * 20 + tempDiff * 10
+      score: pm25 * 0.5
     };
   });
 }

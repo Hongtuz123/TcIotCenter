@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
     const radius = parseFloat(searchParams.get('radius') || '1.0');
     const minStations = parseInt(searchParams.get('min_stations') || '2', 10);
     const pm25Thresh = parseFloat(searchParams.get('pm25_threshold') || '54');
+    const consecutiveExceeds = parseInt(searchParams.get('consecutive_exceeds') || '3', 10);
 
     const allClusters: any[] = [];
 
@@ -125,10 +126,10 @@ export async function GET(request: NextRequest) {
       if (db && time) {
         const dateObj = new Date(time.replace(' ', 'T'));
         const timeEnd = time;
-        const timeStartObj = new Date(dateObj.getTime() - 24 * 60 * 60 * 1000);
+        const timeStartObj = new Date(dateObj.getTime() - 24 * 60 * 60 * 1000 - consecutiveExceeds * 5 * 60 * 1000);
         const timeStart = timeStartObj.toISOString().replace('T', ' ').substring(0, 19);
 
-        // 查過去 24 小時異常觀測
+        // 查過去 24 小時加往前推 N 筆長度的所有觀測資料 (為了能在時間軸起點也正確計算連續 X 筆)
         const records = await db.all(
           `SELECT s.id, s.name, s.lat, s.lon, s.county,
                   o.pm2_5, o.time, o.temperature, o.humidity, o.voc
@@ -138,25 +139,55 @@ export async function GET(request: NextRequest) {
           [timeStart, timeEnd, pm25Thresh]
         );
 
+        // 按 sensor_id 將超標時間點放入 Set 中，以實現 O(1) 的連續超標檢索
+        const sensorExceedTimes: Record<string, Set<string>> = {};
+        for (const r of records) {
+          if (!sensorExceedTimes[r.id]) {
+            sensorExceedTimes[r.id] = new Set<string>();
+          }
+          sensorExceedTimes[r.id].add(r.time);
+        }
+
+        const subtract5Minutes = (timeStr: string): string => {
+          const d = new Date(timeStr.replace(' ', 'T'));
+          d.setMinutes(d.getMinutes() - 5);
+          const pad = (n: number) => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        };
+
+        const checkConsecutive = (sensorId: string, timeStr: string, N: number): boolean => {
+          const times = sensorExceedTimes[sensorId];
+          if (!times) return false;
+          let current = timeStr;
+          for (let i = 0; i < N; i++) {
+            if (!times.has(current)) return false;
+            current = subtract5Minutes(current);
+          }
+          return true;
+        };
+
         const buckets: Record<string, any[]> = {};
         for (const r of records) {
-          const tStr = r.time;
-          if (!buckets[tStr]) {
-            buckets[tStr] = [];
+          // 只保留在該時間點滿足連續 N 筆超標的感測器
+          if (checkConsecutive(r.id, r.time, consecutiveExceeds)) {
+            const tStr = r.time;
+            if (!buckets[tStr]) {
+              buckets[tStr] = [];
+            }
+            buckets[tStr].push({
+              id: r.id,
+              name: r.name,
+              lat: r.lat,
+              lon: r.lon,
+              county: r.county,
+              pm2_5: r.pm2_5,
+              temperature: r.temperature,
+              humidity: r.humidity,
+              isAnomaly: true,
+              anomalyType: `連續 ${consecutiveExceeds} 筆 PM₂.₅ 超標`,
+              score: (r.pm2_5 || 0) * 0.5,
+            });
           }
-          buckets[tStr].push({
-            id: r.id,
-            name: r.name,
-            lat: r.lat,
-            lon: r.lon,
-            county: r.county,
-            pm2_5: r.pm2_5,
-            temperature: r.temperature,
-            humidity: r.humidity,
-            isAnomaly: true,
-            anomalyType: 'PM₂.₅超標',
-            score: (r.pm2_5 || 0) * 0.5 + (r.voc || 0) * 20,
-          });
         }
 
         for (const [tStr, anomalies] of Object.entries(buckets)) {
