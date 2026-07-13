@@ -693,9 +693,9 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="text-xs bg-slate-950/60 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center gap-2">
             <span className="text-slate-500 font-medium">更新狀態:</span>
-            <span className={`flex items-center gap-1.5 font-semibold transition-all duration-300 ${isLoadingPoints ? 'text-orange-400 animate-pulse' : 'text-emerald-400'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${isLoadingPoints ? 'bg-orange-500' : 'bg-emerald-500'}`} />
-              {isLoadingPoints ? '正在載入' : '連線正常'}
+            <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              連線正常
             </span>
           </div>
           <button
@@ -902,7 +902,7 @@ export default function DashboardPage() {
         {/* 右側欄: 事件清單 & 詳細趨勢圖 */}
         <section className="w-full lg:w-[27%] lg:min-w-[320px] lg:max-w-[380px] h-auto lg:h-full flex flex-col md:flex-row lg:flex-col gap-3 lg:gap-4 lg:overflow-hidden">
           {/* 上半部: 事件管理列表 */}
-          <div className="w-full md:w-1/2 lg:w-full h-[350px] md:h-[400px] lg:h-auto lg:flex-[3] lg:min-h-0 lg:overflow-hidden">
+          <div className="w-full md:w-1/2 lg:w-full h-[350px] md:h-[400px] lg:h-auto lg:flex-[2] lg:min-h-0 lg:overflow-hidden">
             <EventManager
               selectedSensor={selectedSensor}
               onSelectSensor={setSelectedSensorId}
@@ -931,7 +931,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 下半部: 被選定測站趨勢圖 */}
-          <div className="w-full md:w-1/2 lg:w-full h-[350px] lg:flex-[2] lg:min-h-0 lg:overflow-hidden">
+          <div className="w-full md:w-1/2 lg:w-full h-[450px] lg:flex-[3] lg:min-h-0 lg:overflow-hidden">
             <TrendChart
               selectedSensor={selectedSensor}
               historyData={historyData}
