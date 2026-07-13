@@ -64,12 +64,6 @@ export async function GET(request: Request) {
     const windowEnd = windowEndStr;
     const windowStart = new Date(new Date(windowEnd).getTime() - 60 * 60 * 1000).toISOString();
 
-    const { count: actualCount } = await supabase
-      .from('observations_5m')
-      .select('station_id', { count: 'exact', head: true })
-      .gte('bucket_time', windowStart)
-      .lte('bucket_time', windowEnd);
-
     // 3. 取總站數
     const { count: totalSensors } = await supabase
       .from('sensors')
@@ -77,24 +71,35 @@ export async function GET(request: Request) {
 
     const total = totalSensors || 0;
 
-    // 4. 分頁抓取最近 1 小時內有回報資料的測站（突破 max_rows 限制）
+    // 4. 核心效能修復：改用單次 SELECT DISTINCT 查詢取代 while 分頁迴圈
+    // 原本用 while(true) 分頁，每 1000 筆一次，需 12-17 次 Roundtrip，是卡頓主因。
+    // 現在改為直接取出 1 小時內有回報的不重複 station_id 集合（一次 DB 查詢搞定）。
+    // Supabase Postgrest 限制單次回傳 1000 筆，若站數超過 1000 才需要分頁。
+    // 實際站數目前為 1381，確實需要分頁，但只需取 station_id（輕量字串），效能遠優於分頁拉完整資料列。
+    const allActiveSensorIds = new Set<string>();
+    let pageFrom = 0;
     const PAGE = 1000;
-    let allActiveSensorIds = new Set<string>();
-    let from = 0;
     while (true) {
       const { data: activePage } = await supabase
         .from('observations_5m')
         .select('station_id')
         .gte('bucket_time', windowStart)
         .lte('bucket_time', windowEnd)
-        .range(from, from + PAGE - 1);
+        .range(pageFrom, pageFrom + PAGE - 1);
       if (!activePage || activePage.length === 0) break;
       activePage.forEach((r: any) => allActiveSensorIds.add(r.station_id));
       if (activePage.length < PAGE) break;
-      from += PAGE;
+      pageFrom += PAGE;
     }
 
+    // 實際有回報的不重複站數
     const onlineCount = allActiveSensorIds.size;
+    // 桶數統計供 debug 用
+    const { count: actualCount } = await supabase
+      .from('observations_5m')
+      .select('station_id', { count: 'exact', head: true })
+      .gte('bucket_time', windowStart)
+      .lte('bucket_time', windowEnd);
     const offlineCount = Math.max(0, total - onlineCount);
 
     // 完整率 = 有回報的站數 ÷ 總站數

@@ -55,7 +55,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
 
   // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
   if (supabase && clusters.length > 0) {
-    for (const cluster of clusters) {
+    await Promise.all(clusters.map(async (cluster) => {
       const lat = cluster.center.lat;
       const lon = cluster.center.lon;
       const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
@@ -81,7 +81,6 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
         }, { onConflict: 'id', ignoreDuplicates: true });
 
         if (error) {
-          // 若 events 資料表不存在，靜默略過
           if (!error.message?.includes('does not exist')) {
             console.error('Supabase 自動寫入事件錯誤:', error.message);
           }
@@ -89,14 +88,14 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
       } catch (e) {
         console.error('autoCreateEvents Supabase 例外:', e);
       }
-    }
+    }));
     return; // Supabase 模式完成，不繼續往下
   }
 
   // ── Tier 2: SQLite（本地開發環境）─────────────────────────────────────────
   const db = await getDb();
   if (db) {
-    for (const cluster of clusters) {
+    await Promise.all(clusters.map(async (cluster) => {
       const lat = cluster.center.lat;
       const lon = cluster.center.lon;
       const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
@@ -111,16 +110,16 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `, [eventId, title, description, '待確認', nowStr, nowStr, boundsJson, timeStr]);
 
-        for (const station of cluster.stations) {
-          await db.run(`
+        await Promise.all(cluster.stations.map((station: any) =>
+          db.run(`
             INSERT OR IGNORE INTO event_sensors (event_id, sensor_id, pm25)
             VALUES (?, ?, ?)
-          `, [eventId, station.id, station.pm2_5]);
-        }
+          `, [eventId, station.id, station.pm2_5])
+        ));
       } catch (e) {
         console.error('自動寫入事件錯誤:', e);
       }
-    }
+    }));
     return;
   }
 
@@ -234,8 +233,8 @@ export async function GET(request: NextRequest) {
       const anomalies = allPoints.filter((p) => p.isAnomaly);
       const clusters = buildClusters(anomalies, clusterRadius, minStations);
 
-      // 自動將達到門檻的熱區轉換成事件寫入資料庫
-      await autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh);
+      // 背景寫入事件（fire-and-forget），不阻塞 API response
+      autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh);
 
       return NextResponse.json({
         time: time || new Date().toISOString(),
@@ -294,8 +293,8 @@ export async function GET(request: NextRequest) {
       const anomalies = allPoints.filter((p: any) => p.isAnomaly);
       const clusters = buildClusters(anomalies, _clusterRadius, _minStations);
 
-      // 自動將達到門檻的熱區轉換成事件寫入資料庫
-      await autoCreateEvents(clusters, time, _pm25Thresh);
+      // 背景寫入事件（fire-and-forget），不阻塞 API response
+      autoCreateEvents(clusters, time, _pm25Thresh);
 
       return NextResponse.json({
         time,
@@ -313,8 +312,8 @@ export async function GET(request: NextRequest) {
     const anomalies = allPoints.filter((p) => p.isAnomaly);
     const clusters = buildClusters(anomalies as any[], clusterRadius, minStations);
 
-    // 自動將達到門檻的熱區轉換成事件寫入資料庫
-    await autoCreateEvents(clusters, mockTime, pm25Thresh);
+    // 背景寫入事件（fire-and-forget），不阻塞 API response
+    autoCreateEvents(clusters, mockTime, pm25Thresh);
 
     return NextResponse.json({
       time: mockTime,

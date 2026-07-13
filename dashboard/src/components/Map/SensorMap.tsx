@@ -48,6 +48,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [bearing, setBearing] = useState(0);
   const showIndustrialZonesRef = useRef(showIndustrialZones);
   const prevStyleRef = useRef(mapStyle);
+  // 追蹤上一次篩選器狀態，避免 regionCenters 異步載入時觸發無效地圖重置
+  const prevFilterRef = useRef(selectedFilter);
 
   // 同步 ref 狀態以供閉包安全讀取
   useEffect(() => {
@@ -533,6 +535,10 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   useEffect(() => {
     if (!mapRef.current || !isLoaded || !selectedSensorId) return;
 
+    // 互斥鎖：若 activeEvent 存在且選中的 sensor 屬於該事件的感測器之一，
+    // 則優先讓 activeEvent 的 flyTo 處理，避免兩個 flyTo 爭奪相機控制權
+    if (activeEvent && (activeEvent as any).sensors?.some((s: any) => s.id === selectedSensorId)) return;
+
     const marker = markersRef.current[selectedSensorId];
     if (marker) {
       const lngLat = marker.getLngLat();
@@ -545,7 +551,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         essential: true
       });
     }
-  }, [selectedSensorId, isLoaded]);
+  }, [selectedSensorId, isLoaded, activeEvent]);
 
   // 3.5 更新核密度圖 (Heatmap Layer)
   useEffect(() => {
@@ -845,6 +851,15 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   // 5.5 監聽第一層篩選變更，地圖平滑飛越與縮放至區域中心
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
+
+    // 核心修復：只有在篩選器真正改變時才執行 flyTo，
+    // 避免 regionCenters 非同步載入完成時觸發無效的地圖相機重置
+    const hasFilterChanged =
+      prevFilterRef.current.type !== selectedFilter.type ||
+      prevFilterRef.current.value !== selectedFilter.value;
+    prevFilterRef.current = selectedFilter;
+    if (!hasFilterChanged) return;
+
     if (selectedFilter.type === 'all') {
       console.log('Resetting map camera to Taichung city center.');
       mapRef.current.flyTo({
