@@ -812,6 +812,7 @@ export default function DashboardPage() {
               regionCenters={regionCenters}
               selectedMetric={selectedMetric}
               activeEvent={events.find(e => e.id === activeEventId)}
+              pm25Threshold={systemSettings.pm25_threshold}
             />
           </div>
 

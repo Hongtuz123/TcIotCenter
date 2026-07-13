@@ -16,6 +16,7 @@ interface SensorMapProps {
   regionCenters: { [key: string]: [number, number] };
   selectedMetric: 'pm2_5' | 'temperature' | 'humidity';
   activeEvent?: Event | null;
+  pm25Threshold?: number;
 }
 
 export const SensorMap: React.FC<SensorMapProps> = ({
@@ -28,7 +29,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   selectedFilter,
   regionCenters,
   selectedMetric,
-  activeEvent
+  activeEvent,
+  pm25Threshold
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -288,6 +290,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       }
 
+      const isPm25Anomaly = selectedMetric === 'pm2_5' && val !== null && val !== undefined && val >= (pm25Threshold ?? 54);
+      const isAnomalyPoint = point.isAnomaly || isPm25Anomaly;
+
+      const dotSizeClass = isAnomalyPoint ? 'w-[8px] h-[8px] z-30' : 'w-[5px] h-[5px]';
+      const dotGlowClass = isAnomalyPoint ? 'glow-anomaly-sensor' : 'glow-sensor';
+
       const existingMarker = markersRef.current[point.id];
 
       if (existingMarker) {
@@ -295,8 +303,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const wrapper = existingMarker.getElement();
         const el = wrapper.querySelector('.sensor-dot') as HTMLDivElement;
         if (el) {
-          // 尺寸縮小為 5px (w-[5px] h-[5px])，移除 border 描邊，加入 glow-sensor 類別
-          let baseClass = `sensor-dot w-[5px] h-[5px] rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 glow-sensor ${bgColor}`;
+          let baseClass = `sensor-dot rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 ${dotSizeClass} ${dotGlowClass} ${bgColor}`;
           
           // 如果為選中狀態，保留白色描邊樣式
           if (point.id === selectedSensorId) {
@@ -308,7 +315,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           } else if (isFactory) {
             baseClass += ' ring-4 ring-purple-500/30';
           }
-          el.innerHTML = ''; // 5px 太小，中心點不塞 Emoji，改由雷達環與發光代表狀態
+          el.innerHTML = ''; // 5px / 8px 太小，不塞 Emoji，由閃爍與外環代表狀態
           el.className = baseClass;
           el.style.setProperty('--glow-color', glowColor);
         }
@@ -327,10 +334,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           ping.className = 'radar-ping';
           ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
           wrapper.insertBefore(ping, el);
-        } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54.4) {
+        } else if (isAnomalyPoint) {
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
+          // 超標雷達環使用更亮眼的紅色，且適應 8px 大小
+          ping.style.cssText = 'position:absolute;width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,0.4);pointer-events:none;';
           wrapper.insertBefore(ping, el);
         }
       } else {
@@ -338,9 +346,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const wrapper = document.createElement('div');
         wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;';
 
-        // 建立自訂 DOM 元素作為 Marker (做小至 5px，無描邊，加螢光閃爍)
+        // 建立自訂 DOM 元素作為 Marker (超標放大至 8px，無描邊，加螢光閃爍)
         const el = document.createElement('div');
-        let baseClass = `sensor-dot w-[5px] h-[5px] rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 glow-sensor ${bgColor}`;
+        let baseClass = `sensor-dot rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 ${dotSizeClass} ${dotGlowClass} ${bgColor}`;
         
         if (point.id === selectedSensorId) {
           baseClass += ' border border-white scale-125 z-40';
@@ -361,10 +369,10 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           ping.className = 'radar-ping';
           ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
           wrapper.appendChild(ping);
-        } else if (selectedMetric === 'pm2_5' && val !== null && val !== undefined && val > 54.4) {
+        } else if (isAnomalyPoint) {
           const ping = document.createElement('div');
           ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(239,68,68,0.3);pointer-events:none;';
+          ping.style.cssText = 'position:absolute;width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,0.4);pointer-events:none;';
           wrapper.appendChild(ping);
         }
 
@@ -382,7 +390,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         markersRef.current[point.id] = marker;
       }
     });
-  }, [points, isLoaded, selectedMetric, showSensors, selectedSensorId]);
+  }, [points, isLoaded, selectedMetric, showSensors, selectedSensorId, pm25Threshold]);
 
   // 3.1 同步更新 Selected Sensor 的樣式與全域唯一 Popup 顯示狀態
   useEffect(() => {
