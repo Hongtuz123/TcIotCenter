@@ -701,9 +701,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     });
 
     const lineFeatures = windVectorsRef.current.map(v => ({
-      type: 'Feature',
+      type: 'Feature' as const,
       geometry: {
-        type: 'LineString',
+        type: 'LineString' as const,
         coordinates: [[v.lon, v.lat], [v.lon + v.dLon, v.lat + v.dLat]]
       },
       properties: { id: v.id }
@@ -747,9 +747,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           const pLat = v.lat + v.dLat * progress;
           
           return {
-            type: 'Feature',
+            type: 'Feature' as const,
             geometry: {
-              type: 'Point',
+              type: 'Point' as const,
               coordinates: [pLon, pLat]
             },
             properties: { id: v.id }
