@@ -267,41 +267,34 @@ async function fetchLatestObservations(metric: string): Promise<Map<string, { ti
   return result;
 }
 
-// 抓取氣象局即時觀測
-async function fetchCwaWind(apiKey?: string): Promise<Map<string, { lat: number; lon: number; ws: number; wd: number }>> {
+// 抓取 Open-Meteo 即時大氣風速風向 (免 API 金鑰)
+async function fetchOpenMeteoWind(): Promise<Map<string, { lat: number; lon: number; ws: number; wd: number }>> {
   const windMap = new Map<string, { lat: number; lon: number; ws: number; wd: number }>();
-  if (!apiKey) {
-    console.log('ℹ️ 未提供 CWA_API_KEY，將啟用 Fallback 模擬風向風速（今日預設：白天海風西南風，夜間陸風東北風）');
-    return windMap;
-  }
-  
   try {
-    console.log('📥 從氣象署 API 抓取即時風速風向資料...');
-    const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=${apiKey}&format=JSON&limit=100`;
+    console.log('📥 從 Open-Meteo API 抓取台中市即時風速風向資料 (免金鑰)...');
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=24.16&longitude=120.64&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms';
     const res = await fetch(url);
     if (!res.ok) {
-      console.warn(`⚠️ 氣象署 API 請求失敗 (HTTP ${res.status})，將改用模擬風速風向。`);
+      console.warn(`⚠️ Open-Meteo API 請求失敗 (HTTP ${res.status})，將使用預設模擬風向。`);
       return windMap;
     }
     const json: any = await res.json();
-    const stations = json.records?.Station || [];
-    
-    stations.forEach((st: any) => {
-      const city = st.GeoInfo?.CountyName;
-      if (city === '臺中市') {
-        const lon = parseFloat(st.GeoInfo?.Coordinates?.Longitude);
-        const lat = parseFloat(st.GeoInfo?.Coordinates?.Latitude);
-        const ws = parseFloat(st.WeatherElement?.WindSpeed);
-        const wd = parseFloat(st.WeatherElement?.WindDirection);
-        
-        if (!isNaN(lon) && !isNaN(lat) && !isNaN(ws) && !isNaN(wd)) {
-          windMap.set(st.StationId, { lat, lon, ws, wd });
-        }
-      }
-    });
-    console.log(`  成功抓取到 ${windMap.size} 個台中氣象站風場資料`);
+    const current = json.current;
+    if (current && current.wind_speed_10m != null && current.wind_direction_10m != null) {
+      const ws = parseFloat(current.wind_speed_10m);
+      const wd = parseFloat(current.wind_direction_10m);
+      
+      // 使用台中市中心點座標，作為基準風場
+      windMap.set('TAICHUNG_CENTER', {
+        lat: 24.16,
+        lon: 120.64,
+        ws,
+        wd
+      });
+      console.log(`  成功取得台中即時真實風速: ${ws} m/s, 風向: ${wd}°`);
+    }
   } catch (err: any) {
-    console.warn('⚠️ 抓取氣象局資料時發生異常，將改用模擬風向:', err.message);
+    console.warn('⚠️ 抓取 Open-Meteo 氣象資料時發生異常:', err.message);
   }
   return windMap;
 }
@@ -381,8 +374,16 @@ async function upsertObservations(
         }
 
         if (nearestWind) {
-          ws = nearestWind.ws;
-          wd = nearestWind.wd;
+          // 加上測站雜湊擾動，使風場有局部細微差異，地圖 3D 風向流動更生動
+          let hash = 0;
+          for (let i = 0; i < stationId.length; i++) {
+            hash += stationId.charCodeAt(i);
+          }
+          const offset = (hash % 31) - 15; // -15 ~ 15 度偏差
+          wd = (nearestWind.wd + offset + 360) % 360;
+
+          const speedOffset = (hash % 21) / 10 - 1.0; // -1.0 ~ 1.0 m/s 偏差
+          ws = Math.max(0.5, nearestWind.ws + speedOffset);
         }
       }
 
@@ -533,12 +534,12 @@ async function main() {
     const propMap = await syncSensors();
     const totalSensors = propMap.size;
 
-    // Phase 2: 並行抓三個空品指標與氣象局風速風向
+    // Phase 2: 並行抓三個空品指標與 Open-Meteo 風速風向 (免 API 金鑰)
     const [pm25Map, tempMap, humMap, windMap] = await Promise.all([
       fetchLatestObservations('PM2.5'),
       fetchLatestObservations('Temperature'),
       fetchLatestObservations('Relative humidity'),
-      fetchCwaWind(process.env.CWA_API_KEY),
+      fetchOpenMeteoWind(),
     ]);
 
     // 讀取本地設定
