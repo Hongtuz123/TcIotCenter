@@ -309,6 +309,26 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         });
       }
 
+      // 同步套用 3D 地形
+      if (show3DTerrain) {
+        map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
+      } else {
+        map.setTerrain(null);
+      }
+
+      // 同步套用 3D 天空大氣
+      if (show3DSky) {
+        map.setFog({
+          color: '#080c14',
+          'high-color': '#101726',
+          'horizon-blend': 0.15,
+          'space-color': '#010409',
+          'star-intensity': 0.6
+        });
+      } else {
+        map.setFog(null);
+      }
+
       // 2. 註冊 3D 建築拉伸圖層 (複合底圖自帶)
       if (!map.getLayer('3d-buildings')) {
         const layers = map.getStyle().layers;
@@ -348,6 +368,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           },
           labelLayerId
         );
+      } else {
+        map.setLayoutProperty('3d-buildings', 'visibility', show3DBuildings ? 'visible' : 'none');
       }
     };
 
@@ -419,25 +441,60 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     }
   }, [showIndustrialZones, isLoaded]);
 
-  // 2.6 同步控制 3D 建築拉伸圖層可見度
+  // 2.6 同步控制 3D 建築拉伸圖層可見度 + 貼心相機引導
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
-    const visibility = show3DBuildings ? 'visible' : 'none';
-    if (mapRef.current.getLayer('3d-buildings')) {
-      mapRef.current.setLayoutProperty('3d-buildings', 'visibility', visibility);
+    const map = mapRef.current;
+    
+    if (show3DBuildings) {
+      if (!map.getLayer('3d-buildings')) {
+        // 若圖層因風格載入尚未建立，重新觸發初始化
+        setStyleVersion((v) => v + 1);
+      } else {
+        map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+      }
+
+      // 貼心引導：如果 zoom 不夠近，平滑拉近地圖以顯示 3D 建築 (minzoom 15)
+      if (map.getZoom() < 15) {
+        console.log('3D Buildings enabled: Zooming in to show buildings');
+        map.flyTo({
+          zoom: 15.2,
+          pitch: 65,
+          bearing: 15,
+          duration: 2000,
+          essential: true
+        });
+      }
+    } else {
+      if (map.getLayer('3d-buildings')) {
+        map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+      }
     }
   }, [show3DBuildings, isLoaded]);
 
-  // 2.7 同步控制 3D 立體地形圖層可見度
+  // 2.7 同步控制 3D 立體地形圖層可見度 + 貼心相機引導
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
     try {
       if (show3DTerrain) {
-        console.log('Enabling 3D terrain exaggeration 1.5');
-        map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
+        if (!map.getSource('mapbox-dem')) {
+          setStyleVersion((v) => v + 1);
+        } else {
+          map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
+        }
+
+        // 貼心引導：如果 pitch (傾斜度) 不夠斜，平滑傾斜以顯現地貌起伏
+        if (map.getPitch() < 45) {
+          console.log('3D Terrain enabled: Tilting camera to show relief');
+          map.flyTo({
+            pitch: 60,
+            bearing: -20,
+            duration: 2000,
+            essential: true
+          });
+        }
       } else {
-        console.log('Disabling 3D terrain');
         map.setTerrain(null);
       }
     } catch (err) {
@@ -445,13 +502,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     }
   }, [show3DTerrain, isLoaded]);
 
-  // 2.8 同步控制 3D 天空與大氣層特效
+  // 2.8 同步控制 3D 天空與大氣層特效 + 貼心相機引導
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
     try {
       if (show3DSky) {
-        console.log('Enabling sky atmosphere/fog effect');
         map.setFog({
           color: '#080c14',
           'high-color': '#101726',
@@ -459,8 +515,17 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           'space-color': '#010409',
           'star-intensity': 0.6
         });
+
+        // 貼心引導：如果 pitch 不夠，平滑傾斜以能看見地平線大氣
+        if (map.getPitch() < 55) {
+          console.log('3D Sky enabled: Tilting camera to show sky/fog');
+          map.flyTo({
+            pitch: 65,
+            duration: 2000,
+            essential: true
+          });
+        }
       } else {
-        console.log('Disabling sky/fog effect');
         map.setFog(null);
       }
     } catch (err) {
