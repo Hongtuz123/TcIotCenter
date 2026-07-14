@@ -432,6 +432,34 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           }
         });
       }
+
+      // 3. 新增 Windy 全球風場式 Canvas 柵格渲染圖層
+      if (!map.getSource('wind-canvas-source')) {
+        map.addSource('wind-canvas-source', {
+          type: 'canvas',
+          canvas: 'wind-canvas',
+          animate: true,
+          coordinates: [
+            [120.30, 24.45], // 西北 (左上)
+            [120.98, 24.45], // 東北 (右上)
+            [120.98, 23.85], // 東南 (右下)
+            [120.30, 23.85]  // 西南 (左下)
+          ]
+        });
+
+        map.addLayer({
+          id: 'sensors-wind-canvas-layer',
+          type: 'raster',
+          source: 'wind-canvas-source',
+          paint: {
+            'raster-opacity': 0.85,
+            'raster-fade-duration': 0
+          },
+          layout: {
+            visibility: showWindArrows ? 'visible' : 'none'
+          }
+        });
+      }
     };
 
     map.on('load', () => {
@@ -775,7 +803,155 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     };
   }, [showWindArrows, isLoaded]);
 
-  // 3.2 同步控制風場虛線與粒子圖層可見度 + 貼心相機傾斜引導
+  // 3.1.3 Windy 全景柵格動態風場動畫 (Canvas IDW 插值)
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+
+    // 清除任何先前已有的動畫
+    if ((window as any).windyAnimId) {
+      cancelAnimationFrame((window as any).windyAnimId);
+      (window as any).windyAnimId = null;
+    }
+
+    const canvas = document.getElementById('wind-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (!showWindArrows) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const canvasSource = map.getSource('wind-canvas-source') as mapboxgl.CanvasSource;
+      if (canvasSource) {
+        canvasSource.play(); // 觸發重繪以隱藏
+      }
+      return;
+    }
+
+    // 粒子系統初始化
+    const particleCount = 1800; // 粒子數量，1800 顆可保證密集度又兼顧效能
+    const particles: { x: number; y: number; age: number; speed: number }[] = [];
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        age: Math.floor(Math.random() * 80),
+        speed: 0.5 + Math.random() * 1.5
+      });
+    }
+
+    // 經緯度映射邊界 (台中地區)
+    const minLon = 120.30;
+    const maxLon = 120.98;
+    const minLat = 23.85;
+    const maxLat = 24.45;
+
+    const lonWidth = maxLon - minLon;
+    const latHeight = maxLat - minLat;
+
+    // 反距離加權插值 (IDW) 取得特定位置風速向量
+    const getWindAt = (lon: number, lat: number) => {
+      const vectors = windVectorsRef.current;
+      if (vectors.length === 0) return { dLon: 0, dLat: 0 };
+
+      let sumW = 0;
+      let sumLon = 0;
+      let sumLat = 0;
+
+      for (let i = 0; i < vectors.length; i++) {
+        const v = vectors[i];
+        const dLon = lon - v.lon;
+        const dLat = lat - v.lat;
+        const distSq = dLon * dLon + dLat * dLat;
+        
+        // 權重公式：1 / (距離平方 + 微小常數)
+        const w = 1.0 / (distSq + 0.000001);
+        sumW += w;
+        sumLon += v.dLon * w;
+        sumLat += v.dLat * w;
+      }
+
+      return {
+        dLon: sumLon / sumW,
+        dLat: sumLat / sumW
+      };
+    };
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const step = () => {
+      if (!mapRef.current) return;
+
+      // 使用 destination-out 擦除法在透明 canvas 上畫出漂亮的漸慢淡出尾跡 (Windy 流沙線條)
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.06)'; // 數值越小尾巴越長
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'source-over';
+
+      // 設置粒子樣式（亮青色細線條，尾跡淡出後整體感很強）
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.65)';
+      ctx.lineWidth = 1.2;
+
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+
+        // Canvas 坐報轉回經緯度
+        const lon = minLon + (p.x / canvas.width) * lonWidth;
+        const lat = maxLat - (p.y / canvas.height) * latHeight;
+
+        const wind = getWindAt(lon, lat);
+
+        // 將經緯度位移轉回像素位移 (放大係數 20)
+        const dx = (wind.dLon / lonWidth) * canvas.width * 20 * p.speed;
+        const dy = (wind.dLat / latHeight) * canvas.height * 20 * p.speed;
+
+        const nextX = p.x + dx;
+        const nextY = p.y - dy;
+
+        // 畫線
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(nextX, nextY);
+        ctx.stroke();
+
+        // 更新與重置
+        p.x = nextX;
+        p.y = nextY;
+        p.age++;
+
+        if (
+          p.x < 0 ||
+          p.x > canvas.width ||
+          p.y < 0 ||
+          p.y > canvas.height ||
+          p.age > 80
+        ) {
+          p.x = Math.random() * canvas.width;
+          p.y = Math.random() * canvas.height;
+          p.age = 0;
+        }
+      }
+
+      // 通知 Mapbox 重繪 Canvas 貼圖
+      const canvasSource = map.getSource('wind-canvas-source') as mapboxgl.CanvasSource;
+      if (canvasSource) {
+        canvasSource.play();
+      }
+
+      (window as any).windyAnimId = requestAnimationFrame(step);
+    };
+
+    (window as any).windyAnimId = requestAnimationFrame(step);
+
+    return () => {
+      if ((window as any).windyAnimId) {
+        cancelAnimationFrame((window as any).windyAnimId);
+        (window as any).windyAnimId = null;
+      }
+    };
+  }, [showWindArrows, isLoaded]);
+
+  // 3.2 同步控制風場虛線、粒子與 Canvas 柵格圖層可見度 + 貼心相機傾斜引導
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
@@ -787,6 +963,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
       if (map.getLayer('sensors-wind-particles')) {
         map.setLayoutProperty('sensors-wind-particles', 'visibility', visibility);
+      }
+      if (map.getLayer('sensors-wind-canvas-layer')) {
+        map.setLayoutProperty('sensors-wind-canvas-layer', 'visibility', visibility);
       }
 
       // 貼心引導：如果開啟且傾斜度不夠，平滑傾斜以顯現風向線的 3D 流動感
@@ -1541,6 +1720,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
       {/* 地圖容器 */}
       <div ref={mapContainerRef} className="w-full h-full" />
+      <canvas id="wind-canvas" width="1024" height="1024" style={{ display: 'none' }} />
 
       {/* 無 API Key 警告 */}
       {!token && (
