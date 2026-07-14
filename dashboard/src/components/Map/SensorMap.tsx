@@ -34,7 +34,6 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({});
   const globalPopupRef = useRef<mapboxgl.Popup | null>(null);
   const isInternalClosingRef = useRef(false);
   const [mapStyle, setMapStyle] = useState<'dark-v11' | 'satellite-streets-v12' | 'streets-v12'>('dark-v11');
@@ -50,6 +49,24 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const prevStyleRef = useRef(mapStyle);
   // 追蹤上一次篩選器狀態，避免 regionCenters 異步載入時觸發無效地圖重置
   const prevFilterRef = useRef(selectedFilter);
+
+  // 用於驅動超標圓圈的外環動畫（WebGL 雷達脈衝環）
+  const [pulseRadius, setPulseRadius] = useState(6);
+  const [pulseOpacity, setPulseOpacity] = useState(0.8);
+
+  useEffect(() => {
+    let animId: number;
+    const startTime = Date.now();
+    const animatePulse = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = (elapsed % 1600) / 1600; // 1.6秒一個循環
+      setPulseRadius(6 + progress * 12); // 半徑 6 ~ 18
+      setPulseOpacity(0.8 * (1 - progress)); // 透明度 0.8 ~ 0
+      animId = requestAnimationFrame(animatePulse);
+    };
+    animId = requestAnimationFrame(animatePulse);
+    return () => cancelAnimationFrame(animId);
+  }, []);
 
   // 同步 ref 狀態以供閉包安全讀取
   useEffect(() => {
@@ -78,6 +95,123 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     map.on('rotate', () => {
       setBearing(map.getBearing());
     });
+
+    const circleColorExpression = [
+      'case',
+      ['==', ['get', 'value'], null], '#64748b',
+      ['==', ['literal', selectedMetric], 'pm2_5'], [
+        'step', ['get', 'value'],
+        '#10b981', 15.5,
+        '#eab308', 35.4,
+        '#f97316', 54.4,
+        '#ef4444', 150.4,
+        '#a855f7', 250.4,
+        '#3f000f'
+      ],
+      ['==', ['literal', selectedMetric], 'temperature'], [
+        'step', ['get', 'value'],
+        '#3b82f6', 20.0,
+        '#10b981', 28.0,
+        '#eab308', 35.0,
+        '#ef4444'
+      ],
+      ['==', ['literal', selectedMetric], 'humidity'], [
+        'step', ['get', 'value'],
+        '#f97316', 40,
+        '#10b981', 70,
+        '#3b82f6'
+      ],
+      '#64748b'
+    ] as any;
+
+    const setupSensorsLayers = () => {
+      const showSensorsLatest = showSensors;
+      if (!map.getSource('sensors-source')) {
+        map.addSource('sensors-source', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: []
+          }
+        });
+
+        // 1. 雷達圈 (sensors-pings)
+        map.addLayer({
+          id: 'sensors-pings',
+          type: 'circle',
+          source: 'sensors-source',
+          filter: ['==', ['get', 'isAnomaly'], true],
+          paint: {
+            'circle-radius': pulseRadius,
+            'circle-opacity': pulseOpacity,
+            'circle-color': [
+              'case',
+              ['==', ['get', 'anomalyType'], '疑似露天燃燒'], '#f97316',
+              ['==', ['get', 'anomalyType'], '疑似工廠排污'], '#a855f7',
+              '#ef4444'
+            ],
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': [
+              'case',
+              ['==', ['get', 'anomalyType'], '疑似露天燃燒'], '#f97316',
+              ['==', ['get', 'anomalyType'], '疑似工廠排污'], '#a855f7',
+              '#ef4444'
+            ],
+            'circle-stroke-opacity': pulseOpacity
+          },
+          layout: {
+            visibility: showSensorsLatest ? 'visible' : 'none'
+          }
+        });
+
+        // 2. 實心點 (sensors-circles)
+        map.addLayer({
+          id: 'sensors-circles',
+          type: 'circle',
+          source: 'sensors-source',
+          paint: {
+            'circle-color': circleColorExpression,
+            'circle-radius': [
+              'case',
+              ['get', 'isSelected'], 8,
+              ['get', 'isAnomaly'], 6.5,
+              4
+            ],
+            'circle-stroke-width': [
+              'case',
+              ['get', 'isSelected'], 2,
+              0.5
+            ],
+            'circle-stroke-color': [
+              'case',
+              ['get', 'isSelected'], '#ffffff',
+              '#080c14'
+            ]
+          },
+          layout: {
+            visibility: showSensorsLatest ? 'visible' : 'none'
+          }
+        });
+
+        // 點擊事件
+        map.on('click', 'sensors-circles', (e) => {
+          (e as any)._layerClicked = true;
+          if (!e.features || e.features.length === 0) return;
+          const id = e.features[0].properties?.id;
+          if (id) {
+            onSelectSensor(id);
+          }
+        });
+
+        // Hover 游標
+        map.on('mouseenter', 'sensors-circles', () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', 'sensors-circles', () => {
+          map.getCanvas().style.cursor = '';
+        });
+      }
+    };
 
     const setupIndustrialZones = () => {
       const latestShow = showIndustrialZonesRef.current;
@@ -167,6 +301,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       setIsLoaded(true);
       console.log('Mapbox load event triggered.');
       setupIndustrialZones();
+      setupSensorsLayers();
 
       // 初始化全域唯一的 Popup 實例
       globalPopupRef.current = new mapboxgl.Popup({
@@ -195,6 +330,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       console.log('Mapbox style.load event triggered.');
       setStyleVersion((v) => v + 1);
       setupIndustrialZones();
+      setupSensorsLayers();
     });
 
     return () => {
@@ -225,203 +361,123 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     }
   }, [showIndustrialZones, isLoaded]);
 
-  // 3. 更新 Marker 點位與顏色 (Surgical Diff 更新，保留 Marker 實例以維持 Popup 狀態)
+  // 3. 更新 WebGL Sensor 資料源與當前選中/超標狀態
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
 
-    if (!showSensors) {
-      // 隱藏時，清除所有 Markers
-      Object.values(markersRef.current).forEach((marker) => marker.remove());
-      markersRef.current = {};
-      return;
-    }
+    const source = map.getSource('sensors-source') as mapboxgl.GeoJSONSource;
+    if (!source) return;
 
-    const currentPointIds = new Set(points.map((p) => p.id));
-
-    // 1. 移除地圖上已不存在於 points 中的舊 Markers
-    Object.keys(markersRef.current).forEach((id) => {
-      if (!currentPointIds.has(id)) {
-        markersRef.current[id].remove();
-        delete markersRef.current[id];
-      }
-    });
-
-    // 2. 更新或新增 Markers
-    points.forEach((point) => {
-      // 根據當前展示測項設定數值與顏色分級
+    // 建立 GeoJSON FeatureCollection
+    const features: any = points.map((point) => {
       const val = point[selectedMetric];
-      let bgColor = 'bg-slate-500'; // 預設灰色（無資料）
-      let glowColor = 'rgba(100, 116, 139, 0.5)'; // 預設灰色發光
-
-      if (val !== null && val !== undefined) {
-        if (selectedMetric === 'pm2_5') {
-          if (val < 15.5) { bgColor = 'bg-emerald-500'; glowColor = 'rgba(16, 185, 129, 0.7)'; }
-          else if (val <= 35.4) { bgColor = 'bg-yellow-500'; glowColor = 'rgba(234, 179, 8, 0.7)'; }
-          else if (val <= 54.4) { bgColor = 'bg-orange-500'; glowColor = 'rgba(249, 115, 22, 0.7)'; }
-          else if (val <= 150.4) { bgColor = 'bg-red-500'; glowColor = 'rgba(239, 68, 68, 0.7)'; }
-          else if (val <= 250.4) { bgColor = 'bg-purple-500'; glowColor = 'rgba(168, 85, 247, 0.7)'; }
-          else { bgColor = 'bg-[#3f000f]'; glowColor = 'rgba(63, 0, 15, 0.75)'; }
-        } else if (selectedMetric === 'temperature') {
-          if (val < 20.0) { bgColor = 'bg-blue-500'; glowColor = 'rgba(59, 130, 246, 0.7)'; }
-          else if (val <= 28.0) { bgColor = 'bg-emerald-500'; glowColor = 'rgba(16, 185, 129, 0.7)'; }
-          else if (val <= 35.0) { bgColor = 'bg-yellow-500'; glowColor = 'rgba(234, 179, 8, 0.7)'; }
-          else { bgColor = 'bg-red-500'; glowColor = 'rgba(239, 68, 68, 0.7)'; }
-        } else if (selectedMetric === 'humidity') {
-          if (val < 40) { bgColor = 'bg-orange-500'; glowColor = 'rgba(249, 115, 22, 0.7)'; }
-          else if (val <= 70) { bgColor = 'bg-emerald-500'; glowColor = 'rgba(16, 185, 129, 0.7)'; }
-          else { bgColor = 'bg-blue-500'; glowColor = 'rgba(59, 130, 246, 0.7)'; }
-        }
-      }
-
-      const isFire = point.anomalyType === '疑似露天燃燒';
-      const isFactory = point.anomalyType === '疑似工廠排污';
-
-      // 格式化資料時間為易讀格式
-      let timeStr = 'N/A';
-      if (point.time) {
-        try {
-          const d = new Date(point.time);
-          if (!isNaN(d.getTime())) {
-            const pad = (n: number) => String(n).padStart(2, '0');
-            timeStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-          } else {
-            timeStr = point.time;
-          }
-        } catch {
-          timeStr = point.time;
-        }
-      }
-
       const isPm25Anomaly = selectedMetric === 'pm2_5' && val !== null && val !== undefined && val >= (pm25Threshold ?? 54);
       const isAnomalyPoint = point.isAnomaly || isPm25Anomaly;
 
-      const dotSizeClass = isAnomalyPoint ? 'w-[8px] h-[8px] z-30' : 'w-[5px] h-[5px]';
-      const dotGlowClass = isAnomalyPoint ? 'glow-anomaly-sensor' : 'glow-sensor';
-
-      const existingMarker = markersRef.current[point.id];
-
-      if (existingMarker) {
-        // 更新現有 Marker
-        const wrapper = existingMarker.getElement();
-        const el = wrapper.querySelector('.sensor-dot') as HTMLDivElement;
-        if (el) {
-          let baseClass = `sensor-dot rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 ${dotSizeClass} ${dotGlowClass} ${bgColor}`;
-          
-          // 如果為選中狀態，保留白色描邊樣式
-          if (point.id === selectedSensorId) {
-            baseClass += ' border border-white scale-125 z-40';
-          }
-
-          if (isFire) {
-            baseClass += ' ring-4 ring-orange-500/30';
-          } else if (isFactory) {
-            baseClass += ' ring-4 ring-purple-500/30';
-          }
-          el.innerHTML = ''; // 5px / 8px 太小，不塞 Emoji，由閃爍與外環代表狀態
-          el.className = baseClass;
-          el.style.setProperty('--glow-color', glowColor);
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [point.lon, point.lat]
+        },
+        properties: {
+          id: point.id,
+          name: point.name,
+          lat: point.lat,
+          lon: point.lon,
+          county: point.county,
+          status: point.status,
+          pm2_5: point.pm2_5,
+          temperature: point.temperature,
+          humidity: point.humidity,
+          voc: point.voc,
+          time: point.time,
+          isAnomaly: isAnomalyPoint,
+          anomalyType: point.anomalyType,
+          value: val,
+          isSelected: point.id === selectedSensorId
         }
-
-        // 更新雷達環 (radar-ping)
-        const oldPing = wrapper.querySelector('.radar-ping');
-        if (oldPing) oldPing.remove();
-
-        if (isFire) {
-          const ping = document.createElement('div');
-          ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
-          wrapper.insertBefore(ping, el);
-        } else if (isFactory) {
-          const ping = document.createElement('div');
-          ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
-          wrapper.insertBefore(ping, el);
-        } else if (isAnomalyPoint) {
-          const ping = document.createElement('div');
-          ping.className = 'radar-ping';
-          // 超標雷達環使用更亮眼的紅色，且適應 8px 大小
-          ping.style.cssText = 'position:absolute;width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,0.4);pointer-events:none;';
-          wrapper.insertBefore(ping, el);
-        }
-      } else {
-        // 建立新 Marker 外層容器
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;';
-
-        // 建立自訂 DOM 元素作為 Marker (超標放大至 8px，無描邊，加螢光閃爍)
-        const el = document.createElement('div');
-        let baseClass = `sensor-dot rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-125 hover:z-50 ${dotSizeClass} ${dotGlowClass} ${bgColor}`;
-        
-        if (point.id === selectedSensorId) {
-          baseClass += ' border border-white scale-125 z-40';
-        }
-        el.className = baseClass;
-        el.style.cssText = 'position:relative;z-index:1;';
-        el.style.setProperty('--glow-color', glowColor);
-
-        if (isFire) {
-          el.className += ` ring-4 ring-orange-500/30`;
-          const ping = document.createElement('div');
-          ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(249,115,22,0.35);pointer-events:none;';
-          wrapper.appendChild(ping);
-        } else if (isFactory) {
-          el.className += ` ring-4 ring-purple-500/30`;
-          const ping = document.createElement('div');
-          ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(168,85,247,0.35);pointer-events:none;';
-          wrapper.appendChild(ping);
-        } else if (isAnomalyPoint) {
-          const ping = document.createElement('div');
-          ping.className = 'radar-ping';
-          ping.style.cssText = 'position:absolute;width:8px;height:8px;border-radius:50%;background:rgba(239,68,68,0.4);pointer-events:none;';
-          wrapper.appendChild(ping);
-        }
-
-        // 當點選時通知父元件
-        el.addEventListener('click', () => {
-          onSelectSensor(point.id);
-        });
-
-        wrapper.appendChild(el);
-
-        const marker = new mapboxgl.Marker(wrapper)
-          .setLngLat([point.lon, point.lat])
-          .addTo(mapRef.current!);
-
-        markersRef.current[point.id] = marker;
-      }
+      };
     });
-  }, [points, isLoaded, selectedMetric, showSensors, selectedSensorId, pm25Threshold]);
 
-  // 3.1 同步更新 Selected Sensor 的樣式與全域唯一 Popup 顯示狀態
+    source.setData({
+      type: 'FeatureCollection',
+      features: features
+    });
+  }, [points, isLoaded, selectedMetric, selectedSensorId, pm25Threshold]);
+
+  // 3.0.1 控制 WebGL 測站圖層可見度
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+    const visibility = showSensors ? 'visible' : 'none';
+    if (map.getLayer('sensors-circles')) {
+      map.setLayoutProperty('sensors-circles', 'visibility', visibility);
+    }
+    if (map.getLayer('sensors-pings')) {
+      map.setLayoutProperty('sensors-pings', 'visibility', visibility);
+    }
+  }, [showSensors, isLoaded]);
+
+  // 3.0.2 同步 WebGL 雷達圈脈衝動畫半徑與透明度
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+    if (map.getLayer('sensors-pings')) {
+      map.setPaintProperty('sensors-pings', 'circle-radius', pulseRadius);
+      map.setPaintProperty('sensors-pings', 'circle-opacity', pulseOpacity);
+      map.setPaintProperty('sensors-pings', 'circle-stroke-opacity', pulseOpacity);
+    }
+  }, [pulseRadius, pulseOpacity, isLoaded]);
+
+  // 3.0.3 監聽指標切換，更新 WebGL 點位色彩 Expressions
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+
+    const circleColorExpression = [
+      'case',
+      ['==', ['get', 'value'], null], '#64748b',
+      ['==', ['literal', selectedMetric], 'pm2_5'], [
+        'step', ['get', 'value'],
+        '#10b981', 15.5,
+        '#eab308', 35.4,
+        '#f97316', 54.4,
+        '#ef4444', 150.4,
+        '#a855f7', 250.4,
+        '#3f000f'
+      ],
+      ['==', ['literal', selectedMetric], 'temperature'], [
+        'step', ['get', 'value'],
+        '#3b82f6', 20.0,
+        '#10b981', 28.0,
+        '#eab308', 35.0,
+        '#ef4444'
+      ],
+      ['==', ['literal', selectedMetric], 'humidity'], [
+        'step', ['get', 'value'],
+        '#f97316', 40,
+        '#10b981', 70,
+        '#3b82f6'
+      ],
+      '#64748b'
+    ] as any;
+
+    if (map.getLayer('sensors-circles')) {
+      map.setPaintProperty('sensors-circles', 'circle-color', circleColorExpression);
+    }
+  }, [selectedMetric, isLoaded]);
+
+  // 3.1 同步更新全域唯一 Popup 顯示狀態
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
+    const map = mapRef.current;
 
-    // 清除所有 Marker 的選中效果
-    Object.keys(markersRef.current).forEach((id) => {
-      const marker = markersRef.current[id];
-      if (marker) {
-        const wrapper = marker.getElement();
-        const dot = wrapper.querySelector('.sensor-dot');
-        if (dot) {
-          dot.classList.remove('border', 'border-white', 'scale-125', 'z-40');
-        }
-      }
-    });
-
-    // 幫選中的 Marker 加上樣式並開啟全域唯一 Popup
     if (selectedSensorId) {
-      const marker = markersRef.current[selectedSensorId];
       const point = points.find((p) => p.id === selectedSensorId);
       
-      if (marker && point) {
-        const wrapper = marker.getElement();
-        const dot = wrapper.querySelector('.sensor-dot');
-        if (dot) {
-          dot.classList.add('border', 'border-white', 'scale-125', 'z-40');
-        }
-
+      if (point) {
         // 初始化全域唯一的 Popup 實例
         if (!globalPopupRef.current) {
           globalPopupRef.current = new mapboxgl.Popup({
@@ -520,7 +576,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         globalPopupRef.current
           .setLngLat([point.lon, point.lat])
           .setHTML(popupHtml)
-          .addTo(mapRef.current);
+          .addTo(map);
       }
     } else {
       if (globalPopupRef.current && globalPopupRef.current.isOpen()) {
@@ -539,19 +595,18 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     // 則優先讓 activeEvent 的 flyTo 處理，避免兩個 flyTo 爭奪相機控制權
     if (activeEvent && (activeEvent as any).sensors?.some((s: any) => s.id === selectedSensorId)) return;
 
-    const marker = markersRef.current[selectedSensorId];
-    if (marker) {
-      const lngLat = marker.getLngLat();
-      console.log(`Zooming in to selected sensor ${selectedSensorId} at [${lngLat.lng}, ${lngLat.lat}]`);
+    const point = points.find((p) => p.id === selectedSensorId);
+    if (point) {
+      console.log(`Zooming in to selected sensor ${selectedSensorId} at [${point.lon}, ${point.lat}]`);
       mapRef.current.flyTo({
-        center: [lngLat.lng, lngLat.lat],
+        center: [point.lon, point.lat],
         zoom: 14.5,
         speed: 1.2,
         curve: 1.4,
         essential: true
       });
     }
-  }, [selectedSensorId, isLoaded, activeEvent]);
+  }, [selectedSensorId, isLoaded, activeEvent, points]);
 
   // 3.5 更新核密度圖 (Heatmap Layer)
   useEffect(() => {
