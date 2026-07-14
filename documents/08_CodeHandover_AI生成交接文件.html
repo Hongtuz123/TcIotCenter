@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>08 AI 生成程式交接文件 — 微感監測中心</title>
+<style>
+  :root{--primary:#f97316;--blue:#38bdf8;--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#cbd5e1;--heading:#f1f5f9;--purple:#a78bfa;--green:#4ade80;--yellow:#facc15}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.8}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 32px}
+  .doc-header{border-bottom:2px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  .doc-header h1{font-size:2rem;font-weight:800;color:var(--primary);margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:.875rem;color:#64748b}
+  .meta span strong{color:var(--blue)}
+  h2{font-size:1.35rem;font-weight:700;color:var(--blue);border-left:4px solid var(--primary);padding-left:12px;margin:40px 0 16px}
+  h3{font-size:1.1rem;font-weight:600;color:var(--heading);margin:22px 0 10px}
+  p{margin-bottom:12px}
+  ul,ol{padding-left:24px;margin-bottom:12px}
+  li{margin-bottom:7px}
+  .tbl-wrap{overflow-x:auto;margin:12px 0 24px}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th{background:#0f172a;color:var(--primary);padding:10px 13px;text-align:left;font-weight:700;border:1px solid var(--border)}
+  td{padding:10px 13px;border:1px solid var(--border);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+  code{background:#0f172a;color:#f472b6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.87em}
+  pre{background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:18px;overflow-x:auto;font-family:Consolas,monospace;font-size:.86em;line-height:1.65;margin:12px 0 20px;color:#e2e8f0}
+  .file-tree{background:#0f172a;border:1px solid var(--border);border-radius:12px;padding:20px 24px;font-family:Consolas,monospace;font-size:.87em;line-height:1.9;margin:16px 0}
+  .ft-dir{color:var(--blue)}
+  .ft-file{color:#e2e8f0}
+  .ft-comment{color:#64748b}
+  .debt-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin:14px 0}
+  .debt-title{font-weight:700;margin-bottom:8px;color:var(--heading)}
+  .tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.75rem;font-weight:700;margin-right:6px}
+  .tag-hack{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+  .tag-design{background:rgba(56,189,248,.15);color:var(--blue);border:1px solid rgba(56,189,248,.3)}
+  .tag-perf{background:rgba(250,204,21,.15);color:var(--yellow);border:1px solid rgba(250,204,21,.3)}
+  .note{background:rgba(56,189,248,.07);border-left:4px solid var(--blue);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:.9rem}
+  .warn{background:rgba(249,115,22,.07);border-left:4px solid var(--primary);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:.9rem}
+  footer{margin-top:64px;border-top:1px solid var(--border);padding-top:20px;text-align:center;font-size:.82rem;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-header">
+  <h1>AI 生成程式交接文件</h1>
+  <div class="meta">
+    <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
+    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>作者</strong>：PST-Tim</span>
+    <span><strong>日期</strong>：2026-07</span>
+    <span><strong>目標讀者</strong>：接手的開發工程師</span>
+  </div>
+</div>
+
+<!-- ── 1. 專案目錄結構 ── -->
+<h2>1. 完整專案目錄結構說明</h2>
+<div class="file-tree">
+<span class="ft-dir">2026IoTcenter/</span><br>
+├── <span class="ft-dir">dashboard/</span>                    <span class="ft-comment"># Next.js 前端+後端主專案</span><br>
+│   ├── <span class="ft-dir">src/</span><br>
+│   │   ├── <span class="ft-dir">app/</span>                   <span class="ft-comment"># Next.js App Router 頁面與 API</span><br>
+│   │   │   ├── <span class="ft-file">page.tsx</span>           <span class="ft-comment"># 主儀表板：全域狀態管理中樞（~1200行）</span><br>
+│   │   │   ├── <span class="ft-file">layout.tsx</span>         <span class="ft-comment"># 全域 HTML 骨架</span><br>
+│   │   │   ├── <span class="ft-file">globals.css</span>        <span class="ft-comment"># 全域樣式（深色主題 CSS 變數）</span><br>
+│   │   │   ├── <span class="ft-dir">login/</span>             <span class="ft-comment"># 登入頁面</span><br>
+│   │   │   └── <span class="ft-dir">api/</span>               <span class="ft-comment"># 所有 Serverless API Routes</span><br>
+│   │   │       ├── <span class="ft-dir">sensors/route.ts</span>    <span class="ft-comment"># 測站基本資料查詢</span><br>
+│   │   │       ├── <span class="ft-dir">observations/route.ts</span> <span class="ft-comment"># 歷史觀測值查詢</span><br>
+│   │   │       ├── <span class="ft-dir">anomalies/route.ts</span>  <span class="ft-comment"># ⚡ 核心：超標群聚判定（390行）</span><br>
+│   │   │       ├── <span class="ft-dir">clusters-24h/route.ts</span> <span class="ft-comment"># 24小時熱區統計</span><br>
+│   │   │       ├── <span class="ft-dir">completeness/route.ts</span> <span class="ft-comment"># 資料完整率健康指標</span><br>
+│   │   │       ├── <span class="ft-dir">events/route.ts</span>     <span class="ft-comment"># 事件 CRUD + 自動標題清理遷移</span><br>
+│   │   │       ├── <span class="ft-dir">events/[id]/route.ts</span> <span class="ft-comment"># 單一事件 PATCH 狀態</span><br>
+│   │   │       ├── <span class="ft-dir">settings/route.ts</span>   <span class="ft-comment"># 系統門檻設定讀寫</span><br>
+│   │   │       └── <span class="ft-dir">login/route.ts</span>      <span class="ft-comment"># 帳號密碼認證</span><br>
+│   │   ├── <span class="ft-dir">components/</span>            <span class="ft-comment"># React UI 元件</span><br>
+│   │   │   ├── <span class="ft-dir">Map/SensorMap.tsx</span>   <span class="ft-comment"># ⚡ Mapbox GL JS 地圖核心元件</span><br>
+│   │   │   ├── <span class="ft-dir">EventList/EventManager.tsx</span> <span class="ft-comment"># 事件面板+園區命名邏輯</span><br>
+│   │   │   ├── <span class="ft-dir">Sidebar/</span>           <span class="ft-comment"># 左側篩選控制面板</span><br>
+│   │   │   └── <span class="ft-dir">Analytics/</span>         <span class="ft-comment"># 24h 熱區圖表</span><br>
+│   │   ├── <span class="ft-dir">lib/</span>                   <span class="ft-comment"># 服務層（資料庫連線抽象）</span><br>
+│   │   │   ├── <span class="ft-file">db.ts</span>              <span class="ft-comment"># SQLite 連線管理（三軌降級 Tier 2）</span><br>
+│   │   │   ├── <span class="ft-file">supabase.ts</span>        <span class="ft-comment"># Supabase Client 初始化（Tier 1）</span><br>
+│   │   │   └── <span class="ft-file">mockData.ts</span>        <span class="ft-comment"># Mock 記憶體資料（Tier 3）</span><br>
+│   │   ├── <span class="ft-dir">types/index.ts</span>         <span class="ft-comment"># 全域 TypeScript 型別定義</span><br>
+│   │   └── <span class="ft-file">proxy.ts</span>               <span class="ft-comment"># Next.js Middleware（認證保護）</span><br>
+│   ├── <span class="ft-dir">public/</span>                    <span class="ft-comment"># 靜態資源（GeoJSON、文件）</span><br>
+│   │   ├── <span class="ft-file">industrial-zones.geojson</span> <span class="ft-comment"># 台中市產業園區邊界多邊形</span><br>
+│   │   └── <span class="ft-dir">documents/</span>         <span class="ft-comment"># 本文件集（線上存取用）</span><br>
+│   ├── <span class="ft-file">.env.local</span>               <span class="ft-comment"># 本地環境變數（已加入 .gitignore）</span><br>
+│   ├── <span class="ft-file">next.config.ts</span>           <span class="ft-comment"># Next.js 設定</span><br>
+│   └── <span class="ft-file">tailwind.config.ts</span>       <span class="ft-comment"># Tailwind CSS 設定</span><br>
+├── <span class="ft-dir">scripts/</span>                   <span class="ft-comment"># 資料接入背景腳本</span><br>
+│   ├── <span class="ft-file">pollIoT.ts</span>             <span class="ft-comment"># ⚡ OGC API 爬蟲主程式（430行）</span><br>
+│   ├── <span class="ft-file">initSensors.ts</span>         <span class="ft-comment"># 手動初始化測站資料</span><br>
+│   ├── <span class="ft-file">supabase_schema.sql</span>    <span class="ft-comment"># ⚡ 資料庫 DDL（一次性執行）</span><br>
+│   ├── <span class="ft-file">run_poller.bat</span>         <span class="ft-comment"># Windows 批次啟動腳本</span><br>
+│   ├── <span class="ft-file">run_poller.vbs</span>         <span class="ft-comment"># Windows 靜默背景執行腳本</span><br>
+│   └── <span class="ft-file">run_poller.log</span>         <span class="ft-comment"># Poller 執行記錄（自動累積）</span><br>
+├── <span class="ft-dir">documents/</span>                 <span class="ft-comment"># 本文件集（本地版）</span><br>
+├── <span class="ft-file">preprocess.py</span>             <span class="ft-comment"># 資料前處理 Python 腳本</span><br>
+└── <span class="ft-file">vercel.json</span>               <span class="ft-comment"># Vercel 部署設定</span>
+</div>
+
+<!-- ── 2. 服務層說明 ── -->
+<h2>2. lib/ 服務層說明</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>檔案</th><th>職責</th><th>環境</th><th>關鍵行為</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>lib/supabase.ts</code></td>
+      <td>Supabase Client 初始化（Tier 1）</td>
+      <td>Vercel Production</td>
+      <td>讀取 <code>SUPABASE_URL</code> 與 <code>SUPABASE_ANON_KEY</code>，若未設定則 export <code>null</code>，觸發降級邏輯</td>
+    </tr>
+    <tr>
+      <td><code>lib/db.ts</code></td>
+      <td>SQLite 連線管理（Tier 2）</td>
+      <td>本地開發</td>
+      <td>檢查 <code>iot.db</code> 是否存在。使用 <code>eval("require('sqlite3')")</code> 繞過 Webpack 靜態分析。設定 WAL 模式與 5 秒 busy timeout</td>
+    </tr>
+    <tr>
+      <td><code>lib/mockData.ts</code></td>
+      <td>Mock 記憶體資料（Tier 3）</td>
+      <td>CI / 離線演示</td>
+      <td>提供靜態假感測器資料與空事件陣列，維持 UI 可用性</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 3. 核心 API 邏輯 ── -->
+<h2>3. 核心 API Route 邏輯摘要</h2>
+
+<h3>3.1 anomalies/route.ts — 最複雜的核心邏輯</h3>
+<p>此 API 是系統智能的核心，主要流程：</p>
+<ol>
+  <li>從 Settings 讀取當前門檻參數（pm25_threshold, consecutive_exceeds, cluster_radius_km, min_cluster_stations）</li>
+  <li>依據 <code>consecutive_exceeds</code> 值，查詢過去 N 個 5 分鐘桶的觀測資料</li>
+  <li>對每個測站執行「連續 N 筆超標」判定，篩選出種子點集合</li>
+  <li>呼叫 <code>buildClusters()</code>，使用 <code>getDistanceKm()</code>（Haversine）進行空間聚合</li>
+  <li><strong>立即回傳 clusters（不等待寫入）</strong>，同時以 fire-and-forget 非同步呼叫 <code>autoCreateEvents()</code> 寫入 DB</li>
+</ol>
+<div class="warn">⚠️ <code>autoCreateEvents</code> 不使用 <code>await</code>，是刻意設計的非同步解耦。修改此部分時請勿改為 <code>await</code>，否則會讓 API 延遲上升至 2-5 秒。</div>
+
+<h3>3.2 events/route.ts — 一次性資料遷移邏輯</h3>
+<p>在 GET 請求中包含一段一次性的歷史資料清理邏輯（將舊格式事件標題正規化）。這是一種 <strong>Lazy Migration 模式</strong>（在讀取時順帶修正舊資料），無需額外的資料庫 Migration 腳本。當所有舊資料都已修正後，此段邏輯的比對條件將不再命中，overhead 趨近於零。</p>
+
+<!-- ── 4. SensorMap.tsx 說明 ── -->
+<h2>4. SensorMap.tsx — 地圖元件核心說明</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>功能</th><th>Mapbox Layer ID</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td>PM₂.₅ 熱區密度圖</td><td><code>sensors-heatmap-layer</code></td><td>使用 GeoJSON FeatureCollection，依 pm2_5 屬性計算熱度</td></tr>
+    <tr><td>測站 Marker</td><td>DOM Markers（非 Layer）</td><td>以 React Portal 渲染，超標測站套用 CSS keyframe 呼吸燈動畫</td></tr>
+    <tr><td>產業園區多邊形</td><td><code>industrial-zones-fill</code> / <code>-outline</code></td><td>從 <code>public/industrial-zones.geojson</code> 載入</td></tr>
+    <tr><td>事件警示範圍圓圈</td><td><code>active-event-source</code> / <code>active-event-fill-layer</code></td><td>依事件 bounds 的中心點+半徑動態生成 GeoJSON circle feature，填色 #ef4444，不透明度 0.3</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="note">⚠️ Mapbox GeoJSON feature 的 <code>type</code> 屬性必須加 <code>as const</code> 聲明（如 <code>"Feature" as const</code>），否則 TypeScript 會推導為 <code>string</code> 導致型別錯誤。</div>
+
+<!-- ── 5. 環境切換機制 ── -->
+<h2>5. 環境切換機制說明</h2>
+<p>每個 API Route 的頂層邏輯均遵循以下三軌模式：</p>
+<pre>// ── Tier 1: Supabase（Vercel 線上環境）──
+if (supabase) {
+  const { data } = await supabase.from('table').select('*');
+  return NextResponse.json(data);
+}
+
+// ── Tier 2: SQLite（本地開發環境）──
+const db = await getDb();
+if (db) {
+  const rows = await db.all('SELECT * FROM table');
+  return NextResponse.json(rows);
+}
+
+// ── Tier 3: Mock 降級──
+return NextResponse.json(globalMockState.defaultData);</pre>
+<p>這個模式確保在任何環境下 API 都有回應，不會出現 500 錯誤。</p>
+
+<!-- ── 6. 技術債 ── -->
+<h2>6. 已知技術債與未來優化建議</h2>
+
+<div class="debt-card">
+  <div class="debt-title"><span class="tag tag-hack">Hack</span> eval require 繞過 Webpack NFT</div>
+  <p><strong>位置</strong>：<code>lib/db.ts:29</code>。使用 <code>eval("require('sqlite3')")</code> 避免 Vercel 打包原生模組。這是已知的工程折衷方案，在本地環境正常運作，但使程式碼可讀性降低。<br>
+  <strong>建議改善</strong>：v2.0 考慮改用 <code>better-sqlite3</code>（有官方 Vercel 支援）或完全移除 SQLite，改以環境變數切換純 Mock 模式。</p>
+</div>
+
+<div class="debt-card">
+  <div class="debt-title"><span class="tag tag-design">設計</span> 單一帳號密碼認證（無 RBAC）</div>
+  <p><strong>位置</strong>：<code>api/login/route.ts</code>。目前僅支援單一管理員密碼，無角色分級。<br>
+  <strong>建議改善</strong>：導入 Supabase Auth 或 NextAuth.js，實現多角色 JWT Token 分級存取控制。</p>
+</div>
+
+<div class="debt-card">
+  <div class="debt-title"><span class="tag tag-perf">效能</span> 前端 DOM Marker 大量更新</div>
+  <p><strong>位置</strong>：<code>components/Map/SensorMap.tsx</code>。1,100+ 個 DOM Marker 在歷史播放時同步更新，低效能設備可能卡頓。<br>
+  <strong>建議改善</strong>：改用 Mapbox GL <code>circle</code> 圖層（WebGL 渲染），以 GeoJSON expression 動態上色，可大幅提升播放流暢度至 60 FPS。</p>
+</div>
+
+<div class="debt-card">
+  <div class="debt-title"><span class="tag tag-perf">效能</span> Supabase 無 JOIN 查詢，前端記憶體映射</div>
+  <p><strong>位置</strong>：<code>api/events/route.ts:41</code>。Supabase 模式下 sensors 欄位回傳空陣列，前端透過最近鄰算法反查。<br>
+  <strong>建議改善</strong>：在 Supabase 建立 PostgreSQL View 或 RPC Function 執行伺服器端 JOIN。</p>
+</div>
+
+<footer>© 2026 微感監測中心 | 08_CodeHandover_AI生成交接文件 | 作者：PST-Tim</footer>
+</div>
+</body>
+</html>

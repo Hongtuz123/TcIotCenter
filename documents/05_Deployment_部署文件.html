@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>05 部署文件 — 微感監測中心</title>
+<style>
+  :root{--primary:#f97316;--blue:#38bdf8;--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#cbd5e1;--heading:#f1f5f9;--green:#4ade80}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 32px}
+  .doc-header{border-bottom:2px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  .doc-header h1{font-size:2rem;font-weight:800;color:var(--primary);margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:.875rem;color:#64748b}
+  .meta span strong{color:var(--blue)}
+  h2{font-size:1.35rem;font-weight:700;color:var(--blue);border-left:4px solid var(--primary);padding-left:12px;margin:40px 0 16px}
+  h3{font-size:1.1rem;font-weight:600;color:var(--heading);margin:22px 0 10px}
+  p{margin-bottom:12px}
+  ul,ol{padding-left:24px;margin-bottom:12px}
+  li{margin-bottom:6px}
+  .tbl-wrap{overflow-x:auto;margin:12px 0 24px}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th{background:#0f172a;color:var(--primary);padding:10px 13px;text-align:left;font-weight:700;border:1px solid var(--border)}
+  td{padding:10px 13px;border:1px solid var(--border);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+  code{background:#0f172a;color:#f472b6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.87em}
+  pre{background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:18px;overflow-x:auto;font-family:Consolas,monospace;font-size:.87em;line-height:1.6;margin:12px 0 20px;color:#e2e8f0}
+  .step{display:flex;gap:16px;margin:16px 0;padding:18px;background:var(--card);border:1px solid var(--border);border-radius:12px}
+  .step-num{flex-shrink:0;width:32px;height:32px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.9rem}
+  .step-body{flex:1}
+  .step-title{font-weight:700;color:var(--heading);margin-bottom:8px}
+  .warn{background:rgba(249,115,22,.07);border-left:4px solid var(--primary);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:.9rem}
+  .success{background:rgba(74,222,128,.07);border-left:4px solid var(--green);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:.9rem}
+  footer{margin-top:64px;border-top:1px solid var(--border);padding-top:20px;text-align:center;font-size:.82rem;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-header">
+  <h1>部署文件</h1>
+  <div class="meta">
+    <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
+    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>作者</strong>：PST-Tim</span>
+    <span><strong>日期</strong>：2026-07</span>
+    <span><strong>目標讀者</strong>：DevOps 工程師</span>
+  </div>
+</div>
+
+<!-- ── 1. 環境需求 ── -->
+<h2>1. 環境需求</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>元件</th><th>版本需求</th><th>備注</th></tr></thead>
+  <tbody>
+    <tr><td>Node.js</td><td>&gt;= 18.x (建議 22.x)</td><td>Vercel 預設使用 Node 22</td></tr>
+    <tr><td>npm</td><td>&gt;= 9.x</td><td>或使用 pnpm/yarn</td></tr>
+    <tr><td>Next.js</td><td>16.2.9</td><td>已固定版本，勿任意升級</td></tr>
+    <tr><td>TypeScript</td><td>5.x</td><td>由 devDependencies 管理</td></tr>
+    <tr><td>tsx</td><td>最新版</td><td>用於執行 <code>scripts/pollIoT.ts</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 2. 環境變數 ── -->
+<h2>2. 環境變數清冊</h2>
+<p>在 <code>dashboard/.env.local</code> 建立以下設定（<strong>此檔案已加入 .gitignore，請勿提交至版本庫</strong>）：</p>
+<pre># ── Mapbox（前端 Public Token，限制 Domain） ──
+NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=pk.eyJ1IjoiWXXXXXXX...
+
+# ── Supabase（後端 Service Role Key，嚴禁洩漏至前端） ──
+SUPABASE_URL=https://xxxxxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6Ikp...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6Ikp...
+
+# ── 認證密碼（用於 /api/login） ──
+ADMIN_PASSWORD=your_secure_password_here</pre>
+
+<div class="warn">⚠️ <strong>安全性警告</strong>：<code>SUPABASE_SERVICE_ROLE_KEY</code> 具有繞過 RLS 的最高資料庫權限，<strong>絕對不可設定為以 <code>NEXT_PUBLIC_</code> 前綴開頭的變數</strong>，否則將洩漏至瀏覽器客戶端。</div>
+
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>變數名稱</th><th>說明</th><th>安全層級</th><th>必填</th></tr></thead>
+  <tbody>
+    <tr><td><code>NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN</code></td><td>Mapbox 地圖 Token（前端 Public）</td><td>低（可公開）</td><td>✅</td></tr>
+    <tr><td><code>SUPABASE_URL</code></td><td>Supabase 專案 API 端點</td><td>中</td><td>✅ (線上)</td></tr>
+    <tr><td><code>SUPABASE_ANON_KEY</code></td><td>Supabase 匿名公開 Key（RLS 保護下安全）</td><td>中</td><td>✅ (線上)</td></tr>
+    <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>Supabase 後端 Master Key（繞過 RLS）</td><td>🔴 高機密</td><td>✅ (線上)</td></tr>
+    <tr><td><code>ADMIN_PASSWORD</code></td><td>系統登入密碼</td><td>🔴 高機密</td><td>✅</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 3. Supabase 初始化 ── -->
+<h2>3. Supabase 初始化步驟</h2>
+<div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">建立 Supabase 專案</div>前往 <a href="https://supabase.com" style="color:var(--blue)">supabase.com</a> 建立新專案，記下 Project URL 與 anon/service_role key。</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">執行 Schema SQL</div>在 Supabase 後台 SQL Editor 中，完整貼入並執行 <code>scripts/supabase_schema.sql</code> 的全部內容。這將建立所有資料表、Index、RLS 政策與自動觸發器。</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">填寫 .env.local</div>依第 2 節將 Supabase URL 與 Keys 填入 <code>dashboard/.env.local</code>。</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">初始化測站資料</div>執行 Poller 一次，讓它從 OGC API 抓取台中市所有測站並寫入 Supabase：<pre>cd scripts
+npx tsx pollIoT.ts</pre></div></div>
+
+<!-- ── 4. Vercel 部署 ── -->
+<h2>4. Vercel Production 部署步驟</h2>
+<div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">安裝 Vercel CLI 並登入</div><pre>npm install -g vercel
+vercel login</pre></div></div>
+<div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">設定 Vercel 環境變數</div>在 Vercel 後台 → Settings → Environment Variables，將 <code>.env.local</code> 的所有變數逐一新增至 Production 環境。</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">執行 Production 部署</div><pre>cd dashboard
+npx vercel --prod --yes</pre>部署成功後，終端機將顯示 Production URL：<code>https://tc-iot-center.vercel.app</code></div></div>
+
+<!-- ── 5. 本地開發 ── -->
+<h2>5. 本地開發環境建置</h2>
+<pre># 安裝依賴
+cd dashboard
+npm install
+
+# 啟動開發伺服器（支援 Hot Reload）
+npm run dev
+
+# 瀏覽器開啟
+# http://localhost:3000</pre>
+<p>本地環境若未設定 Supabase 環境變數，且 <code>iot.db</code> 不存在，將自動啟用 Tier 3 Mock 模式（假資料演示）。若需測試真實資料，請確保 <code>iot.db</code> 存在於 <code>dashboard/</code> 目錄中。</p>
+
+<!-- ── 6. 背景排程部署 ── -->
+<h2>6. 背景排程腳本部署 (pollIoT.ts)</h2>
+<h3>Windows 工作排程器設定（建議方式）</h3>
+<ol>
+  <li>以系統管理員身份開啟「工作排程器」</li>
+  <li>新增基本工作 → 觸發條件選「每天」→ 重複間隔設為「5 分鐘」</li>
+  <li>動作選「啟動程式」→ 程式路徑：<code>C:\GoogleAntigravity\2026IoTcenter\scripts\run_poller.vbs</code></li>
+  <li>完成設定，確認工作列已啟用</li>
+</ol>
+
+<h3>run_poller.bat 內容說明</h3>
+<pre>@echo off
+cd /d C:\GoogleAntigravity\2026IoTcenter\scripts
+npx tsx pollIoT.ts >> run_poller.log 2>&1</pre>
+
+<div class="success">✅ Poller 執行記錄將輸出至 <code>scripts/run_poller.log</code>，可用於排查資料接入問題。</div>
+
+<!-- ── 7. 設定回滾 ── -->
+<h2>7. 版本回滾程序</h2>
+<pre># 查看最近 10 次 commit
+git log --oneline -10
+
+# 回滾至指定 commit（本地）
+git revert HEAD
+
+# 重新部署
+cd dashboard
+npx vercel --prod --yes</pre>
+
+<footer>© 2026 微感監測中心 | 05_Deployment_部署文件 | 作者：PST-Tim</footer>
+</div>
+</body>
+</html>

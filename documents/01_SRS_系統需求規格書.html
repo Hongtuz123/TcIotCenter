@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>01 系統需求規格書 (SRS) — 微感監測中心</title>
+<style>
+  :root{--primary:#f97316;--blue:#38bdf8;--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#cbd5e1;--heading:#f1f5f9}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 32px}
+  /* header */
+  .doc-header{border-bottom:2px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  .doc-header h1{font-size:2rem;font-weight:800;color:var(--primary);margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:.875rem;color:#64748b}
+  .meta span strong{color:var(--blue)}
+  /* sections */
+  h2{font-size:1.35rem;font-weight:700;color:var(--blue);border-left:4px solid var(--primary);padding-left:12px;margin:40px 0 16px}
+  h3{font-size:1.1rem;font-weight:600;color:var(--heading);margin:24px 0 10px}
+  h4{font-size:.95rem;font-weight:600;color:var(--primary);margin:16px 0 8px}
+  p{margin-bottom:12px}
+  ul,ol{padding-left:24px;margin-bottom:12px}
+  li{margin-bottom:6px}
+  /* table */
+  .tbl-wrap{overflow-x:auto;margin:16px 0 24px}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th{background:#0f172a;color:var(--primary);padding:10px 14px;text-align:left;font-weight:700;border:1px solid var(--border)}
+  td{padding:10px 14px;border:1px solid var(--border);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+  /* badges */
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.75rem;font-weight:700;margin:2px}
+  .badge-r{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+  .badge-w{background:rgba(249,115,22,.15);color:#fb923c;border:1px solid rgba(249,115,22,.3)}
+  .badge-a{background:rgba(56,189,248,.15);color:#38bdf8;border:1px solid rgba(56,189,248,.3)}
+  .badge-n{background:rgba(100,116,139,.15);color:#94a3b8;border:1px solid rgba(100,116,139,.3)}
+  /* callout */
+  .callout{border-radius:10px;padding:16px 20px;margin:20px 0}
+  .callout-info{background:rgba(56,189,248,.07);border-left:4px solid var(--blue)}
+  .callout-warn{background:rgba(249,115,22,.07);border-left:4px solid var(--primary)}
+  .callout-title{font-weight:700;margin-bottom:6px;font-size:.95rem}
+  /* footer */
+  footer{margin-top:64px;border-top:1px solid var(--border);padding-top:20px;text-align:center;font-size:.82rem;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ── HEADER ── -->
+<div class="doc-header">
+  <h1>系統需求規格書 (SRS)</h1>
+  <div class="meta">
+    <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
+    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>作者</strong>：PST-Tim</span>
+    <span><strong>日期</strong>：2026-07</span>
+    <span><strong>目標讀者</strong>：PM、SA、開發工程師</span>
+  </div>
+</div>
+
+<!-- ── 1. 系統概述 ── -->
+<h2>1. 系統概述</h2>
+<p>微感監測中心是一套即時環境空氣品質監測與異常事件自動偵測平台，整合台中市 1,100+ 個微感測站的 PM₂.₅、溫度、濕度觀測資料，透過 3D Mapbox 地圖進行視覺化呈現，並內建空間群聚演算法自動判定污染熱區、產生微感事件，供環保稽查人員使用。</p>
+
+<h3>1.1 主要目標</h3>
+<ul>
+  <li>提供 <strong>即時</strong>（每 5 分鐘更新）的 PM₂.₅ 空間分佈熱區地圖。</li>
+  <li>自動偵測連續超標+空間群聚事件，降低人工稽查的盲目性。</li>
+  <li>提供歷史時間軸播放功能，支援事後污染路徑分析。</li>
+  <li>依據產業園區 GeoJSON 邊界自動標註污染源所屬園區。</li>
+</ul>
+
+<h3>1.2 系統邊界</h3>
+<div class="callout callout-info">
+  <div class="callout-title">ℹ️ 系統邊界說明</div>
+  本系統屬於<strong>展示與決策支援平台</strong>，並非直接控制感測設備的 SCADA 系統。資料來源為環境部 OGC SensorThings API，本系統不擁有感測器，僅負責資料接入、分析與視覺化。
+</div>
+
+<!-- ── 2. 使用者角色 ── -->
+<h2>2. 使用者角色定義 (User Roles)</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>角色</th><th>英文代碼</th><th>說明</th><th>主要使用場景</th></tr></thead>
+  <tbody>
+    <tr><td>稽查人員</td><td>inspector</td><td>環保局稽查員，主要使用者</td><td>查看即時地圖、追蹤事件、歷史播放</td></tr>
+    <tr><td>系統管理員</td><td>admin</td><td>負責系統參數調整與維護</td><td>調整門檻設定、事件管理、刪除事件</td></tr>
+    <tr><td>唯讀訪客</td><td>viewer</td><td>上級長官或外部單位</td><td>查看地圖與事件，無法修改任何設定</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 3. 功能性需求 ── -->
+<h2>3. 功能性需求 (Functional Requirements)</h2>
+
+<h3>FR-01：GIS 地圖展示</h3>
+<ul>
+  <li>FR-01-1：系統應在主頁面顯示台中市全域 3D Mapbox 地圖，並載入 1,100+ 個微感測站標記。</li>
+  <li>FR-01-2：測站標記應依 PM₂.₅ 濃度顯示對應顏色（綠/黃/橘/紅），超標測站應顯示呼吸燈動畫效果。</li>
+  <li>FR-01-3：系統應在地圖上疊加 PM₂.₅ 熱區密度圖層（Heatmap Layer），不透明度 0.55。</li>
+  <li>FR-01-4：系統應在地圖上疊加產業園區 GeoJSON 多邊形圖層（紫色半透明填色）。</li>
+  <li>FR-01-5：使用者點擊測站標記時，應彈出 Popup 顯示：站名、PM₂.₅、溫度、濕度、狀態、行政區。</li>
+</ul>
+
+<h3>FR-02：空間與時間篩選</h3>
+<ul>
+  <li>FR-02-1：提供行政區下拉選單，點選後地圖相機應飛越至對應區域中心，並過濾點位顯示。</li>
+  <li>FR-02-2：提供工業園區下拉選單，功能同 FR-02-1。</li>
+  <li>FR-02-3：提供特定測站 ID 篩選輸入框。</li>
+  <li>FR-02-4：提供歷史時間區間（開始時間、結束時間）設定輸入。</li>
+</ul>
+
+<h3>FR-03：歷史播放器</h3>
+<ul>
+  <li>FR-03-1：提供播放 / 暫停控制，以 5 分鐘為最小刻度依序載入歷史觀測快照。</li>
+  <li>FR-03-2：提供時間軸滑桿，支援使用者隨意拖曳至特定時間點。</li>
+  <li>FR-03-3：提供 ±5 分鐘快速步進按鈕。</li>
+</ul>
+
+<h3>FR-04：異常事件自動偵測</h3>
+<ul>
+  <li>FR-04-1：系統應每 5 分鐘自動執行連續超標判定，僅當測站連續 N 筆（可設定）PM₂.₅ ≥ 閾值時，才標記為超標種子點。</li>
+  <li>FR-04-2：系統應對超標種子點執行 Haversine 空間群聚演算法，當半徑 R 內站點數 ≥ 最少站數時，產生群聚事件。</li>
+  <li>FR-04-3：事件應依據產業園區 GeoJSON 邊界動態命名（如 <code>大里產業園區-微感事件</code> 或 <code>微感事件</code>）。</li>
+  <li>FR-04-4：選取事件後，地圖應顯示紅色半透明警示範圍圓圈（不透明度 0.3）。</li>
+</ul>
+
+<h3>FR-05：事件管理</h3>
+<ul>
+  <li>FR-05-1：右側面板應列出所有歷史事件清單，顯示：標題、時間、狀態、平均 PM₂.₅、超標站數。</li>
+  <li>FR-05-2：點擊「規則」按鈕應彈出該事件觸發時的系統門檻參數。</li>
+  <li>FR-05-3：管理員可手動更新事件狀態（待確認 / 調查中 / 已結案）。</li>
+  <li>FR-05-4：管理員可刪除事件。</li>
+</ul>
+
+<h3>FR-06：系統門檻設定</h3>
+<ul>
+  <li>FR-06-1：管理員可調整 PM₂.₅ 超標閾值（µg/m³）。</li>
+  <li>FR-06-2：管理員可調整連續超標判定筆數（N 筆 × 5 分鐘）。</li>
+  <li>FR-06-3：管理員可調整群聚半徑（公里）。</li>
+  <li>FR-06-4：管理員可調整群聚最少站數。</li>
+</ul>
+
+<!-- ── 4. 非功能性需求 ── -->
+<h2>4. 非功能性需求 (NFR)</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>編號</th><th>類別</th><th>需求描述</th><th>指標值</th></tr></thead>
+  <tbody>
+    <tr><td>NFR-01</td><td>效能</td><td>API 回應時間（正常負載）</td><td>&lt; 100ms（fire-and-forget 解耦後）</td></tr>
+    <tr><td>NFR-02</td><td>效能</td><td>地圖首次載入時間（1100 測站）</td><td>&lt; 3 秒（Mapbox WebGL）</td></tr>
+    <tr><td>NFR-03</td><td>可用率</td><td>系統年可用率目標</td><td>≥ 99%（依 Vercel Hobby/Pro SLA）</td></tr>
+    <tr><td>NFR-04</td><td>資料保留</td><td>觀測值資料保留期限</td><td>7 天自動清理（observations_5m）</td></tr>
+    <tr><td>NFR-05</td><td>容錯性</td><td>Supabase 故障時降級</td><td>自動切換 SQLite → Mock，不中斷服務</td></tr>
+    <tr><td>NFR-06</td><td>安全性</td><td>資料庫讀寫隔離</td><td>Supabase RLS：anon 唯讀、service_role 可寫</td></tr>
+    <tr><td>NFR-07</td><td>安全性</td><td>前端 Secret 隔離</td><td>Service Role Key 嚴禁暴露至前端</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 5. 權限設計矩陣 ── -->
+<h2>5. 權限設計矩陣 (RBAC)</h2>
+<p>凡例：<span class="badge badge-r">R 讀</span> <span class="badge badge-w">W 寫</span> <span class="badge badge-a">A 管理</span> <span class="badge badge-n">— 無權限</span></p>
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr><th>功能模組</th><th>稽查人員 (inspector)</th><th>系統管理員 (admin)</th><th>唯讀訪客 (viewer)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>地圖展示與測站查看</td><td><span class="badge badge-r">R</span></td><td><span class="badge badge-r">R</span></td><td><span class="badge badge-r">R</span></td></tr>
+    <tr><td>空間與時間篩選</td><td><span class="badge badge-r">R</span></td><td><span class="badge badge-r">R</span></td><td><span class="badge badge-r">R</span></td></tr>
+    <tr><td>歷史播放器</td><td><span class="badge badge-r">R</span></td><td><span class="badge badge-r">R</span></td><td><span class="badge badge-r">R</span></td></tr>
+    <tr><td>事件列表查看</td><td><span class="badge badge-r">R</span></td><td><span class="badge badge-r">R</span></td><td><span class="badge badge-r">R</span></td></tr>
+    <tr><td>事件狀態更新</td><td><span class="badge badge-w">W</span></td><td><span class="badge badge-w">W</span></td><td><span class="badge badge-n">—</span></td></tr>
+    <tr><td>事件刪除</td><td><span class="badge badge-n">—</span></td><td><span class="badge badge-a">A</span></td><td><span class="badge badge-n">—</span></td></tr>
+    <tr><td>系統門檻設定</td><td><span class="badge badge-n">—</span></td><td><span class="badge badge-a">A</span></td><td><span class="badge badge-n">—</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout callout-warn">
+  <div class="callout-title">⚠️ 現階段實作說明</div>
+  <p>v1.0 版本使用單一帳號密碼認證（<code>/api/login</code>），尚未實作多角色 JWT 分級。RBAC 矩陣為設計目標，v2.0 版本建議導入 Supabase Auth + Roles 或 NextAuth.js 實現。</p>
+</div>
+
+<!-- ── 6. Supabase RLS ── -->
+<h2>6. Supabase Row Level Security 政策</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>資料表</th><th>角色 (Supabase Role)</th><th>Operation</th><th>條件</th></tr></thead>
+  <tbody>
+    <tr><td>sensors</td><td>anon</td><td>SELECT</td><td>USING (true)（完全公開讀）</td></tr>
+    <tr><td>sensors</td><td>service_role</td><td>ALL</td><td>USING (true)（Poller 爬蟲寫入）</td></tr>
+    <tr><td>observations_5m</td><td>anon</td><td>SELECT</td><td>USING (true)</td></tr>
+    <tr><td>observations_5m</td><td>service_role</td><td>ALL</td><td>USING (true)</td></tr>
+    <tr><td>completeness_log</td><td>anon</td><td>SELECT</td><td>USING (true)</td></tr>
+    <tr><td>completeness_log</td><td>service_role</td><td>ALL</td><td>USING (true)</td></tr>
+    <tr><td>events</td><td>anon</td><td>SELECT</td><td>USING (true)</td></tr>
+    <tr><td>events</td><td>service_role</td><td>ALL</td><td>USING (true)（API Route 使用 Service Key 操作）</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 7. 系統限制 ── -->
+<h2>7. 系統限制與假設</h2>
+<ul>
+  <li>資料來源依賴環境部 OGC SensorThings API 服務可用性，若外部 API 故障，新資料將停止更新。</li>
+  <li>地圖渲染需要瀏覽器支援 WebGL（IE 不支援，建議 Chrome/Edge 最新版）。</li>
+  <li>Vercel Hobby 方案 Serverless Function 執行時間上限為 10 秒，已透過非同步解耦確保在此限制內。</li>
+  <li>SQLite 為本地單一節點資料庫，不支援多實例並發部署，僅適用於單機部署場景。</li>
+</ul>
+
+<footer>© 2026 微感監測中心 | 01_SRS_系統需求規格書 | 作者：PST-Tim</footer>
+</div>
+</body>
+</html>

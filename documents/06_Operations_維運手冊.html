@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>06 維運手冊 — 微感監測中心</title>
+<style>
+  :root{--primary:#f97316;--blue:#38bdf8;--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#cbd5e1;--heading:#f1f5f9;--green:#4ade80;--yellow:#facc15;--red:#f87171}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 32px}
+  .doc-header{border-bottom:2px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  .doc-header h1{font-size:2rem;font-weight:800;color:var(--primary);margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:.875rem;color:#64748b}
+  .meta span strong{color:var(--blue)}
+  h2{font-size:1.35rem;font-weight:700;color:var(--blue);border-left:4px solid var(--primary);padding-left:12px;margin:40px 0 16px}
+  h3{font-size:1.1rem;font-weight:600;color:var(--heading);margin:22px 0 10px}
+  p{margin-bottom:12px}
+  ul,ol{padding-left:24px;margin-bottom:12px}
+  li{margin-bottom:7px}
+  .tbl-wrap{overflow-x:auto;margin:12px 0 24px}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th{background:#0f172a;color:var(--primary);padding:10px 13px;text-align:left;font-weight:700;border:1px solid var(--border)}
+  td{padding:10px 13px;border:1px solid var(--border);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+  code{background:#0f172a;color:#f472b6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.87em}
+  pre{background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:18px;overflow-x:auto;font-family:Consolas,monospace;font-size:.87em;line-height:1.6;margin:12px 0 20px;color:#e2e8f0}
+  .sev{display:inline-block;padding:3px 10px;border-radius:6px;font-size:.78rem;font-weight:800}
+  .sev-warn{background:rgba(250,204,21,.15);color:var(--yellow);border:1px solid rgba(250,204,21,.3)}
+  .sev-crit{background:rgba(249,115,22,.15);color:var(--primary);border:1px solid rgba(249,115,22,.3)}
+  .sev-emerg{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+  .sop-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+  .sop-title{font-weight:700;color:var(--heading);margin-bottom:12px;font-size:1rem}
+  .note{background:rgba(56,189,248,.07);border-left:4px solid var(--blue);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:.9rem}
+  footer{margin-top:64px;border-top:1px solid var(--border);padding-top:20px;text-align:center;font-size:.82rem;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-header">
+  <h1>維運手冊</h1>
+  <div class="meta">
+    <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
+    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>作者</strong>：PST-Tim</span>
+    <span><strong>日期</strong>：2026-07</span>
+    <span><strong>目標讀者</strong>：MIS、維運人員</span>
+  </div>
+</div>
+
+<!-- ── 1. 健康監測指標 ── -->
+<h2>1. 系統健康監測指標</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>監測項目</th><th>方式</th><th>正常範圍</th><th>告警條件</th><th>嚴重等級</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>資料完整率</td>
+      <td><code>GET /api/completeness</code></td>
+      <td>completeness_rate ≥ 0.7</td>
+      <td>completeness_rate &lt; 0.7</td>
+      <td><span class="sev sev-crit">嚴重</span></td>
+    </tr>
+    <tr>
+      <td>API 回應時間</td>
+      <td>Vercel Analytics / 外部監控</td>
+      <td>&lt; 500ms</td>
+      <td>&gt; 2000ms</td>
+      <td><span class="sev sev-warn">警告</span></td>
+    </tr>
+    <tr>
+      <td>Poller 執行狀態</td>
+      <td>檢查 <code>run_poller.log</code> 最後時間戳記</td>
+      <td>每 5 分鐘有新記錄</td>
+      <td>超過 15 分鐘無新資料</td>
+      <td><span class="sev sev-crit">嚴重</span></td>
+    </tr>
+    <tr>
+      <td>Supabase 連線</td>
+      <td>Supabase Dashboard → Health</td>
+      <td>Status: OK</td>
+      <td>連線逾時或 503</td>
+      <td><span class="sev sev-emerg">緊急</span></td>
+    </tr>
+    <tr>
+      <td>Vercel 部署狀態</td>
+      <td>Vercel Dashboard → Deployments</td>
+      <td>狀態: Ready</td>
+      <td>狀態: Error / Canceled</td>
+      <td><span class="sev sev-crit">嚴重</span></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">💡 建議設定外部監控服務（如 UptimeRobot 或 BetterUptime），定期 Ping <code>https://tc-iot-center.vercel.app/api/completeness</code>，當回應值 &lt; 0.7 或 HTTP 非 200 時自動發送 Email/Line 告警。</div>
+
+<!-- ── 2. 故障排查 SOP ── -->
+<h2>2. 常見故障排查 SOP</h2>
+
+<div class="sop-card">
+  <div class="sop-title">🟡 <span class="sev sev-warn">警告</span> — 地圖上無測站資料顯示 / 測站全部變灰</div>
+  <ol>
+    <li>開啟瀏覽器 F12 → Network 分頁，確認 <code>/api/sensors</code> 和 <code>/api/observations</code> 是否正常回傳 200。</li>
+    <li>若 <code>/api/sensors</code> 回傳空陣列 <code>[]</code>，表示 Supabase <code>sensors</code> 表為空 → 執行 Poller 初始化：<pre>cd scripts && npx tsx pollIoT.ts</pre></li>
+    <li>若 <code>/api/observations</code> 回傳空陣列，表示無當前時間點的觀測資料 → 確認 Poller 是否正常執行，檢查 <code>scripts/run_poller.log</code> 最後幾行。</li>
+    <li>若兩個 API 均正常，但地圖無顯示 → 確認 <code>NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN</code> 是否有效，Mapbox 控制台是否有 Token 超額或過期錯誤。</li>
+  </ol>
+</div>
+
+<div class="sop-card">
+  <div class="sop-title">🟠 <span class="sev sev-crit">嚴重</span> — API 回應超時 / Vercel Function Timeout</div>
+  <ol>
+    <li>前往 Vercel Dashboard → Functions → 查看最近的 Function 呼叫日誌，確認是哪支 API 超時。</li>
+    <li>若是 <code>/api/anomalies</code> 超時，可能原因：Supabase 查詢量過大 → 確認 <code>observations_5m</code> 資料是否超過 7 天未清理，執行清理函式：<pre>SELECT cleanup_old_observations();</pre></li>
+    <li>若是 <code>/api/completeness</code> 超時，原因同上，資料量過大 → 同步清理。</li>
+    <li>Vercel Hobby 方案 Function 執行上限為 10 秒，若問題持續，考慮升級至 Vercel Pro（60 秒上限）。</li>
+  </ol>
+</div>
+
+<div class="sop-card">
+  <div class="sop-title">🟠 <span class="sev sev-crit">嚴重</span> — Poller 腳本停止運作 / 資料不再更新</div>
+  <ol>
+    <li>開啟 <code>scripts/run_poller.log</code>，檢查最後一行時間戳記，若超過 15 分鐘未更新即為異常。</li>
+    <li>查看 Log 最後幾行是否有錯誤訊息：
+      <ul>
+        <li><code>❌ 缺少 SUPABASE_URL 或 SUPABASE_SERVICE_ROLE_KEY</code>：環境變數未設定，確認 <code>.env.local</code> 是否存在。</li>
+        <li><code>FetchError / ETIMEDOUT</code>：OGC API 或 Supabase 網路問題，等待網路恢復後會自動重試。</li>
+        <li>其他未預期錯誤：將錯誤訊息回報給開發團隊。</li>
+      </ul>
+    </li>
+    <li>手動重新啟動 Poller：<pre>cd C:\GoogleAntigravity\2026IoTcenter\scripts
+npx tsx pollIoT.ts</pre></li>
+    <li>確認 Windows 工作排程器任務「IoT Poller」是否仍啟用且未因錯誤停止。</li>
+  </ol>
+</div>
+
+<div class="sop-card">
+  <div class="sop-title">🔴 <span class="sev sev-emerg">緊急</span> — Supabase 連線中斷 / 系統自動降級</div>
+  <ol>
+    <li>系統會自動切換至 Tier 2（SQLite）或 Tier 3（Mock），<strong>服務不中斷</strong>，但資料將停止更新。</li>
+    <li>確認 Supabase 服務狀態：前往 <a href="https://status.supabase.com" style="color:var(--blue)">status.supabase.com</a>。</li>
+    <li>若為 Supabase 服務故障，等待其恢復即可，系統會自動重新連線。</li>
+    <li>若 Supabase 帳號或 Key 問題，重新確認 Vercel 環境變數並重新部署：<pre>cd dashboard && npx vercel --prod --yes</pre></li>
+  </ol>
+</div>
+
+<!-- ── 3. 資料補件 ── -->
+<h2>3. 資料補件作業程序</h2>
+<p>當 Poller 因網路中斷或異常停止，導致一段時間的觀測資料缺漏時，請執行以下補件程序：</p>
+<ol>
+  <li>確認缺漏時間範圍（查看 <code>run_poller.log</code> 中斷點）。</li>
+  <li>手動多次執行 Poller，每次帶入不同的歷史時間區間（Poller 目前設計為抓取最新資料，如需歷史補件請確認 OGC API 是否提供歷史查詢功能）。</li>
+  <li>直接在 Supabase SQL Editor 中確認補件是否完成：<pre>SELECT COUNT(*), MIN(bucket_time), MAX(bucket_time)
+FROM observations_5m
+WHERE bucket_time BETWEEN '2026-07-13 00:00:00' AND '2026-07-13 23:59:59';</pre></li>
+</ol>
+
+<!-- ── 4. Log 位置 ── -->
+<h2>4. Log 查看位置與說明</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Log 類型</th><th>位置</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td>Poller 執行 Log</td><td><code>scripts/run_poller.log</code></td><td>每次執行的資料抓取結果、錯誤訊息</td></tr>
+    <tr><td>Vercel Function Log</td><td>Vercel Dashboard → Logs</td><td>API Routes 的執行記錄與錯誤</td></tr>
+    <tr><td>Supabase 查詢 Log</td><td>Supabase Dashboard → Logs → API</td><td>資料庫查詢記錄與慢查詢</td></tr>
+    <tr><td>瀏覽器 Console</td><td>F12 → Console</td><td>前端 JavaScript 錯誤</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 5. 系統重啟 ── -->
+<h2>5. 系統重啟程序</h2>
+<h3>5.1 重新部署前端（Next.js）</h3>
+<pre>cd dashboard
+npx vercel --prod --yes</pre>
+
+<h3>5.2 重新啟動 Poller 排程</h3>
+<ol>
+  <li>開啟 Windows 工作排程器。</li>
+  <li>找到「IoT Poller」任務，右鍵 → 執行，確認是否正常啟動。</li>
+  <li>或直接執行 <code>scripts\run_poller.bat</code> 測試。</li>
+</ol>
+
+<footer>© 2026 微感監測中心 | 06_Operations_維運手冊 | 作者：PST-Tim</footer>
+</div>
+</body>
+</html>

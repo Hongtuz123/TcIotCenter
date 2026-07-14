@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>02 系統架構文件 — 微感監測中心</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{--primary:#f97316;--blue:#38bdf8;--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#cbd5e1;--heading:#f1f5f9}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 32px}
+  .doc-header{border-bottom:2px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  .doc-header h1{font-size:2rem;font-weight:800;color:var(--primary);margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:.875rem;color:#64748b}
+  .meta span strong{color:var(--blue)}
+  h2{font-size:1.35rem;font-weight:700;color:var(--blue);border-left:4px solid var(--primary);padding-left:12px;margin:40px 0 16px}
+  h3{font-size:1.1rem;font-weight:600;color:var(--heading);margin:24px 0 10px}
+  p{margin-bottom:12px}
+  ul,ol{padding-left:24px;margin-bottom:12px}
+  li{margin-bottom:6px}
+  .tbl-wrap{overflow-x:auto;margin:16px 0 24px}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th{background:#0f172a;color:var(--primary);padding:10px 14px;text-align:left;font-weight:700;border:1px solid var(--border)}
+  td{padding:10px 14px;border:1px solid var(--border);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+  .mermaid-wrap{background:#0f172a;border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow-x:auto}
+  .mermaid{text-align:center}
+  .callout{border-radius:10px;padding:16px 20px;margin:20px 0}
+  .callout-info{background:rgba(56,189,248,.07);border-left:4px solid var(--blue)}
+  .callout-title{font-weight:700;margin-bottom:6px}
+  code{background:#0f172a;color:#f472b6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.88em}
+  footer{margin-top:64px;border-top:1px solid var(--border);padding-top:20px;text-align:center;font-size:.82rem;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-header">
+  <h1>系統架構文件</h1>
+  <div class="meta">
+    <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
+    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>作者</strong>：PST-Tim</span>
+    <span><strong>日期</strong>：2026-07</span>
+    <span><strong>目標讀者</strong>：Backend 工程師、DevOps</span>
+  </div>
+</div>
+
+<!-- ── 1. 部署拓撲 ── -->
+<h2>1. 系統部署拓撲圖 (Deployment Topology)</h2>
+<div class="mermaid-wrap">
+<div class="mermaid">
+graph TB
+    subgraph Browser["瀏覽器 (Client)"]
+        UI["React 前端\nMapbox GL / SensorMap\nEventManager / Timeline"]
+    end
+
+    subgraph Vercel["Vercel Edge Network (Production)"]
+        Next["Next.js 16 App Router\nServerless Functions"]
+        Middleware["Auth Middleware\n(Edge Runtime)"]
+    end
+
+    subgraph Supabase["Supabase Cloud (PostgreSQL)"]
+        DB_S["sensors\nobservations_5m\nevents\ncompleteness_log"]
+        RLS["Row Level Security\nanon=讀 / service_role=寫"]
+    end
+
+    subgraph LocalDev["本地開發環境"]
+        SQLite["SQLite iot.db\n(Tier 2 備援)"]
+        Mock["Mock Memory Data\n(Tier 3 備援)"]
+    end
+
+    subgraph DataIngestion["資料接入層 (本地執行)"]
+        Poller["scripts/pollIoT.ts\n每 5 分鐘執行"]
+        EPA["環境部 OGC\nSensorThings API\nsta.colife.org.tw"]
+    end
+
+    UI -->|HTTPS 請求| Middleware
+    Middleware -->|驗證通過| Next
+    Next -->|Tier 1| Supabase
+    Next -->|Tier 2 降級| SQLite
+    Next -->|Tier 3 降級| Mock
+    Poller -->|抓取| EPA
+    Poller -->|upsert 觀測值| Supabase
+    Poller -->|觸發異常偵測| Next
+</div>
+</div>
+
+<!-- ── 2. Sitemap ── -->
+<h2>2. 網站 Sitemap 與頁面導覽圖</h2>
+<div class="mermaid-wrap">
+<div class="mermaid">
+flowchart TD
+    Root["/\n根路由"] --> Auth{已登入?}
+    Auth -->|否| Login["/login\n登入頁\n帳號密碼驗證"]
+    Auth -->|是| Dashboard["/\n主儀表板"]
+
+    Dashboard --> SB["左側篩選面板 Sidebar\n- 行政區/工業園區選單\n- 感測器 ID 篩選\n- 時間區間設定\n- 指標切換 PM₂.₅/溫度/濕度"]
+    Dashboard --> Map["中央地圖 SensorMap\n- Mapbox 3D 地圖\n- 測站 Marker + Popup\n- 熱區 Heatmap Layer\n- 園區 GeoJSON Layer\n- 事件紅色警示圈"]
+    Dashboard --> EM["右側事件面板 EventManager\n- 事件列表\n- 事件詳情\n- 「規則」按鈕 Modal\n- 狀態更新 / 刪除"]
+    Dashboard --> TL["底部播放器 Timeline\n- 播放 / 暫停\n- 時間軸滑桿\n- ±5 分鐘步進"]
+    Dashboard --> Settings["門檻設定 Modal\n- PM₂.₅ 閾值\n- 連續筆數\n- 群聚半徑\n- 最少站數"]
+    Dashboard --> Banner["歷史事件通知 Banner\n- 顯示當前選取事件\n- X 按鈕：隱藏 Banner\n- 返回即時監測：重置"]
+
+    Login -->|POST /api/login| Auth
+</div>
+</div>
+
+<!-- ── 3. 前端元件樹 ── -->
+<h2>3. 前端元件架構 (Component Tree)</h2>
+<div class="mermaid-wrap">
+<div class="mermaid">
+graph TD
+    Layout["app/layout.tsx\n全域 HTML / CSS 骨架"]
+    Layout --> Page["app/page.tsx\n主狀態管理中樞\n全域 State: sensors, observations,\nevents, settings, activeEventId,\nshowHistoryBanner, selectedFilter..."]
+
+    Page --> Sidebar["components/Sidebar/\n篩選控制面板"]
+    Page --> SensorMap["components/Map/SensorMap.tsx\nMapbox GL JS 地圖核心\n- 測站 Marker 管理\n- Heatmap Layer\n- GeoJSON 園區 Layer\n- 事件警示圓圈 Layer"]
+    Page --> EventManager["components/EventList/EventManager.tsx\n事件列表與管理\n- 園區動態命名邏輯\n- 規則 Modal\n- 狀態 PATCH"]
+    Page --> Analytics["components/Analytics/\n24h 熱區統計圖表"]
+</div>
+</div>
+
+<!-- ── 4. 資料流時序圖 ── -->
+<h2>4. 核心資料流時序圖 (Data Flow Sequence)</h2>
+<div class="mermaid-wrap">
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Poller as pollIoT.ts (本地 Cron)
+    participant EPA as 環境部 OGC API
+    participant API as Next.js API Routes
+    participant DB as Supabase PostgreSQL
+    participant Frontend as React 前端
+
+    Note over Poller: 每 5 分鐘觸發
+    Poller->>EPA: GET Things + Datastreams (PM₂.₅)
+    EPA-->>Poller: 回傳原始觀測值
+    Note over Poller: 聚合為 5 分鐘桶均值
+    Poller->>DB: upsert observations_5m (station_id, bucket_time)
+    Poller->>API: GET /api/anomalies?time=現在時間
+
+    API->>DB: 查詢前 N 筆觀測值（連續超標判定）
+    DB-->>API: 返回觀測資料
+    Note over API: 執行 Haversine 空間群聚演算法
+    Note over API: 產生 clusters[]
+    API-->>Poller: 立即回傳 clusters（HTTP 200）
+    Note over API: [非同步 Fire-and-Forget]<br/>寫入 events 表（不阻塞回應）
+
+    Frontend->>API: GET /api/sensors（頁面載入）
+    API->>DB: SELECT * FROM sensors
+    DB-->>Frontend: 1,100+ 測站資料
+    Frontend->>API: 定時 GET /api/events（每 30 秒）
+    API->>DB: SELECT * FROM events
+    DB-->>Frontend: 事件清單
+    Note over Frontend: Point-in-Polygon 判定園區歸屬<br/>動態命名事件標題
+</div>
+</div>
+
+<!-- ── 5. 三軌降級架構 ── -->
+<h2>5. 三軌降級架構說明 (Graceful Degradation)</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>層級</th><th>資料來源</th><th>適用環境</th><th>啟動條件</th><th>限制</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Tier 1</td>
+      <td>Supabase PostgreSQL</td>
+      <td>Vercel Production</td>
+      <td><code>SUPABASE_URL</code> 環境變數存在且連線成功</td>
+      <td>需要網路連線、受 RLS 限制</td>
+    </tr>
+    <tr>
+      <td>Tier 2</td>
+      <td>SQLite (iot.db)</td>
+      <td>本地開發</td>
+      <td>Supabase 未設定 或 <code>iot.db</code> 檔案存在</td>
+      <td>單機、不支援並發部署</td>
+    </tr>
+    <tr>
+      <td>Tier 3</td>
+      <td>Memory Mock Data</td>
+      <td>CI/Demo/離線</td>
+      <td>SQLite 檔案不存在 或 連線失敗</td>
+      <td>靜態假資料、不持久化</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">ℹ️ 關鍵設計決策：eval require 繞過 Webpack NFT</div>
+  <p>SQLite 使用 <code>eval("require('sqlite3')")</code> 而非直接 <code>require</code>，原因是 Vercel 的 Next.js 打包器（Webpack + NFT）會靜態掃描 require 呼叫並嘗試打包 sqlite3 原生 C 編譯模組，導致 Serverless Function 冷啟動失敗。使用 eval 繞過靜態分析，讓 Vercel 打包時忽略此依賴，Runtime 在本地環境執行時仍可正常呼叫。</p>
+</div>
+
+<!-- ── 6. 背景排程服務 ── -->
+<h2>6. 背景排程服務說明 (pollIoT.ts)</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>項目</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td>腳本路徑</td><td><code>scripts/pollIoT.ts</code></td></tr>
+    <tr><td>執行命令</td><td><code>npx tsx scripts/pollIoT.ts</code></td></tr>
+    <tr><td>排程方式</td><td>Windows：<code>run_poller.bat</code> + 工作排程器 / <code>run_poller.vbs</code>（背景靜默執行）</td></tr>
+    <tr><td>執行頻率</td><td>每 5 分鐘一次（與 observations_5m bucket_time 對齊）</td></tr>
+    <tr><td>資料來源</td><td>OGC SensorThings API：<code>https://sta.colife.org.tw/STA_AirQuality_EPAIoT/v1.0</code></td></tr>
+    <tr><td>資料目標</td><td>Supabase：<code>sensors</code> 表（upsert）+ <code>observations_5m</code> 表（upsert）</td></tr>
+    <tr><td>錯誤記錄</td><td><code>scripts/run_poller.log</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<footer>© 2026 微感監測中心 | 02_Architecture_系統架構文件 | 作者：PST-Tim</footer>
+</div>
+<script>mermaid.initialize({theme:'dark',themeVariables:{primaryColor:'#f97316',primaryTextColor:'#f1f5f9',lineColor:'#334155',secondaryColor:'#1e293b',tertiaryColor:'#0f172a'}});</script>
+</body>
+</html>

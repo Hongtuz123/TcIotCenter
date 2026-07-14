@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>03 API 規格文件 — 微感監測中心</title>
+<style>
+  :root{--primary:#f97316;--blue:#38bdf8;--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#cbd5e1;--heading:#f1f5f9;--green:#4ade80;--yellow:#facc15;--red:#f87171}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 32px}
+  .doc-header{border-bottom:2px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  .doc-header h1{font-size:2rem;font-weight:800;color:var(--primary);margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:.875rem;color:#64748b}
+  .meta span strong{color:var(--blue)}
+  h2{font-size:1.35rem;font-weight:700;color:var(--blue);border-left:4px solid var(--primary);padding-left:12px;margin:40px 0 16px}
+  h3{font-size:1.1rem;font-weight:600;color:var(--heading);margin:20px 0 10px}
+  p{margin-bottom:12px}
+  ul,ol{padding-left:24px;margin-bottom:12px}
+  li{margin-bottom:6px}
+  .tbl-wrap{overflow-x:auto;margin:12px 0 20px}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th{background:#0f172a;color:var(--primary);padding:9px 12px;text-align:left;font-weight:700;border:1px solid var(--border)}
+  td{padding:9px 12px;border:1px solid var(--border);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+  code{background:#0f172a;color:#f472b6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.87em}
+  pre{background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:18px;overflow-x:auto;font-family:Consolas,monospace;font-size:.87em;line-height:1.6;margin:12px 0 20px;color:#e2e8f0}
+  .method{display:inline-block;padding:3px 10px;border-radius:6px;font-size:.8rem;font-weight:800;margin-right:8px;font-family:Consolas,monospace}
+  .get{background:rgba(74,222,128,.15);color:var(--green);border:1px solid rgba(74,222,128,.3)}
+  .post{background:rgba(249,115,22,.15);color:var(--primary);border:1px solid rgba(249,115,22,.3)}
+  .patch{background:rgba(250,204,21,.15);color:var(--yellow);border:1px solid rgba(250,204,21,.3)}
+  .delete{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+  .api-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 28px;margin:24px 0}
+  .api-title{font-size:1.05rem;font-weight:700;color:var(--heading);margin-bottom:8px;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+  .api-path{font-family:Consolas,monospace;font-size:1rem;color:var(--blue)}
+  .note{background:rgba(56,189,248,.07);border-left:4px solid var(--blue);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:.9rem}
+  footer{margin-top:64px;border-top:1px solid var(--border);padding-top:20px;text-align:center;font-size:.82rem;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-header">
+  <h1>API 規格文件</h1>
+  <div class="meta">
+    <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
+    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>作者</strong>：PST-Tim</span>
+    <span><strong>日期</strong>：2026-07</span>
+    <span><strong>目標讀者</strong>：Backend、Frontend 工程師</span>
+  </div>
+</div>
+
+<h2>總覽</h2>
+<p>所有 API 路由均位於 <code>/api/*</code> 路徑，由 Next.js App Router Serverless Functions 提供服務。目前版本無 API Key 認證（依靠頁面層 Middleware 保護），建議 v2.0 版本補充 Bearer Token 驗證。</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>端點</th><th>Method</th><th>功能</th><th>讀者</th></tr></thead>
+  <tbody>
+    <tr><td><code>/api/login</code></td><td>POST</td><td>帳號密碼認證</td><td>Frontend</td></tr>
+    <tr><td><code>/api/sensors</code></td><td>GET</td><td>取得全量測站資料</td><td>Frontend</td></tr>
+    <tr><td><code>/api/observations</code></td><td>GET</td><td>取得特定時間點觀測值</td><td>Frontend</td></tr>
+    <tr><td><code>/api/anomalies</code></td><td>GET</td><td>超標群聚判定（非同步寫入事件）</td><td>Poller / Frontend</td></tr>
+    <tr><td><code>/api/clusters-24h</code></td><td>GET</td><td>24小時熱區統計</td><td>Frontend</td></tr>
+    <tr><td><code>/api/completeness</code></td><td>GET</td><td>資料完整率健康指標</td><td>Frontend / 監控</td></tr>
+    <tr><td><code>/api/events</code></td><td>GET / POST / DELETE</td><td>事件 CRUD</td><td>Frontend / Poller</td></tr>
+    <tr><td><code>/api/events/[id]</code></td><td>GET / PATCH</td><td>單一事件查詢與狀態更新</td><td>Frontend</td></tr>
+    <tr><td><code>/api/settings</code></td><td>GET / POST</td><td>系統門檻設定讀寫</td><td>Frontend</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── POST /api/login ── -->
+<div class="api-card">
+  <div class="api-title"><span class="method post">POST</span><span class="api-path">/api/login</span> 使用者認證</div>
+  <p>驗證帳號密碼，成功後設定認證 Cookie，用於 Middleware 的頁面保護。</p>
+  <h3>Request Body</h3>
+  <pre>{ "username": "admin", "password": "your_password" }</pre>
+  <h3>Response (200 OK)</h3>
+  <pre>{ "success": true }</pre>
+  <h3>Response (401 Unauthorized)</h3>
+  <pre>{ "error": "Invalid credentials" }</pre>
+</div>
+
+<!-- ── GET /api/sensors ── -->
+<div class="api-card">
+  <div class="api-title"><span class="method get">GET</span><span class="api-path">/api/sensors</span> 取得全量測站資料</div>
+  <p>返回台中市全部微感測站的靜態基本資訊（名稱、座標、行政區）。</p>
+  <h3>Query Parameters</h3>
+  <p>無</p>
+  <h3>Response (200 OK)</h3>
+  <pre>[
+  {
+    "id": "TC0062",
+    "name": "沙鹿國中測站",
+    "lat": 24.2341,
+    "lon": 120.5789,
+    "county": "沙鹿區",
+    "status": "正常"
+  },
+  ...
+]</pre>
+</div>
+
+<!-- ── GET /api/observations ── -->
+<div class="api-card">
+  <div class="api-title"><span class="method get">GET</span><span class="api-path">/api/observations</span> 取得特定時間點觀測值</div>
+  <p>返回指定時間點（對齊到 5 分鐘桶）所有測站的觀測測值。</p>
+  <h3>Query Parameters</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>參數</th><th>類型</th><th>必填</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr><td><code>time</code></td><td>string</td><td>否</td><td>目標時間 (格式：YYYY-MM-DD HH:mm:00)，不帶則返回最新</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Response (200 OK)</h3>
+  <pre>[
+  {
+    "sensor_id": "TC0062",
+    "time": "2026-07-14 08:00:00",
+    "pm2_5": 23.5,
+    "temperature": 31.2,
+    "humidity": 75.1,
+    "voc": null,
+    "isAnomaly": false,
+    "score": 0
+  },
+  ...
+]</pre>
+</div>
+
+<!-- ── GET /api/anomalies ── -->
+<div class="api-card">
+  <div class="api-title"><span class="method get">GET</span><span class="api-path">/api/anomalies</span> 超標群聚判定</div>
+  <p>執行連續超標判定 + Haversine 空間群聚演算法。判定完成後立即回傳結果，<strong>自動建立事件的資料庫寫入以非同步 Fire-and-Forget 方式進行，不阻塞回應</strong>。</p>
+  <div class="note">⚡ 效能設計：此 API 回應時間 &lt; 100ms。資料庫寫入在背景非同步執行，呼叫方不需等待。</div>
+  <h3>Query Parameters</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>參數</th><th>類型</th><th>必填</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr><td><code>time</code></td><td>string</td><td>否</td><td>分析時間點，不帶則使用當前時間</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Response (200 OK)</h3>
+  <pre>{
+  "clusters": [
+    {
+      "id": "cluster_TC0062",
+      "center": { "lat": 24.21, "lon": 120.64 },
+      "radiusKm": 1.0,
+      "stationsCount": 5,
+      "avgPm25": 67.3,
+      "maxScore": 85,
+      "dominantType": "PM2.5超標",
+      "county": "大里區",
+      "stations": [
+        { "id": "TC0062", "name": "大里國中", "pm2_5": 72.1 }
+      ]
+    }
+  ],
+  "anomalyCount": 12,
+  "settings": {
+    "pm25_threshold": 54,
+    "consecutive_exceeds": 3,
+    "cluster_radius_km": 1.0,
+    "min_cluster_stations": 2
+  }
+}</pre>
+</div>
+
+<!-- ── GET /api/events ── -->
+<div class="api-card">
+  <div class="api-title"><span class="method get">GET</span><span class="api-path">/api/events</span> 取得事件列表</div>
+  <p>返回最新 100 筆事件，依 <code>created_at</code> 降序排列。API 會自動執行一次性標題清理遷移（將舊格式標題正規化）。</p>
+  <h3>Response (200 OK)</h3>
+  <pre>[
+  {
+    "id": "auto_202607140800_24.160_120.640",
+    "title": "[自動] 微感事件 (門檻: PM₂.₅ 54)",
+    "description": "系統自動偵測超標群聚熱區。超標站數：5 站，平均 PM₂.₅ 濃度：67.3 µg/m³",
+    "status": "待確認",
+    "created_at": "2026-07-14T08:00:12Z",
+    "updated_at": "2026-07-14T08:00:12Z",
+    "event_time": "2026-07-14 08:00:00",
+    "bounds": {
+      "center": { "lat": 24.16, "lon": 120.64 },
+      "radiusKm": 1.0
+    },
+    "stations_count": 5,
+    "avg_pm25": 67.3,
+    "sensors": []
+  }
+]</pre>
+</div>
+
+<!-- ── PATCH /api/events/[id] ── -->
+<div class="api-card">
+  <div class="api-title"><span class="method patch">PATCH</span><span class="api-path">/api/events/[id]</span> 更新事件狀態</div>
+  <h3>Request Body</h3>
+  <pre>{ "status": "調查中" }
+/* 可用值：待確認 | 調查中 | 已結案 */</pre>
+  <h3>Response (200 OK)</h3>
+  <pre>{ "success": true }</pre>
+</div>
+
+<!-- ── GET /api/settings ── -->
+<div class="api-card">
+  <div class="api-title"><span class="method get">GET</span><span class="api-path">/api/settings</span> 取得系統門檻設定</div>
+  <h3>Response (200 OK)</h3>
+  <pre>{
+  "pm25_threshold": 54,
+  "consecutive_exceeds": 3,
+  "cluster_radius_km": 1.0,
+  "min_cluster_stations": 2
+}</pre>
+</div>
+
+<div class="api-card">
+  <div class="api-title"><span class="method post">POST</span><span class="api-path">/api/settings</span> 儲存系統門檻設定</div>
+  <h3>Request Body</h3>
+  <pre>{
+  "pm25_threshold": 35,
+  "consecutive_exceeds": 5,
+  "cluster_radius_km": 1.5,
+  "min_cluster_stations": 3
+}</pre>
+  <h3>Response (200 OK)</h3>
+  <pre>{ "success": true }</pre>
+</div>
+
+<!-- ── GET /api/completeness ── -->
+<div class="api-card">
+  <div class="api-title"><span class="method get">GET</span><span class="api-path">/api/completeness</span> 資料完整率健康指標</div>
+  <p>計算過去 1 小時觀測資料完整率，可供監控系統作為 Health Check 端點。</p>
+  <div class="note">📊 運維建議：當 <code>completeness_rate &lt; 0.7</code> 時，應發送告警通知，代表超過 30% 測站資料缺失。</div>
+  <h3>Response (200 OK)</h3>
+  <pre>{
+  "completeness_rate": 0.94,
+  "total_sensors": 1153,
+  "active_sensors": 1084,
+  "offline_count": 69,
+  "window_start": "2026-07-14T07:00:00Z",
+  "window_end": "2026-07-14T08:00:00Z"
+}</pre>
+</div>
+
+<footer>© 2026 微感監測中心 | 03_API_規格文件 | 作者：PST-Tim</footer>
+</div>
+</body>
+</html>

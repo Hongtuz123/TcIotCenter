@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>04 Database Schema 文件 — 微感監測中心</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{--primary:#f97316;--blue:#38bdf8;--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#cbd5e1;--heading:#f1f5f9}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 32px}
+  .doc-header{border-bottom:2px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  .doc-header h1{font-size:2rem;font-weight:800;color:var(--primary);margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:.875rem;color:#64748b}
+  .meta span strong{color:var(--blue)}
+  h2{font-size:1.35rem;font-weight:700;color:var(--blue);border-left:4px solid var(--primary);padding-left:12px;margin:40px 0 16px}
+  h3{font-size:1.1rem;font-weight:600;color:var(--heading);margin:24px 0 10px}
+  p{margin-bottom:12px}
+  ul,ol{padding-left:24px;margin-bottom:12px}
+  li{margin-bottom:6px}
+  .tbl-wrap{overflow-x:auto;margin:12px 0 24px}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th{background:#0f172a;color:var(--primary);padding:10px 13px;text-align:left;font-weight:700;border:1px solid var(--border)}
+  td{padding:10px 13px;border:1px solid var(--border);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+  code{background:#0f172a;color:#f472b6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.87em}
+  pre{background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:18px;overflow-x:auto;font-family:Consolas,monospace;font-size:.86em;line-height:1.6;margin:12px 0 20px;color:#e2e8f0}
+  .mermaid-wrap{background:#0f172a;border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow-x:auto}
+  .mermaid{text-align:center}
+  .note{background:rgba(56,189,248,.07);border-left:4px solid var(--blue);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:.9rem}
+  .warn{background:rgba(249,115,22,.07);border-left:4px solid var(--primary);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:.9rem}
+  .pk{color:#4ade80;font-weight:700}
+  .fk{color:#38bdf8;font-weight:700}
+  .idx{color:#facc15;font-weight:700}
+  footer{margin-top:64px;border-top:1px solid var(--border);padding-top:20px;text-align:center;font-size:.82rem;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-header">
+  <h1>Database Schema 文件</h1>
+  <div class="meta">
+    <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
+    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>作者</strong>：PST-Tim</span>
+    <span><strong>日期</strong>：2026-07</span>
+    <span><strong>目標讀者</strong>：Backend 工程師、DBA</span>
+  </div>
+</div>
+
+<!-- ── 1. 選型說明 ── -->
+<h2>1. 資料庫選型說明</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>項目</th><th>Supabase (PostgreSQL)</th><th>SQLite (iot.db)</th></tr></thead>
+  <tbody>
+    <tr><td>使用環境</td><td>Vercel Production 線上</td><td>本地開發 / 邊緣備援</td></tr>
+    <tr><td>Schema 初始化</td><td>執行 <code>scripts/supabase_schema.sql</code></td><td>程式碼自動建表（首次啟動）</td></tr>
+    <tr><td>連線方式</td><td>HTTPS REST API (Supabase Client SDK)</td><td>本地檔案路徑（WAL 模式）</td></tr>
+    <tr><td>並發支援</td><td>完整（連線池）</td><td>單一寫入者（WAL 支援多讀）</td></tr>
+    <tr><td>資料清理</td><td>PostgreSQL Function <code>cleanup_old_observations()</code>（7天）</td><td>手動或自訂 Cron</td></tr>
+    <tr><td>安全控制</td><td>Row Level Security (RLS)</td><td>無（依賴網路/系統層防護）</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 2. ERD ── -->
+<h2>2. Entity Relationship Diagram (ERD)</h2>
+<div class="mermaid-wrap">
+<div class="mermaid">
+erDiagram
+    sensors {
+        TEXT station_id PK "環境部 stationID"
+        TEXT device_name "設備名稱"
+        DOUBLE lat "緯度"
+        DOUBLE lon "經度"
+        TEXT city "縣市（臺中市）"
+        TEXT township "行政區"
+        TEXT area "工業區名稱"
+        TEXT area_type "areaType"
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    observations_5m {
+        BIGSERIAL id PK
+        TEXT station_id FK
+        TIMESTAMPTZ bucket_time "5分鐘對齊時間桶"
+        DOUBLE pm2_5 "平均PM2.5 µg/m3"
+        DOUBLE temperature "平均溫度 °C"
+        DOUBLE humidity "平均濕度 %"
+        SMALLINT pm25_samples "PM2.5樣本數"
+        SMALLINT temp_samples
+        SMALLINT hum_samples
+        BOOLEAN is_anomaly "是否異常"
+        TEXT anomaly_type "異常類型"
+        TIMESTAMPTZ created_at
+    }
+
+    completeness_log {
+        BIGSERIAL id PK
+        TIMESTAMPTZ snapshot_time
+        TIMESTAMPTZ window_start
+        TIMESTAMPTZ window_end
+        INT total_sensors
+        INT expected_obs
+        INT actual_obs
+        DOUBLE completeness_rate "0.0~1.0"
+        INT offline_count
+    }
+
+    events {
+        TEXT id PK "auto_{time}_{lat}_{lon}"
+        TEXT title "事件標題"
+        TEXT description "詳細描述"
+        TEXT status "待確認|調查中|已結案"
+        TEXT bounds "JSON: center+radiusKm"
+        TEXT event_time "事件時間點"
+        INT stations_count
+        DOUBLE avg_pm25
+        TEXT dominant_type
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    event_sensors {
+        TEXT event_id FK
+        TEXT sensor_id FK
+        REAL pm25 "事件觸發時測值"
+        REAL temperature
+        REAL humidity
+        REAL voc
+    }
+
+    sensors ||--o{ observations_5m : "station_id"
+    events ||--o{ event_sensors : "event_id"
+    sensors ||--o{ event_sensors : "sensor_id"
+</div>
+</div>
+
+<!-- ── 3. 資料表詳細說明 ── -->
+<h2>3. 資料表詳細說明</h2>
+
+<h3>3.1 sensors — 測站基本資料表</h3>
+<p>靜態主資料，由 <code>pollIoT.ts</code> 首次啟動時 upsert 填充，後續更新頻率極低。</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>欄位</th><th>型別</th><th>屬性</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td class="pk">station_id</td><td>TEXT</td><td>PRIMARY KEY</td><td>環境部唯一設備代號（如 TC0062）</td></tr>
+    <tr><td>device_name</td><td>TEXT</td><td>NOT NULL</td><td>設備名稱（如 大里國中）</td></tr>
+    <tr><td>lat</td><td>DOUBLE PRECISION</td><td>NOT NULL</td><td>緯度（WGS84）</td></tr>
+    <tr><td>lon</td><td>DOUBLE PRECISION</td><td>NOT NULL</td><td>經度（WGS84）</td></tr>
+    <tr><td>city</td><td>TEXT</td><td>DEFAULT '臺中市'</td><td>縣市名稱</td></tr>
+    <tr><td>township</td><td>TEXT</td><td>可為 NULL</td><td>行政區（如 大里區）</td></tr>
+    <tr><td>area</td><td>TEXT</td><td>可為 NULL</td><td>工業區名稱（如 大里產業園區）</td></tr>
+    <tr><td>area_type</td><td>TEXT</td><td>可為 NULL</td><td>areaType（工業區 / 一般）</td></tr>
+    <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>DEFAULT NOW()</td><td>建立時間</td></tr>
+    <tr><td>updated_at</td><td>TIMESTAMPTZ</td><td>AUTO TRIGGER</td><td>自動觸發器維護更新時間</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>3.2 observations_5m — 5分鐘聚合觀測值表</h3>
+<p>核心時序資料表，每 5 分鐘由 Poller 寫入。資料保留 7 天，由 <code>cleanup_old_observations()</code> 定期清理。</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>欄位</th><th>型別</th><th>屬性</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td class="pk">id</td><td>BIGSERIAL</td><td>PRIMARY KEY</td><td>自增主鍵</td></tr>
+    <tr><td class="fk">station_id</td><td>TEXT</td><td>FK → sensors</td><td>外鍵（刪除站點時 CASCADE）</td></tr>
+    <tr><td class="idx">bucket_time</td><td>TIMESTAMPTZ</td><td>UNIQUE(station_id, bucket_time)</td><td>5 分鐘對齊時間桶（10:05:00, 10:10:00）</td></tr>
+    <tr><td>pm2_5</td><td>DOUBLE PRECISION</td><td>可為 NULL</td><td>平均 PM₂.₅ 濃度（µg/m³）</td></tr>
+    <tr><td>temperature</td><td>DOUBLE PRECISION</td><td>可為 NULL</td><td>平均溫度（°C）</td></tr>
+    <tr><td>humidity</td><td>DOUBLE PRECISION</td><td>可為 NULL</td><td>平均相對濕度（%）</td></tr>
+    <tr><td>pm25_samples</td><td>SMALLINT</td><td>DEFAULT 0</td><td>5分鐘內 PM₂.₅ 原始樣本數（完整率計算用）</td></tr>
+    <tr><td>is_anomaly</td><td>BOOLEAN</td><td>DEFAULT FALSE</td><td>是否被標記為異常（由 API 判定後回寫）</td></tr>
+    <tr><td>anomaly_type</td><td>TEXT</td><td>可為 NULL</td><td>異常類型描述</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="note">
+  <strong>Index 策略：</strong><br>
+  ① <code>UNIQUE idx_obs5m_station_bucket (station_id, bucket_time)</code>：確保同站同時間只有一筆，支援 upsert 操作。<br>
+  ② <code>idx_obs5m_bucket_time (bucket_time DESC)</code>：加速「查詢最新一期資料」的場景。<br>
+  ③ <code>idx_obs5m_station_time (station_id, bucket_time DESC)</code>：加速「單站連續 N 筆歷史查詢」，是連續超標演算法的核心索引。
+</div>
+
+<h3>3.3 events — 群聚事件表</h3>
+<p>由 <code>/api/anomalies</code> 非同步自動建立，或系統管理員手動建立。</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>欄位</th><th>型別</th><th>屬性</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td class="pk">id</td><td>TEXT</td><td>PRIMARY KEY</td><td>格式：<code>auto_{YYYYMMDDHHMM}_{lat.3f}_{lon.3f}</code></td></tr>
+    <tr><td>title</td><td>TEXT</td><td>NOT NULL</td><td>標準格式：<code>[自動] 微感事件 (門檻: PM₂.₅ XX)</code></td></tr>
+    <tr><td>description</td><td>TEXT</td><td>-</td><td>詳細說明（超標站數、平均濃度、主導類型）</td></tr>
+    <tr><td>status</td><td>TEXT</td><td>DEFAULT '待確認'</td><td>可為：待確認 / 調查中 / 已結案</td></tr>
+    <tr><td>bounds</td><td>TEXT (JSON)</td><td>-</td><td>儲存為 JSON 字串：<code>{"center":{"lat":...,"lon":...},"radiusKm":...}</code></td></tr>
+    <tr><td>event_time</td><td>TEXT</td><td>-</td><td>事件觸發的觀測時間點（非建立時間）</td></tr>
+    <tr><td>stations_count</td><td>INTEGER</td><td>-</td><td>超標測站總數</td></tr>
+    <tr><td>avg_pm25</td><td>DOUBLE / REAL</td><td>-</td><td>群聚圈內測站的平均 PM₂.₅ 濃度</td></tr>
+    <tr><td>dominant_type</td><td>TEXT</td><td>-</td><td>群聚中最多測站的異常類型</td></tr>
+    <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>DEFAULT NOW()</td><td>事件建立時間</td></tr>
+    <tr><td>updated_at</td><td>TIMESTAMPTZ</td><td>DEFAULT NOW()</td><td>最後更新時間</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>3.4 completeness_log — 完整率快照表</h3>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>欄位</th><th>型別</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td class="pk">id</td><td>BIGSERIAL</td><td>自增主鍵</td></tr>
+    <tr><td>snapshot_time</td><td>TIMESTAMPTZ</td><td>快照計算時間</td></tr>
+    <tr><td>window_start / window_end</td><td>TIMESTAMPTZ</td><td>統計視窗的開始與結束時間</td></tr>
+    <tr><td>total_sensors</td><td>INT</td><td>當前台中總站數</td></tr>
+    <tr><td>expected_obs</td><td>INT</td><td>預期筆數（total_sensors × 12，每小時每站 12 筆）</td></tr>
+    <tr><td>actual_obs</td><td>INT</td><td>實際有資料的站×時間點數</td></tr>
+    <tr><td>completeness_rate</td><td>DOUBLE PRECISION</td><td>actual_obs / expected_obs，0.0 ~ 1.0</td></tr>
+    <tr><td>offline_count</td><td>INT</td><td>連續無資料的站點數</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 4. 自動維護機制 ── -->
+<h2>4. 自動維護機制</h2>
+<h3>4.1 updated_at 自動觸發器</h3>
+<pre>CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER sensors_updated_at
+  BEFORE UPDATE ON sensors
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();</pre>
+
+<h3>4.2 7 天舊資料清理函式</h3>
+<p>需另行設定排程呼叫（如 Supabase pg_cron 或外部 Cron Job）：</p>
+<pre>SELECT cleanup_old_observations();
+-- 清除 observations_5m 7 天前資料
+-- 清除 completeness_log 30 天前資料</pre>
+<div class="warn">⚠️ 若未設定排程呼叫此函式，observations_5m 資料將無限累積，請務必在生產環境配置定期清理。</div>
+
+<!-- ── 5. SQLite 差異 ── -->
+<h2>5. SQLite 本地環境差異說明</h2>
+<p>本地 SQLite (<code>iot.db</code>) 使用略有差異的欄位命名（歷史遺留），主要差異如下：</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Supabase 欄位</th><th>SQLite 欄位</th><th>差異說明</th></tr></thead>
+  <tbody>
+    <tr><td><code>station_id</code></td><td><code>id</code></td><td>主鍵名稱不同</td></tr>
+    <tr><td><code>device_name</code></td><td><code>name</code></td><td>欄位別名不同</td></tr>
+    <tr><td><code>observations_5m</code></td><td><code>observations</code></td><td>資料表名稱不同</td></tr>
+    <tr><td><code>bucket_time</code></td><td><code>time</code></td><td>時間欄位名稱不同</td></tr>
+  </tbody>
+</table>
+</div>
+<p>API 層程式碼已透過條件判斷處理兩套命名差異，對前端透明。</p>
+
+<footer>© 2026 微感監測中心 | 04_DB_Schema文件 | 作者：PST-Tim</footer>
+</div>
+<script>mermaid.initialize({theme:'dark',themeVariables:{primaryColor:'#f97316',primaryTextColor:'#f1f5f9',lineColor:'#334155',secondaryColor:'#1e293b',tertiaryColor:'#0f172a'}});</script>
+</body>
+</html>
