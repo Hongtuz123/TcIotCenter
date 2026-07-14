@@ -56,7 +56,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
   // 風粒子動畫與風向向量快取 Ref
   const windAnimRef = useRef<number | null>(null);
-  const windVectorsRef = useRef<{ id: string; lon: number; lat: number; dLon: number; dLat: number; hashOffset: number }[]>([]);
+  const windVectorsRef = useRef<{ id: string; lon: number; lat: number; dLon: number; dLat: number; hashOffset: number; ws: number }[]>([]);
 
   // 用於驅動超標圓圈的外環動畫（WebGL 雷達脈衝環）
   const [pulseRadius, setPulseRadius] = useState(6);
@@ -379,61 +379,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     };
 
     const setupWindLayers = () => {
-      if (!map.getSource('wind-source')) {
-        map.addSource('wind-source', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: []
-          }
-        });
-
-        // 1. 風場虛線軌跡圖層（加寬增亮，表現更明顯的擴散線條）
-        map.addLayer({
-          id: 'sensors-wind-lines',
-          type: 'line',
-          source: 'wind-source',
-          paint: {
-            'line-color': '#22d3ee',
-            'line-width': 2.5,
-            'line-opacity': 0.8,
-            'line-dasharray': [3, 2]
-          },
-          layout: {
-            visibility: showWindArrows ? 'visible' : 'none'
-          }
-        });
-      }
-
-      // 2. 新增動態風粒子流動資料源與圖層 (circle 形式的高亮流動飛舞點)
-      if (!map.getSource('wind-particles-source')) {
-        map.addSource('wind-particles-source', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: []
-          }
-        });
-
-        map.addLayer({
-          id: 'sensors-wind-particles',
-          type: 'circle',
-          source: 'wind-particles-source',
-          paint: {
-            'circle-radius': 2.8,
-            'circle-color': '#fbbf24', // 亮黃色粒子，在深色/青色軌跡線上有極佳的高科技流光反差
-            'circle-opacity': 0.95,
-            'circle-stroke-width': 2.0,
-            'circle-stroke-color': '#fbbf24',
-            'circle-stroke-opacity': 0.45
-          },
-          layout: {
-            visibility: showWindArrows ? 'visible' : 'none'
-          }
-        });
-      }
-
-      // 3. 新增 Windy 全球風場式 Canvas 柵格渲染圖層
+      // 新增 Windy 全球風場式 Canvas 柵格渲染圖層
       if (!map.getSource('wind-canvas-source')) {
         map.addSource('wind-canvas-source', {
           type: 'canvas',
@@ -670,16 +616,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     });
   }, [points, isLoaded, selectedMetric, selectedSensorId, pm25Threshold]);
 
-  // 3.1 更新風向向量快取與風軌跡線資料源 (wind-source)
+  // 3.1 更新風向向量快取 (供 Windy 全域插值粒子使用)
   useEffect(() => {
-    if (!mapRef.current || !isLoaded) return;
-    const map = mapRef.current;
-    const lineSource = map.getSource('wind-source') as mapboxgl.GeoJSONSource;
-    if (!lineSource) return;
+    if (!isLoaded) return;
 
     if (!showWindArrows || !points || points.length === 0) {
       windVectorsRef.current = [];
-      lineSource.setData({ type: 'FeatureCollection', features: [] });
       return;
     }
 
@@ -710,14 +652,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       const lon = p.lon;
       const lat = p.lat;
 
-      // 為了讓風向流動的視覺感極其震撼，我們將流線比例長度加長 2.5 倍！
-      // 1 m/s 對應約 0.00045 經緯度偏移度
       const rad = ((wd + 180) * Math.PI) / 180;
       const scale = 0.00045 * ws;
       const endLon = lon + Math.sin(rad) * scale;
       const endLat = lat + Math.cos(rad) * scale;
 
-      // 為每個測站根據 ID 雜湊產生獨立的初始進度偏移 [0, 1]，交錯粒子發射時間
       let hashVal = 0;
       const idStr = String(p.id || '');
       for (let i = 0; i < idStr.length; i++) {
@@ -725,83 +664,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
       const hashOffset = (hashVal % 100) / 100;
 
-      return { id: p.id, lon, lat, dLon: endLon - lon, dLat: endLat - lat, hashOffset };
-    });
-
-    const lineFeatures = windVectorsRef.current.map(v => ({
-      type: 'Feature' as const,
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: [[v.lon, v.lat], [v.lon + v.dLon, v.lat + v.dLat]]
-      },
-      properties: { id: v.id }
-    }));
-
-    lineSource.setData({
-      type: 'FeatureCollection',
-      features: lineFeatures
+      return { id: p.id, lon, lat, dLon: endLon - lon, dLat: endLat - lat, hashOffset, ws };
     });
   }, [points, isLoaded, showWindArrows]);
-
-  // 3.1.2 透過 requestAnimationFrame 啟動風粒子流動動畫
-  useEffect(() => {
-    if (!mapRef.current || !isLoaded) return;
-    const map = mapRef.current;
-
-    if (windAnimRef.current) {
-      cancelAnimationFrame(windAnimRef.current);
-      windAnimRef.current = null;
-    }
-
-    if (!showWindArrows) {
-      const particleSource = map.getSource('wind-particles-source') as mapboxgl.GeoJSONSource;
-      if (particleSource) {
-        particleSource.setData({ type: 'FeatureCollection', features: [] });
-      }
-      return;
-    }
-
-    const animate = () => {
-      if (!mapRef.current) return;
-      const particleSource = map.getSource('wind-particles-source') as mapboxgl.GeoJSONSource;
-      
-      if (particleSource && windVectorsRef.current.length > 0) {
-        // 每 1.2 秒粒子發射循環一次
-        const progressTime = Date.now() / 1200;
-        
-        const particleFeatures = windVectorsRef.current.map(v => {
-          const progress = (progressTime + v.hashOffset) % 1.0;
-          const pLon = v.lon + v.dLon * progress;
-          const pLat = v.lat + v.dLat * progress;
-          
-          return {
-            type: 'Feature' as const,
-            geometry: {
-              type: 'Point' as const,
-              coordinates: [pLon, pLat]
-            },
-            properties: { id: v.id }
-          };
-        });
-
-        particleSource.setData({
-          type: 'FeatureCollection',
-          features: particleFeatures
-        });
-      }
-      
-      windAnimRef.current = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      if (windAnimRef.current) {
-        cancelAnimationFrame(windAnimRef.current);
-        windAnimRef.current = null;
-      }
-    };
-  }, [showWindArrows, isLoaded]);
 
   // 3.1.3 Windy 全景柵格動態風場動畫 (Canvas IDW 插值)
   useEffect(() => {
@@ -849,14 +714,15 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const lonWidth = maxLon - minLon;
     const latHeight = maxLat - minLat;
 
-    // 反距離加權插值 (IDW) 取得特定位置風速向量
+    // 反距離加權插值 (IDW) 取得特定位置風速與風速向量
     const getWindAt = (lon: number, lat: number) => {
       const vectors = windVectorsRef.current;
-      if (vectors.length === 0) return { dLon: 0, dLat: 0 };
+      if (vectors.length === 0) return { dLon: 0, dLat: 0, ws: 0 };
 
       let sumW = 0;
       let sumLon = 0;
       let sumLat = 0;
+      let sumWs = 0;
 
       for (let i = 0; i < vectors.length; i++) {
         const v = vectors[i];
@@ -869,11 +735,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         sumW += w;
         sumLon += v.dLon * w;
         sumLat += v.dLat * w;
+        sumWs += v.ws * w;
       }
 
       return {
         dLon: sumLon / sumW,
-        dLat: sumLat / sumW
+        dLat: sumLat / sumW,
+        ws: sumWs / sumW
       };
     };
 
@@ -888,8 +756,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.globalCompositeOperation = 'source-over';
 
-      // 設置粒子樣式（亮青色細線條，尾跡淡出後整體感很強）
-      ctx.strokeStyle = 'rgba(34, 211, 238, 0.65)';
+      // 設置粒子基本線寬
       ctx.lineWidth = 1.2;
 
       for (let i = 0; i < particles.length; i++) {
@@ -900,6 +767,20 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const lat = maxLat - (p.y / canvas.height) * latHeight;
 
         const wind = getWindAt(lon, lat);
+
+        // 根據插值得到的風速動態決定粒子流動顏色，與圖例 scale bar 一致
+        let strokeColor = 'rgba(34, 211, 238, 0.7)'; // <= 2.0: 青色
+        if (wind.ws > 12.0) {
+          strokeColor = 'rgba(236, 72, 153, 0.85)'; // > 12.0: 品紅
+        } else if (wind.ws > 8.0) {
+          strokeColor = 'rgba(249, 115, 22, 0.8)';  // 8.0 ~ 12.0: 橘色
+        } else if (wind.ws > 5.0) {
+          strokeColor = 'rgba(251, 191, 36, 0.75)'; // 5.0 ~ 8.0: 黃色
+        } else if (wind.ws > 2.0) {
+          strokeColor = 'rgba(52, 211, 153, 0.75)'; // 2.0 ~ 5.0: 綠色
+        }
+        
+        ctx.strokeStyle = strokeColor;
 
         // 將經緯度位移轉回像素位移 (放大係數 20)
         const dx = (wind.dLon / lonWidth) * canvas.width * 20 * p.speed;
@@ -951,19 +832,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     };
   }, [showWindArrows, isLoaded]);
 
-  // 3.2 同步控制風場虛線、粒子與 Canvas 柵格圖層可見度 + 貼心相機傾斜引導
+  // 3.2 同步控制風場 Canvas 柵格圖層可見度 + 貼心相機傾斜引導
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
     const visibility = showWindArrows ? 'visible' : 'none';
 
     try {
-      if (map.getLayer('sensors-wind-lines')) {
-        map.setLayoutProperty('sensors-wind-lines', 'visibility', visibility);
-      }
-      if (map.getLayer('sensors-wind-particles')) {
-        map.setLayoutProperty('sensors-wind-particles', 'visibility', visibility);
-      }
       if (map.getLayer('sensors-wind-canvas-layer')) {
         map.setLayoutProperty('sensors-wind-canvas-layer', 'visibility', visibility);
       }
@@ -1678,7 +1553,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const actualMaxStr = validVals.length > 0 ? `${actualMax.toFixed(1)} ${unit}` : 'N/A';
 
     return (
-      <div className="absolute bottom-4 right-4 glass-card rounded-xl p-3 z-10 shadow-lg text-xs flex flex-col gap-2 min-w-[240px] max-w-[280px] border border-slate-800 bg-slate-950/80 backdrop-blur-md">
+      <div className="glass-card rounded-xl p-3 shadow-lg text-xs flex flex-col gap-2 min-w-[240px] max-w-[280px] border border-slate-800 bg-slate-950/80 backdrop-blur-md">
         <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-0.5">
           <h5 className="font-bold text-slate-200">{title}</h5>
           <span className="text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded-full font-semibold">
@@ -1711,6 +1586,50 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             <span className="text-slate-500">當前實測最大值:</span>
             <span className="font-bold text-red-400">{actualMaxStr}</span>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderWindScaleBar = () => {
+    const windGradientStyle = 'linear-gradient(to right, rgba(34, 211, 238, 0.7), rgba(52, 211, 153, 0.7), rgba(251, 191, 36, 0.7), rgba(249, 115, 22, 0.7), rgba(236, 72, 153, 0.8))';
+    const steps = [
+      { label: '0' },
+      { label: '2' },
+      { label: '5' },
+      { label: '8' },
+      { label: '12+' }
+    ];
+
+    return (
+      <div className="glass-card rounded-xl p-3 shadow-lg text-xs flex flex-col gap-2 min-w-[240px] max-w-[280px] border border-slate-800 bg-slate-950/80 backdrop-blur-md">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-0.5">
+          <h5 className="font-bold text-slate-200">風速 Scale bar</h5>
+          <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1.5 py-0.5 rounded-full font-semibold">
+            m/s
+          </span>
+        </div>
+        
+        {/* 顏色漸層條 */}
+        <div className="relative my-0.5">
+          <div 
+            className="w-full h-3 rounded-full shadow-inner border border-slate-800/80" 
+            style={{ background: windGradientStyle }}
+          />
+        </div>
+
+        {/* 顏色對應的測值切點 */}
+        <div className="flex justify-between text-[9px] text-slate-400 font-bold px-0.5 mb-0.5">
+          {steps.map((step, idx) => (
+            <span key={idx}>{step.label}</span>
+          ))}
+        </div>
+
+        {/* 風速說明 */}
+        <div className="bg-slate-900/60 rounded-lg p-2 text-[10px] text-slate-500 flex justify-between leading-tight border border-slate-800/50">
+          <span>青藍：微風 (0~2)</span>
+          <span>綠黃：和風 (2~5)</span>
+          <span>黃橘：清風/強風</span>
         </div>
       </div>
     );
@@ -1897,7 +1816,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         </div>
       )}
 
-      {renderScaleBar()}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2.5 z-10 items-end">
+        {/* 指標熱區圖例 */}
+        {renderScaleBar()}
+        
+        {/* Windy 風速風向圖例 */}
+        {showWindArrows && renderWindScaleBar()}
+      </div>
     </div>
   );
 };
