@@ -41,6 +41,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [showIndustrialZones, setShowIndustrialZones] = useState(true);
   const [showSensors, setShowSensors] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [show3DBuildings, setShow3DBuildings] = useState(false);
+  const [show3DTerrain, setShow3DTerrain] = useState(false);
+  const [show3DSky, setShow3DSky] = useState(false);
   const [showLayerMenu, setShowLayerMenu] = useState(false);
   const [showBaseMapMenu, setShowBaseMapMenu] = useState(false);
   const [styleVersion, setStyleVersion] = useState(0);
@@ -295,6 +298,59 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
     };
 
+    const setup3DFeatures = () => {
+      // 1. 註冊 DEM 地形資料源
+      if (!map.getSource('mapbox-dem')) {
+        map.addSource('mapbox-dem', {
+          type: 'raster-dem',
+          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          tileSize: 512,
+          maxzoom: 14
+        });
+      }
+
+      // 2. 註冊 3D 建築拉伸圖層 (複合底圖自帶)
+      if (!map.getLayer('3d-buildings')) {
+        const layers = map.getStyle().layers;
+        const labelLayerId = layers?.find(
+          (layer) => layer.type === 'symbol' && layer.layout?.['text-field']
+        )?.id;
+
+        map.addLayer(
+          {
+            id: '3d-buildings',
+            source: 'composite',
+            'source-layer': 'building',
+            filter: ['==', 'extrude', 'true'],
+            type: 'fill-extrusion',
+            minzoom: 15,
+            paint: {
+              'fill-extrusion-color': '#2a3b5c',
+              'fill-extrusion-height': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                15, 0,
+                15.05, ['get', 'height']
+              ],
+              'fill-extrusion-base': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                15, 0,
+                15.05, ['get', 'min_height']
+              ],
+              'fill-extrusion-opacity': 0.6
+            },
+            layout: {
+              visibility: show3DBuildings ? 'visible' : 'none'
+            }
+          },
+          labelLayerId
+        );
+      }
+    };
+
     map.on('load', () => {
       mapRef.current = map;
       (window as any).mapboxMap = map;
@@ -302,6 +358,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       console.log('Mapbox load event triggered.');
       setupIndustrialZones();
       setupSensorsLayers();
+      setup3DFeatures();
 
       // 初始化全域唯一的 Popup 實例
       globalPopupRef.current = new mapboxgl.Popup({
@@ -331,6 +388,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       setStyleVersion((v) => v + 1);
       setupIndustrialZones();
       setupSensorsLayers();
+      setup3DFeatures();
     });
 
     return () => {
@@ -360,6 +418,55 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       mapRef.current.setLayoutProperty('industrial-zones-line', 'visibility', visibility);
     }
   }, [showIndustrialZones, isLoaded]);
+
+  // 2.6 同步控制 3D 建築拉伸圖層可見度
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const visibility = show3DBuildings ? 'visible' : 'none';
+    if (mapRef.current.getLayer('3d-buildings')) {
+      mapRef.current.setLayoutProperty('3d-buildings', 'visibility', visibility);
+    }
+  }, [show3DBuildings, isLoaded]);
+
+  // 2.7 同步控制 3D 立體地形圖層可見度
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+    try {
+      if (show3DTerrain) {
+        console.log('Enabling 3D terrain exaggeration 1.5');
+        map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
+      } else {
+        console.log('Disabling 3D terrain');
+        map.setTerrain(null);
+      }
+    } catch (err) {
+      console.error('Error toggling terrain:', err);
+    }
+  }, [show3DTerrain, isLoaded]);
+
+  // 2.8 同步控制 3D 天空與大氣層特效
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+    try {
+      if (show3DSky) {
+        console.log('Enabling sky atmosphere/fog effect');
+        map.setFog({
+          color: '#080c14',
+          'high-color': '#101726',
+          'horizon-blend': 0.15,
+          'space-color': '#010409',
+          'star-intensity': 0.6
+        });
+      } else {
+        console.log('Disabling sky/fog effect');
+        map.setFog(null);
+      }
+    } catch (err) {
+      console.error('Error toggling fog:', err);
+    }
+  }, [show3DSky, isLoaded]);
 
   // 3. 更新 WebGL Sensor 資料源與當前選中/超標狀態
   useEffect(() => {
@@ -1253,6 +1360,42 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                   className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
                 />
                 微感熱區
+              </label>
+
+              <div className="h-px bg-slate-800/60 w-full" />
+
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer select-none text-[11px] hover:text-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={show3DBuildings}
+                  onChange={(e) => setShow3DBuildings(e.target.checked)}
+                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+                />
+                3D 建築拉伸
+              </label>
+
+              <div className="h-px bg-slate-800/60 w-full" />
+
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer select-none text-[11px] hover:text-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={show3DTerrain}
+                  onChange={(e) => setShow3DTerrain(e.target.checked)}
+                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+                />
+                3D 立體地形
+              </label>
+
+              <div className="h-px bg-slate-800/60 w-full" />
+
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer select-none text-[11px] hover:text-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={show3DSky}
+                  onChange={(e) => setShow3DSky(e.target.checked)}
+                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+                />
+                3D 天空大氣
               </label>
             </div>
           )}
