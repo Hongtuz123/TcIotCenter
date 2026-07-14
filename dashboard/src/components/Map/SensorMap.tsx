@@ -629,24 +629,49 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       let ws = p.windSpeed ?? p.wind_speed ?? null;
       let wd = p.windDirection ?? p.wind_direction ?? null;
       
-      // 前端動態模擬 Fallback 算法：即使雲端資料庫尚未新增風向風速欄位，勾選也能立刻展示 3D 效果
+      // 前端動態模擬 Fallback 算法：基於地理位置分區模擬真實風場差異
       if (ws === null || wd === null || isNaN(ws) || isNaN(wd)) {
         const hour = new Date().getHours();
-        let baseWd = 220; // 白天偏西南風 (海風)
-        if (hour < 8 || hour > 18) {
-          baseWd = 45; // 夜間偏東北風 (陸風)
+        const lon = p.lon ?? 120.65;
+        const lat = p.lat ?? 24.15;
+
+        // ── 依地理分區決定主風向 ──────────────────────────────────────────
+        // 海線 (lon < 120.55)：白天海風 (約 250° 偏西)，夜間陸風 (約 60° 偏東)
+        // 盆地平原 (120.55~120.75)：白天西南季風主導，夜間山谷下坡風
+        // 山區 (lon > 120.75)：白天上坡谷風 (偏西北 290°)，夜間下坡風 (偏東南 110°)
+        let baseWd: number;
+        let baseWs: number;
+
+        const isCoastal = lon < 120.55;
+        const isMountain = lon > 120.75;
+        const isDay = hour >= 7 && hour <= 18;
+
+        if (isCoastal) {
+          baseWd = isDay ? 250 : 65;      // 海線：白天偏西，夜間偏東
+          baseWs = isDay ? 6.5 : 4.2;    // 海線風速較高
+        } else if (isMountain) {
+          baseWd = isDay ? 290 : 110;     // 山區：白天上坡風 NW，夜間下坡風 SE
+          baseWs = isDay ? 3.8 : 2.5;    // 山區受地形遮蔽，風速中等
+        } else {
+          // 盆地：白天西南季風，夜間東北陸風
+          baseWd = isDay ? 220 : 45;
+          baseWs = isDay ? 5.0 : 3.5;
         }
 
+        // 加入緯度修正：南部測站（台中港附近）偏南，北部（豐原、后里）偏北
+        const latFactor = (lat - 24.15) * 15; // 緯度偏差修正 (±15°)
+        baseWd = (baseWd + latFactor + 360) % 360;
+
+        // 加入站點 hash 擾動，避免看起來完全整齊
         let hash = 0;
         const idStr = String(p.id || '');
         for (let i = 0; i < idStr.length; i++) {
           hash += idStr.charCodeAt(i);
         }
-        const offset = (hash % 31) - 15; // -15 ~ 15 度偏差
-        wd = (baseWd + offset + 360) % 360;
-
-        const speedOffset = (hash % 21) / 10 - 1.0; // -1.0 ~ 1.0 m/s 偏差
-        ws = 2.2 + speedOffset; // 1.2 ~ 3.2 m/s
+        const dirNoise = (hash % 41) - 20;  // ±20° 亂數擾動
+        const spdNoise = ((hash % 31) - 15) / 10; // ±1.5 m/s 擾動
+        wd = (baseWd + dirNoise + 360) % 360;
+        ws = Math.max(1.5, baseWs + spdNoise);
       }
 
       const lon = p.lon;
