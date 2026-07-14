@@ -34,7 +34,7 @@ async function fetchLatestObs(oneHourAgo: string) {
   while (true) {
     const { data, error } = await supabase
       .from('observations_5m')
-      .select('station_id,bucket_time,pm2_5,temperature,humidity,is_anomaly,anomaly_type')
+      .select('station_id,bucket_time,pm2_5,temperature,humidity,wind_speed,wind_direction,is_anomaly,anomaly_type')
       .gte('bucket_time', oneHourAgo)
       .order('bucket_time', { ascending: false })
       .range(from, from + PAGE - 1);
@@ -73,6 +73,8 @@ export async function GET() {
         pm2_5: latestObs[s.station_id]?.pm2_5 ?? null,
         temperature: latestObs[s.station_id]?.temperature ?? null,
         humidity: latestObs[s.station_id]?.humidity ?? null,
+        windSpeed: latestObs[s.station_id]?.wind_speed ?? null,
+        windDirection: latestObs[s.station_id]?.wind_direction ?? null,
         isAnomaly: latestObs[s.station_id]?.is_anomaly ?? false,
         anomalyType: latestObs[s.station_id]?.anomaly_type ?? '',
         lastUpdate: latestObs[s.station_id]?.bucket_time ?? null,

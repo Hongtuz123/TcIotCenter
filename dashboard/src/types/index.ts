@@ -14,6 +14,8 @@ export interface Observation {
   temperature: number | null;
   humidity: number | null;
   voc: number | null;
+  windSpeed?: number | null;
+  windDirection?: number | null;
 
   prev_temperature?: number;
   tempDiff?: number;

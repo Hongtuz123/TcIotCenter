@@ -44,6 +44,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const [show3DBuildings, setShow3DBuildings] = useState(false);
   const [show3DTerrain, setShow3DTerrain] = useState(false);
   const [show3DSky, setShow3DSky] = useState(false);
+  const [showWindArrows, setShowWindArrows] = useState(false);
   const [showLayerMenu, setShowLayerMenu] = useState(false);
   const [showBaseMapMenu, setShowBaseMapMenu] = useState(false);
   const [styleVersion, setStyleVersion] = useState(0);
@@ -373,6 +374,49 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
     };
 
+    const setupWindLayers = () => {
+      if (!map.getSource('wind-source')) {
+        map.addSource('wind-source', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: []
+          }
+        });
+
+        // 1. 風場虛線圖層
+        map.addLayer({
+          id: 'sensors-wind-lines',
+          type: 'line',
+          source: 'wind-source',
+          paint: {
+            'line-color': '#06b6d4',
+            'line-width': 1.5,
+            'line-opacity': 0.65,
+            'line-dasharray': [4, 2]
+          },
+          layout: {
+            visibility: showWindArrows ? 'visible' : 'none'
+          }
+        });
+
+        // 2. 風向流線末端圓點粒子
+        map.addLayer({
+          id: 'sensors-wind-dots',
+          type: 'circle',
+          source: 'wind-source',
+          paint: {
+            'circle-radius': 1.8,
+            'circle-color': '#22d3ee',
+            'circle-opacity': 0.8
+          },
+          layout: {
+            visibility: showWindArrows ? 'visible' : 'none'
+          }
+        });
+      }
+    };
+
     map.on('load', () => {
       mapRef.current = map;
       (window as any).mapboxMap = map;
@@ -381,6 +425,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       setupIndustrialZones();
       setupSensorsLayers();
       setup3DFeatures();
+      setupWindLayers();
 
       // 初始化全域唯一的 Popup 實例
       globalPopupRef.current = new mapboxgl.Popup({
@@ -411,6 +456,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       setupIndustrialZones();
       setupSensorsLayers();
       setup3DFeatures();
+      setupWindLayers();
     });
 
     return () => {
@@ -579,6 +625,88 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     });
   }, [points, isLoaded, selectedMetric, selectedSensorId, pm25Threshold]);
 
+  // 3.1 更新風向虛擬流線資料源 (wind-source)
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+    const source = map.getSource('wind-source') as mapboxgl.GeoJSONSource;
+    if (!source) return;
+
+    if (!showWindArrows || !points || points.length === 0) {
+      source.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    const windFeatures = points
+      .map((p: any) => {
+        const ws = p.windSpeed ?? p.wind_speed ?? null;
+        const wd = p.windDirection ?? p.wind_direction ?? null;
+        if (ws === null || wd === null || isNaN(ws) || isNaN(wd)) return null;
+
+        const lon = p.lon;
+        const lat = p.lat;
+
+        // 計算風向下游的偏移向量 (風吹向的方向)
+        // 角度為風向角 (從哪裡吹來)，所以風向指向 = 風向角 + 180 度 (風吹去的方向)
+        const rad = ((wd + 180) * Math.PI) / 180;
+        
+        // 為了讓 3D 地圖上看起來有適當的比例，我們把風速換算為經緯度距離偏移
+        // 風速 1 m/s 對應約 0.00018 經緯度偏移度
+        const scale = 0.00018 * ws;
+        const endLon = lon + Math.sin(rad) * scale;
+        const endLat = lat + Math.cos(rad) * scale;
+
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [[lon, lat], [endLon, endLat]]
+          },
+          properties: {
+            id: p.id,
+            windSpeed: ws,
+            windDirection: wd
+          }
+        };
+      })
+      .filter(Boolean) as any[];
+
+    source.setData({
+      type: 'FeatureCollection',
+      features: windFeatures
+    });
+  }, [points, isLoaded, showWindArrows]);
+
+  // 3.2 同步控制風場虛線與粒子圖層可見度 + 貼心相機傾斜引導
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+    const visibility = showWindArrows ? 'visible' : 'none';
+
+    try {
+      if (map.getLayer('sensors-wind-lines')) {
+        map.setLayoutProperty('sensors-wind-lines', 'visibility', visibility);
+      }
+      if (map.getLayer('sensors-wind-dots')) {
+        map.setLayoutProperty('sensors-wind-dots', 'visibility', visibility);
+      }
+
+      // 貼心引導：如果開啟且傾斜度不夠，平滑傾斜以顯現風向線的 3D 流動感
+      if (showWindArrows) {
+        if (map.getPitch() < 45) {
+          console.log('3D Wind field enabled: Tilting camera to show flow lines');
+          map.flyTo({
+            pitch: 60,
+            duration: 1500,
+            essential: true
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling wind layers:', err);
+    }
+  }, [showWindArrows, isLoaded]);
+
   // 3.0.1 控制 WebGL 測站圖層可見度
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
@@ -719,6 +847,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const pm25Str = point.pm2_5 !== null && point.pm2_5 !== undefined ? `${point.pm2_5} ug/m³` : 'N/A';
         const tempStr = point.temperature !== null && point.temperature !== undefined ? `${point.temperature} °C` : 'N/A';
         const humStr = point.humidity !== null && point.humidity !== undefined ? `${point.humidity} %` : 'N/A';
+        
+        const ws = (point as any).windSpeed ?? (point as any).wind_speed ?? null;
+        const wd = (point as any).windDirection ?? (point as any).wind_direction ?? null;
+        const wsStr = ws !== null && ws !== undefined ? `${ws} m/s` : 'N/A';
+        const wdStr = wd !== null && wd !== undefined ? `${wd}°` : 'N/A';
 
         const popupHtml = `
           <div class="font-sans min-w-[200px]">
@@ -740,6 +873,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               
               <span style="color:#64748b;font-weight:600;">濕度:</span>
               <span style="font-weight:700;color:${humColor};">${humStr}</span>
+
+              <span style="color:#64748b;font-weight:600;">風速:</span>
+              <span style="font-weight:700;color:#22d3ee;">${wsStr}</span>
+
+              <span style="color:#64748b;font-weight:600;">風向:</span>
+              <span style="font-weight:700;color:#22d3ee;">${wdStr}</span>
             </div>
             \${point.anomalyType ? \`<p style="margin-top:8px;font-size:11px;font-weight:700;color:#f87171;background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:6px;text-align:center;border:1px solid rgba(239,68,68,0.2);">🚨 警告：\${point.anomalyType}</p>\` : ''}
           </div>
@@ -1461,6 +1600,18 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                   className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
                 />
                 3D 天空大氣
+              </label>
+
+              <div className="h-px bg-slate-800/60 w-full" />
+
+              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer select-none text-[11px] hover:text-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showWindArrows}
+                  onChange={(e) => setShowWindArrows(e.target.checked)}
+                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+                />
+                3D 風向流線
               </label>
             </div>
           )}

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     if (supabase) {
       let query = supabase
         .from('observations_5m')
-        .select('station_id, bucket_time, pm2_5, temperature, humidity, is_anomaly, anomaly_type')
+        .select('station_id, bucket_time, pm2_5, temperature, humidity, wind_speed, wind_direction, is_anomaly, anomaly_type')
         .order('bucket_time', { ascending: true })
         .limit(limit);
 
@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
         pm2_5: row.pm2_5,
         temperature: row.temperature,
         humidity: row.humidity,
+        windSpeed: row.wind_speed,
+        windDirection: row.wind_direction,
         voc: null, // STA API 目前無 VOC
         isAnomaly: row.is_anomaly,
         anomalyType: row.anomaly_type,
