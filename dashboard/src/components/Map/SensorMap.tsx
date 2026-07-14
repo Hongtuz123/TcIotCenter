@@ -345,22 +345,22 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             type: 'fill-extrusion',
             minzoom: 15,
             paint: {
-              'fill-extrusion-color': '#2a3b5c',
+              'fill-extrusion-color': '#33486c', // 稍加調亮，讓建物與地表對比更強烈
               'fill-extrusion-height': [
                 'interpolate',
                 ['linear'],
                 ['zoom'],
                 15, 0,
-                15.05, ['get', 'height']
+                15.05, ['*', ['coalesce', ['get', 'height'], 15], 2.0] // fallback 15米並乘以 2.0倍拉伸
               ],
               'fill-extrusion-base': [
                 'interpolate',
                 ['linear'],
                 ['zoom'],
                 15, 0,
-                15.05, ['get', 'min_height']
+                15.05, ['*', ['coalesce', ['get', 'min_height'], 0], 2.0]
               ],
-              'fill-extrusion-opacity': 0.6
+              'fill-extrusion-opacity': 0.75
             },
             layout: {
               visibility: show3DBuildings ? 'visible' : 'none'
