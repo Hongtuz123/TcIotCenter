@@ -725,7 +725,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        age: Math.floor(Math.random() * 240),
+        age: Math.floor(Math.random() * 800),
         speed: 0.5 + Math.random() * 1.5
       });
     }
@@ -807,9 +807,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         
         ctx.strokeStyle = strokeColor;
 
-        // 將經緯度位移轉回像素位移 (速度調為 0.3 倍以維持優雅緩慢)
-        const dx = (wind.dLon / lonWidth) * canvas.width * 6 * p.speed;
-        const dy = (wind.dLat / latHeight) * canvas.height * 6 * p.speed;
+        // 將經緯度位移轉回像素位移 (速度調為 0.25 倍以維持極緩流動感)
+        const dx = (wind.dLon / lonWidth) * canvas.width * 1.5 * p.speed;
+        const dy = (wind.dLat / latHeight) * canvas.height * 1.5 * p.speed;
 
         const nextX = p.x + dx;
         const nextY = p.y - dy;
@@ -830,7 +830,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           p.x > canvas.width ||
           p.y < 0 ||
           p.y > canvas.height ||
-          p.age > 240
+          p.age > 800
         ) {
           p.x = Math.random() * canvas.width;
           p.y = Math.random() * canvas.height;
