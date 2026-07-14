@@ -351,14 +351,14 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 ['linear'],
                 ['zoom'],
                 15, 0,
-                15.05, ['*', ['coalesce', ['get', 'height'], 15], 2.0] // fallback 15米並乘以 2.0倍拉伸
+                15.05, ['*', ['coalesce', ['get', 'height'], 15], 3.0] // fallback 15米並乘以 3.0倍拉伸
               ],
               'fill-extrusion-base': [
                 'interpolate',
                 ['linear'],
                 ['zoom'],
                 15, 0,
-                15.05, ['*', ['coalesce', ['get', 'min_height'], 0], 2.0]
+                15.05, ['*', ['coalesce', ['get', 'min_height'], 0], 3.0]
               ],
               'fill-extrusion-opacity': 0.75
             },
