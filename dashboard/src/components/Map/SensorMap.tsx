@@ -17,6 +17,9 @@ interface SensorMapProps {
   selectedMetric: 'pm2_5' | 'temperature' | 'humidity';
   activeEvent?: Event | null;
   pm25Threshold?: number;
+  /** 正在模擬的污染擴散事件（與風場流線互斥）*/
+  dispersionEvent?: Event | null;
+  onClearDispersion?: () => void;
 }
 
 export const SensorMap: React.FC<SensorMapProps> = ({
@@ -30,7 +33,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   regionCenters,
   selectedMetric,
   activeEvent,
-  pm25Threshold
+  pm25Threshold,
+  dispersionEvent,
+  onClearDispersion
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -57,6 +62,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   // 風粒子動畫與風向向量快取 Ref
   const windAnimRef = useRef<number | null>(null);
   const windVectorsRef = useRef<{ id: string; lon: number; lat: number; dLon: number; dLat: number; hashOffset: number; ws: number }[]>([]);
+
+  // 污染擴散模擬相關
+  const [simTimeH, setSimTimeH] = useState(0); // 目前模擬時間 (0~4 小時)
+  const simAnimRef = useRef<number | null>(null);
+  const simPhaseRef = useRef<'animating' | 'holding'>('animating');
+  const simStartTimeRef = useRef<number | null>(null);
+  const simHoldStartRef = useRef<number | null>(null);
 
   // 用於驅動超標圓圈的外環動畫（WebGL 雷達脈衝環）
   const [pulseRadius, setPulseRadius] = useState(6);
@@ -408,6 +420,33 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
     };
 
+    const setupDispersionLayer = () => {
+      // 新增污染擴散模擬 Canvas 圖層
+      if (!map.getSource('dispersion-canvas-source')) {
+        map.addSource('dispersion-canvas-source', {
+          type: 'canvas',
+          canvas: 'dispersion-canvas',
+          animate: true,
+          coordinates: [
+            [120.30, 24.45],
+            [120.98, 24.45],
+            [120.98, 23.85],
+            [120.30, 23.85]
+          ]
+        });
+        map.addLayer({
+          id: 'dispersion-canvas-layer',
+          type: 'raster',
+          source: 'dispersion-canvas-source',
+          paint: {
+            'raster-opacity': 0.9,
+            'raster-fade-duration': 0
+          },
+          layout: { visibility: 'none' }
+        });
+      }
+    };
+
     map.on('load', () => {
       mapRef.current = map;
       (window as any).mapboxMap = map;
@@ -417,6 +456,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       setupSensorsLayers();
       setup3DFeatures();
       setupWindLayers();
+      setupDispersionLayer();
 
       // 初始化全域唯一的 Popup 實例
       globalPopupRef.current = new mapboxgl.Popup({
@@ -448,6 +488,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       setupSensorsLayers();
       setup3DFeatures();
       setupWindLayers();
+      setupDispersionLayer();
     });
 
     return () => {
@@ -856,6 +897,184 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
     };
   }, [showWindArrows, isLoaded]);
+
+  // 3.3 \u6c61\u67d3\u64f4\u6563\u6a21\u64ec\uff1aGaussian Puff \u52d5\u756b\u5f15\u64ce
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+
+    if (simAnimRef.current) {
+      cancelAnimationFrame(simAnimRef.current);
+      simAnimRef.current = null;
+    }
+
+    if (!dispersionEvent) {
+      const dispCanvas = document.getElementById('dispersion-canvas') as HTMLCanvasElement | null;
+      if (dispCanvas) {
+        dispCanvas.getContext('2d')?.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
+      }
+      try { map.getLayer('dispersion-canvas-layer') && map.setLayoutProperty('dispersion-canvas-layer', 'visibility', 'none'); } catch {}
+      setSimTimeH(0);
+      simStartTimeRef.current = null;
+      simPhaseRef.current = 'animating';
+      return;
+    }
+
+    setShowWindArrows(false);
+    try { map.getLayer('dispersion-canvas-layer') && map.setLayoutProperty('dispersion-canvas-layer', 'visibility', 'visible'); } catch {}
+
+    const dispCanvas = document.getElementById('dispersion-canvas') as HTMLCanvasElement | null;
+    if (!dispCanvas) return;
+    const dCtx = dispCanvas.getContext('2d');
+    if (!dCtx) return;
+
+    const srcSensor = dispersionEvent.sensors?.[0];
+    if (!srcSensor) return;
+    const srcLon = srcSensor.lon;
+    const srcLat = srcSensor.lat;
+    const srcPm25: number = (srcSensor as any).pm2_5 ?? 50;
+
+    if (windVectorsRef.current.length === 0 && points.length > 0) {
+      windVectorsRef.current = points.map((p: any) => {
+        const lon = p.lon; const lat = p.lat;
+        const hour = new Date().getHours();
+        const isCoastal = lon < 120.55; const isMountain = lon > 120.75;
+        const isDay = hour >= 7 && hour <= 18;
+        let baseWd = isCoastal ? (isDay ? 250 : 65) : isMountain ? (isDay ? 290 : 110) : (isDay ? 220 : 45);
+        const baseWs = isCoastal ? (isDay ? 6.5 : 4.2) : isMountain ? (isDay ? 3.8 : 2.5) : (isDay ? 5.0 : 3.5);
+        baseWd = (baseWd + (lat - 24.15) * 15 + 360) % 360;
+        let hash = 0;
+        for (const c of String(p.id || '')) hash += c.charCodeAt(0);
+        const wd = (baseWd + (hash % 41) - 20 + 360) % 360;
+        const ws = Math.max(1.5, baseWs + ((hash % 31) - 15) / 10);
+        const rad = ((wd + 180) * Math.PI) / 180;
+        const scale = 0.00045 * ws;
+        return { id: p.id, lon, lat, dLon: Math.sin(rad) * scale, dLat: Math.cos(rad) * scale, hashOffset: 0, ws };
+      });
+    }
+
+    let sumW = 0, sumLon = 0, sumLat = 0, sumWs = 0;
+    for (const v of windVectorsRef.current) {
+      const dLon = srcLon - v.lon; const dLat = srcLat - v.lat;
+      const w = 1.0 / (dLon * dLon + dLat * dLat + 0.000001);
+      sumW += w; sumLon += v.dLon * w; sumLat += v.dLat * w; sumWs += v.ws * w;
+    }
+    const windDLon = sumW > 0 ? sumLon / sumW : 0.0003;
+    const windDLat = sumW > 0 ? sumLat / sumW : 0.0002;
+    const windSpeedMs = sumW > 0 ? sumWs / sumW : 4.0;
+    const windToRad = Math.atan2(windDLon, windDLat);
+
+    const MIN_LON = 120.30, MAX_LON = 120.98, MIN_LAT = 23.85, MAX_LAT = 24.45;
+    const lonWidth = MAX_LON - MIN_LON;
+    const latHeight = MAX_LAT - MIN_LAT;
+    const mPerDegLon = 111000 * Math.cos(srcLat * Math.PI / 180);
+    const mPerDegLat = 111000;
+    const mPerPxX = lonWidth * mPerDegLon / dispCanvas.width;
+    const mPerPxY = latHeight * mPerDegLat / dispCanvas.height;
+    const srcX = ((srcLon - MIN_LON) / lonWidth) * dispCanvas.width;
+    const srcY = ((MAX_LAT - srcLat) / latHeight) * dispCanvas.height;
+
+    const getColor = (opacity: number) => {
+      if (srcPm25 >= 54.4) return `rgba(239,68,68,${opacity.toFixed(3)})`;
+      if (srcPm25 >= 35.4) return `rgba(249,115,22,${opacity.toFixed(3)})`;
+      if (srcPm25 >= 15.5) return `rgba(234,179,8,${opacity.toFixed(3)})`;
+      return `rgba(52,211,153,${opacity.toFixed(3)})`;
+    };
+
+    simPhaseRef.current = 'animating';
+    simStartTimeRef.current = null;
+    simHoldStartRef.current = null;
+
+    const SIM_REAL_S = 10;
+    const SIM_HOLD_MS = 2500;
+
+    const drawFrame = (tHours: number) => {
+      dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
+      if (tHours < 0.02) return;
+      const K = 50;
+      const layerCount = Math.min(Math.floor(tHours * 2) + 1, 5);
+      for (let li = 0; li < layerCount; li++) {
+        const fraction = 1 - li / layerCount;
+        const tLayer = tHours * (fraction * 0.6 + 0.4);
+        const t_sL = tLayer * 3600;
+        const sigmaL = Math.sqrt(2 * K * t_sL);
+        const sxPx = Math.max((sigmaL * 1.4) / mPerPxX, 2);
+        const syPx = Math.max(sigmaL / mPerPxY, 2);
+        const dMX = windSpeedMs * t_sL * Math.sin(windToRad);
+        const dMY = windSpeedMs * t_sL * Math.cos(windToRad);
+        const pX = ((srcLon + dMX / mPerDegLon - MIN_LON) / lonWidth) * dispCanvas.width;
+        const pY = ((MAX_LAT - (srcLat + dMY / mPerDegLat)) / latHeight) * dispCanvas.height;
+        const opacity = Math.max(0.04, (0.52 - tHours * 0.08) * fraction);
+        const radius = Math.max(syPx * 3, 12);
+        dCtx.save();
+        dCtx.translate(pX, pY);
+        dCtx.rotate(windToRad);
+        dCtx.scale(Math.max(sxPx / Math.max(syPx, 1), 1), 1);
+        const grad = dCtx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        grad.addColorStop(0, getColor(Math.min(opacity * 1.6, 0.9)));
+        grad.addColorStop(0.35, getColor(opacity * 0.8));
+        grad.addColorStop(1, getColor(0));
+        dCtx.beginPath();
+        dCtx.arc(0, 0, radius, 0, Math.PI * 2);
+        dCtx.fillStyle = grad;
+        dCtx.fill();
+        dCtx.restore();
+      }
+      // \u7119\u5305\u4e2d\u5fc3\u4f4d\u5740 (t=current)
+      const t_s = tHours * 3600;
+      const dMXt = windSpeedMs * t_s * Math.sin(windToRad);
+      const dMYt = windSpeedMs * t_s * Math.cos(windToRad);
+      const puffX = ((srcLon + dMXt / mPerDegLon - MIN_LON) / lonWidth) * dispCanvas.width;
+      const puffY = ((MAX_LAT - (srcLat + dMYt / mPerDegLat)) / latHeight) * dispCanvas.height;
+      // \u8ecc\u8de1\u865b\u7dda
+      if (tHours > 0.15) {
+        dCtx.beginPath();
+        dCtx.moveTo(srcX, srcY);
+        dCtx.lineTo(puffX, puffY);
+        dCtx.setLineDash([6, 6]);
+        dCtx.strokeStyle = getColor(0.3);
+        dCtx.lineWidth = 1.5;
+        dCtx.stroke();
+        dCtx.setLineDash([]);
+      }
+      // \u4f86\u6e90\u6a19\u8a18
+      dCtx.beginPath(); dCtx.arc(srcX, srcY, 5, 0, Math.PI * 2); dCtx.fillStyle = getColor(0.9); dCtx.fill();
+      dCtx.beginPath(); dCtx.arc(srcX, srcY, 9, 0, Math.PI * 2); dCtx.strokeStyle = getColor(0.4); dCtx.lineWidth = 1.5; dCtx.stroke();
+      // \u5c0f\u6642\u6a19\u8a18 1h / 2h / 3h
+      for (let h = 1; h <= Math.min(Math.floor(tHours), 3); h++) {
+        const hMX = windSpeedMs * h * 3600 * Math.sin(windToRad);
+        const hMY = windSpeedMs * h * 3600 * Math.cos(windToRad);
+        const hX = ((srcLon + hMX / mPerDegLon - MIN_LON) / lonWidth) * dispCanvas.width;
+        const hY = ((MAX_LAT - (srcLat + hMY / mPerDegLat)) / latHeight) * dispCanvas.height;
+        dCtx.beginPath(); dCtx.arc(hX, hY, 3, 0, Math.PI * 2); dCtx.fillStyle = 'rgba(255,255,255,0.6)'; dCtx.fill();
+        dCtx.fillStyle = 'rgba(255,255,255,0.8)'; dCtx.font = 'bold 11px Inter, sans-serif'; dCtx.fillText(`${h}h`, hX + 7, hY - 4);
+      }
+      try { (map.getSource('dispersion-canvas-source') as mapboxgl.CanvasSource)?.play(); } catch {}
+    };
+
+    const animate = (timestamp: number) => {
+      if (simPhaseRef.current === 'holding') {
+        if (!simHoldStartRef.current) simHoldStartRef.current = timestamp;
+        if (timestamp - simHoldStartRef.current > SIM_HOLD_MS) {
+          simPhaseRef.current = 'animating'; simStartTimeRef.current = null; simHoldStartRef.current = null;
+        }
+        simAnimRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      if (!simStartTimeRef.current) simStartTimeRef.current = timestamp;
+      const tHours = Math.min(((timestamp - simStartTimeRef.current) / 1000 / SIM_REAL_S) * 4, 4);
+      setSimTimeH(tHours);
+      drawFrame(tHours);
+      if (tHours >= 4) simPhaseRef.current = 'holding';
+      simAnimRef.current = requestAnimationFrame(animate);
+    };
+
+    simAnimRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (simAnimRef.current) { cancelAnimationFrame(simAnimRef.current); simAnimRef.current = null; }
+    };
+  }, [dispersionEvent, isLoaded]);
 
   // 3.2 同步控制風場 Canvas 柵格圖層可見度 + 貼心相機傾斜引導
   useEffect(() => {
@@ -1665,6 +1884,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       {/* 地圖容器 */}
       <div ref={mapContainerRef} className="w-full h-full" />
       <canvas id="wind-canvas" width="1024" height="1024" style={{ display: 'none' }} />
+      <canvas id="dispersion-canvas" width="1024" height="1024" style={{ display: 'none' }} />
 
       {/* 無 API Key 警告 */}
       {!token && (
@@ -1826,20 +2046,89 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
               <div className="h-px bg-slate-800/60 w-full" />
 
-              <label className="flex items-center gap-2 text-slate-300 font-semibold cursor-pointer select-none text-[11px] hover:text-slate-100 transition-colors">
+              <label
+                className={`flex items-center gap-2 font-semibold select-none text-[11px] transition-colors ${
+                  dispersionEvent
+                    ? 'text-slate-600 cursor-not-allowed'
+                    : 'text-slate-300 cursor-pointer hover:text-slate-100'
+                }`}
+                title={dispersionEvent ? '擴散模擬進行中，請先關閉模擬才能開啟風場' : undefined}
+              >
                 <input
                   type="checkbox"
                   checked={showWindArrows}
+                  disabled={!!dispersionEvent}
                   onChange={(e) => setShowWindArrows(e.target.checked)}
-                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer"
+                  className="rounded border-slate-700 text-orange-500 focus:ring-orange-500 bg-slate-950 w-3.5 h-3.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                 />
                 3D 風向流線
+                {dispersionEvent && <span className="text-[9px] text-slate-600 ml-auto">(模擬中)</span>}
               </label>
             </div>
           )}
 
         </div>
       )}
+
+      {/* 污染擴散模擬浮動面板 */}
+      {dispersionEvent && (() => {
+        const srcSensor = dispersionEvent.sensors?.[0];
+        const srcPm25 = srcSensor?.pm2_5 ?? 0;
+        const hours = Math.floor(simTimeH);
+        const mins = Math.floor((simTimeH - hours) * 60);
+        let pmColor = '#10b981';
+        if (srcPm25 >= 54.4) pmColor = '#ef4444';
+        else if (srcPm25 >= 35.4) pmColor = '#f97316';
+        else if (srcPm25 >= 15.5) pmColor = '#eab308';
+        return (
+          <div className="absolute bottom-28 left-4 z-20 bg-slate-950/90 backdrop-blur-md border border-orange-500/40 rounded-2xl p-4 shadow-2xl min-w-[260px] max-w-[300px] flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg">🌫️</span>
+                <h4 className="text-xs font-bold text-orange-400">污染擴散模擬</h4>
+              </div>
+              <button
+                onClick={() => onClearDispersion?.()}
+                className="text-slate-500 hover:text-slate-300 p-0.5 rounded cursor-pointer"
+              >✕</button>
+            </div>
+            <div className="flex flex-col gap-1.5 text-[11px]">
+              <div className="flex justify-between">
+                <span className="text-slate-500">污染來源</span>
+                <span className="text-slate-200 font-semibold truncate max-w-[150px]">{srcSensor?.name ?? '未知'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">PM₂.₅ 濃度</span>
+                <span className="font-bold" style={{ color: pmColor }}>{srcPm25 ? `${srcPm25.toFixed(1)} μg/m³` : 'N/A'}</span>
+              </div>
+            </div>
+            {/* 時間進度條 */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between text-[10px]">
+                <span className="text-slate-400 font-semibold">模擬時間</span>
+                <span className="text-orange-400 font-bold tabular-nums">
+                  {simTimeH >= 3.98 ? '4h 00m ✓' : `${hours}h ${String(mins).padStart(2,'0')}m`}
+                </span>
+              </div>
+              <div className="relative w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="absolute left-0 top-0 h-full rounded-full transition-all"
+                  style={{
+                    width: `${(simTimeH / 4) * 100}%`,
+                    background: 'linear-gradient(to right, #10b981, #eab308, #f97316, #ef4444)'
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-[9px] text-slate-600">
+                <span>0h</span><span>1h</span><span>2h</span><span>3h</span><span>4h</span>
+              </div>
+            </div>
+            <div className="text-[9px] text-slate-600 italic">
+              ※ 基於 Gaussian Puff 模型，僅供參考
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="absolute bottom-4 right-4 flex flex-col gap-2.5 z-10 items-end">
         {/* 指標熱區圖例 */}

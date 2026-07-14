@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Event, Sensor } from '@/types';
-import { AlertCircle, FileText, Trash2, X, PlusCircle, Link } from 'lucide-react';
+import { AlertCircle, FileText, Trash2, X, PlusCircle, Link, Wind } from 'lucide-react';
 
 interface EventManagerProps {
   selectedSensor: Sensor | null;
@@ -21,6 +21,9 @@ interface EventManagerProps {
   systemSettings?: any;
   points: any[];
   sensorZoneMap?: Record<string, string>;
+  /** 污染擴散模擬相關 */
+  onSimulateDispersion?: (event: Event) => void;
+  dispersionEventId?: string | null;
 }
 
 export const EventManager: React.FC<EventManagerProps> = ({
@@ -36,7 +39,9 @@ export const EventManager: React.FC<EventManagerProps> = ({
   currentDateTime,
   systemSettings,
   points,
-  sensorZoneMap
+  sensorZoneMap,
+  onSimulateDispersion,
+  dispersionEventId
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -362,6 +367,25 @@ export const EventManager: React.FC<EventManagerProps> = ({
                           >
                             規則
                           </button>
+                          {/* 污染擴散模擬按鈕 */}
+                          {onSimulateDispersion && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSimulateDispersion(event);
+                              }}
+                              className={`text-[9px] px-1.5 py-0.5 rounded border font-black cursor-pointer shrink-0 transition-all select-none flex items-center gap-0.5 ${
+                                dispersionEventId === event.id
+                                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 ring-1 ring-cyan-500/20'
+                                  : 'bg-slate-800 hover:bg-cyan-900/40 text-slate-400 hover:text-cyan-300 border-slate-700 hover:border-cyan-500/40'
+                              }`}
+                              title={dispersionEventId === event.id ? '關閉擴散模擬' : '開啟擴散模擬'}
+                            >
+                              <Wind className="w-2.5 h-2.5" />
+                              擴散
+                            </button>
+                          )}
                         </div>
                         <p className="text-[9px] text-slate-500 font-mono mt-0.5">
                           ⏱ {displayTime}

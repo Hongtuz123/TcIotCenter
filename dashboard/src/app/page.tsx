@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [endDateTime, setEndDateTime] = useState('2026-07-10T23:59');
   const [currentDateTime, setCurrentDateTimeRaw] = useState('2026-07-10T12:00');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
+  const [dispersionEvent, setDispersionEvent] = useState<Event | null>(null);
   const [showHistoryBanner, setShowHistoryBanner] = useState(false);
   const setCurrentDateTime = (val: string | ((prev: string) => string)) => {
     if (typeof val === 'function') {
@@ -823,6 +824,8 @@ export default function DashboardPage() {
               selectedMetric={selectedMetric}
               activeEvent={events.find(e => e.id === activeEventId)}
               pm25Threshold={systemSettings.pm25_threshold}
+              dispersionEvent={dispersionEvent}
+              onClearDispersion={() => setDispersionEvent(null)}
             />
           </div>
 
@@ -946,6 +949,10 @@ export default function DashboardPage() {
               systemSettings={systemSettings}
               points={allSensors}
               sensorZoneMap={sensorZoneMap}
+              onSimulateDispersion={(event) => {
+                setDispersionEvent(prev => prev?.id === event.id ? null : event);
+              }}
+              dispersionEventId={dispersionEvent?.id ?? null}
             />
           </div>
 
