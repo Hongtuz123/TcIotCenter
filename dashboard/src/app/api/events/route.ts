@@ -3,6 +3,19 @@ import { supabase } from '@/lib/supabase';
 import { getDb } from '@/lib/db';
 import { globalMockState } from '@/lib/mockData';
 
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export async function GET() {
   try {
     // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
@@ -21,25 +34,78 @@ export async function GET() {
         throw error;
       }
 
-      // 一次性歷史資料清理：將帶有行政區、舊格式或 "微感事件" 的 title 統一修改為無行政區的 "[自動] 事件管理"
-      const oldEvents = (data || []).filter((ev: any) => ev.title && (ev.title.includes('微感超標群聚事件') || ev.title.includes('區-微感事件') || ev.title.includes('微感事件')));
-      if (oldEvents.length > 0) {
-        for (const ev of oldEvents) {
-          const threshMatch = ev.title.match(/門檻: PM₂.₅ (\d+(\.\d+)?)/);
-          const thresh = threshMatch ? threshMatch[1] : '54';
-          const newTitle = `[自動] 事件管理 (門檻: PM₂.₅ ${thresh})`;
-          
-          await client.from('events').update({ title: newTitle }).eq('id', ev.id);
-          ev.title = newTitle; // 同步更新當前 response 記憶體
+      // 取得所有事件的 unique event_time 以一次性查詢感測值，避免 N+1 查詢問題
+      const uniqueTimes = Array.from(new Set((data || []).map((ev: any) => ev.event_time).filter(Boolean)));
+      let allObs: any[] = [];
+      if (uniqueTimes.length > 0) {
+        const { data: obsData, error: obsErr } = await client
+          .from('observations_5m')
+          .select(`
+            station_id,
+            bucket_time,
+            pm2_5,
+            temperature,
+            humidity,
+            sensors!inner(device_name, lat, lon, township, area)
+          `)
+          .in('bucket_time', uniqueTimes);
+        
+        if (!obsErr && obsData) {
+          allObs = obsData;
         }
       }
 
-      // 解析 bounds JSON
-      const events = (data || []).map((ev: any) => ({
-        ...ev,
-        bounds: typeof ev.bounds === 'string' ? (() => { try { return JSON.parse(ev.bounds); } catch { return ev.bounds; } })() : ev.bounds,
-        sensors: [] // Supabase 模式下感測器清單暫不 JOIN
-      }));
+      // 將觀測值依 bucket_time 毫秒時間戳分組
+      const obsByTimeMap = new Map<number, any[]>();
+      for (const row of allObs) {
+        const ts = new Date(row.bucket_time).getTime();
+        if (!obsByTimeMap.has(ts)) {
+          obsByTimeMap.set(ts, []);
+        }
+        obsByTimeMap.get(ts)!.push(row);
+      }
+
+      // 解析 bounds JSON 並動態過濾落在該 radiusKm 內的所有感測站資料 (補齊 sensors)
+      const events = (data || []).map((ev: any) => {
+        const parsedBounds = typeof ev.bounds === 'string' ? (() => { try { return JSON.parse(ev.bounds); } catch { return ev.bounds; } })() : ev.bounds;
+        const eventTs = ev.event_time ? new Date(ev.event_time.replace(' ', 'T')).getTime() : 0;
+        const obsList = obsByTimeMap.get(eventTs) || [];
+        
+        let sensors: any[] = [];
+        if (parsedBounds && parsedBounds.center && obsList.length > 0) {
+          const lat = parsedBounds.center.lat;
+          const lon = parsedBounds.center.lon !== undefined ? parsedBounds.center.lon : parsedBounds.center.lng;
+          const radiusKm = parsedBounds.radiusKm ?? 1.0;
+          
+          if (lat !== undefined && lon !== undefined) {
+            sensors = obsList
+              .filter(obs => {
+                const sLat = obs.sensors?.lat;
+                const sLon = obs.sensors?.lon;
+                if (sLat === undefined || sLon === undefined) return false;
+                return getDistanceKm(lat, lon, sLat, sLon) <= radiusKm;
+              })
+              .map(obs => ({
+                id: obs.station_id,
+                name: obs.sensors?.device_name || obs.station_id,
+                lat: obs.sensors?.lat || 0,
+                lon: obs.sensors?.lon || 0,
+                county: obs.sensors?.township || '臺中市',
+                status: '正常',
+                pm2_5: obs.pm2_5,
+                temperature: obs.temperature,
+                humidity: obs.humidity,
+                voc: null
+              }));
+          }
+        }
+
+        return {
+          ...ev,
+          bounds: parsedBounds,
+          sensors
+        };
+      });
 
       return NextResponse.json(events);
     }
@@ -49,20 +115,6 @@ export async function GET() {
     if (!db) {
       // 降級為 Mock
       return NextResponse.json(globalMockState.events);
-    }
-    
-    // 一次性歷史資料清理（SQLite）
-    const rawEvents = await db.all('SELECT * FROM events ORDER BY created_at DESC');
-    const oldSQLiteEvents = rawEvents.filter((ev: any) => ev.title && (ev.title.includes('微感超標群聚事件') || ev.title.includes('區-微感事件') || ev.title.includes('微感事件')));
-    if (oldSQLiteEvents.length > 0) {
-      for (const ev of oldSQLiteEvents) {
-        const threshMatch = ev.title.match(/門檻: PM₂.₅ (\d+(\.\d+)?)/);
-        const thresh = threshMatch ? threshMatch[1] : '54';
-        const newTitle = `[自動] 事件管理 (門檻: PM₂.₅ ${thresh})`;
-        
-        await db.run('UPDATE events SET title = ? WHERE id = ?', [newTitle, ev.id]);
-        ev.title = newTitle; // 同步更新
-      }
     }
 
     // 獲取所有事件

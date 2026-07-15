@@ -8,6 +8,30 @@ import TrendChart from '@/components/Analytics/TrendChart';
 import { Sensor, Observation, Event, Cluster, SystemSettings } from '@/types';
 import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X } from 'lucide-react';
 
+// 取得當前台北時間（可傳入 offset 毫秒）並對齊到 5 分鐘
+const getTaipeiTime = (offsetMs = 0): string => {
+  const d = new Date(Date.now() + offsetMs);
+  const formatter = new Intl.DateTimeFormat('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(d);
+  const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
+  const year = getVal('year');
+  const month = getVal('month');
+  const day = getVal('day');
+  const hour = getVal('hour');
+  const minute = getVal('minute');
+  const minNum = parseInt(minute, 10);
+  const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${alignedMin}`;
+};
+
 export default function DashboardPage() {
   // 時間對齊輔助函數：將 YYYY-MM-DDTHH:mm 無條件捨去至最近的 5 分鐘
   const alignTo5Minutes = (datetimeStr: string): string => {
@@ -53,30 +77,7 @@ export default function DashboardPage() {
 
   const [debouncedTime, setDebouncedTime] = useState(currentTime);
 
-  const getTaipeiTimeNow = () => {
-    const d = new Date();
-    const formatter = new Intl.DateTimeFormat('zh-TW', {
-      timeZone: 'Asia/Taipei',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-    const parts = formatter.formatToParts(d);
-    const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
-    const year = getVal('year');
-    const month = getVal('month');
-    const day = getVal('day');
-    const hour = getVal('hour');
-    const minute = getVal('minute');
-    const minNum = parseInt(minute, 10);
-    const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
-    return `${year}-${month}-${day}T${hour}:${alignedMin}`;
-  };
-
-  const maxEndDateTime = isMounted ? getTaipeiTimeNow() : '2026-06-26T23:59';
+  const maxEndDateTime = isMounted ? getTaipeiTime() : '2026-06-26T23:59';
   const [selectedMetric, setSelectedMetric] = useState<'pm2_5' | 'temperature' | 'humidity'>('pm2_5');
   const [sensorZoneMap, setSensorZoneMap] = useState<{ [id: string]: string }>({});
   const [zoneNames, setZoneNames] = useState<string[]>([]);
@@ -165,29 +166,6 @@ export default function DashboardPage() {
 
     // 標記為已掛載，開始在 Client-side 計算當前時間並避免 Hydration Mismatch
     setIsMounted(true);
-
-    const getTaipeiTime = (offsetMs = 0) => {
-      const d = new Date(Date.now() + offsetMs);
-      const formatter = new Intl.DateTimeFormat('zh-TW', {
-        timeZone: 'Asia/Taipei',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      const parts = formatter.formatToParts(d);
-      const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
-      const year = getVal('year');
-      const month = getVal('month');
-      const day = getVal('day');
-      const hour = getVal('hour');
-      const minute = getVal('minute');
-      const minNum = parseInt(minute, 10);
-      const alignedMin = String(Math.floor(minNum / 5) * 5).padStart(2, '0');
-      return `${year}-${month}-${day}T${hour}:${alignedMin}`;
-    };
 
     const endVal = getTaipeiTime();
     const startVal = getTaipeiTime(-24 * 60 * 60 * 1000); // 往回 24h
@@ -308,12 +286,14 @@ export default function DashboardPage() {
     const fetchPoints = async () => {
       setIsLoadingPoints(true);
       try {
+        const isHist = debouncedTime !== maxEndDateTime;
         const res = await fetch(
           `/api/anomalies?time=${encodeURIComponent(debouncedTime)}` +
             `&radius=${systemSettings.cluster_radius_km}` +
             `&min_stations=${systemSettings.min_cluster_stations}` +
             `&pm25_threshold=${systemSettings.pm25_threshold}` +
-            `&consecutive_exceeds=${systemSettings.consecutive_exceeds}`
+            `&consecutive_exceeds=${systemSettings.consecutive_exceeds}` +
+            `&is_historical=${isHist}`
         );
         const data = await res.json();
         
@@ -324,7 +304,10 @@ export default function DashboardPage() {
           setClusters(data.clusters);
         }
         // 核心修正：自動事件建立後，必須立即重整事件列表以反映最新狀態！
-        fetchEvents();
+        // 只有在非歷史模式（即時模式）下，才需要重整事件列表，避免歷史回放時每 250ms 發起 events 查詢
+        if (!isHist) {
+          fetchEvents();
+        }
       } catch (e) {
         console.error('載入點位失敗:', e);
       } finally {
@@ -333,7 +316,7 @@ export default function DashboardPage() {
     };
 
     fetchPoints();
-  }, [debouncedTime]);
+  }, [debouncedTime, maxEndDateTime]);
 
   // 2.5. 載入過去 24 小時的熱區列表
   useEffect(() => {

@@ -163,6 +163,7 @@ export async function GET(request: NextRequest) {
     const pm25Thresh = parseFloat(searchParams.get('pm25_threshold') || '54');
     const clusterRadius = parseFloat(searchParams.get('radius') || '1.0');
     const minStations = parseInt(searchParams.get('min_stations') || '2', 10);
+    const isHistorical = searchParams.get('is_historical') === 'true';
 
     // ── Tier 1: Supabase ──────────────────────────────────────────────────────
     if (supabase) {
@@ -268,8 +269,10 @@ export async function GET(request: NextRequest) {
       const anomalies = allPoints.filter((p) => p.isAnomaly);
       const clusters = buildClusters(anomalies, clusterRadius, minStations);
 
-      // 背景寫入事件（fire-and-forget），不阻塞 API response
-      autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh);
+      // 背景寫入事件（fire-and-forget），不阻塞 API response (僅在非歷史模式下自動建立)
+      if (!isHistorical) {
+        autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh);
+      }
 
       return NextResponse.json({
         time: time || new Date().toISOString(),
@@ -353,8 +356,10 @@ export async function GET(request: NextRequest) {
       const anomalies = allPoints.filter((p: any) => p.isAnomaly);
       const clusters = buildClusters(anomalies, _clusterRadius, _minStations);
 
-      // 背景寫入事件（fire-and-forget），不阻塞 API response
-      autoCreateEvents(clusters, time, _pm25Thresh);
+      // 背景寫入事件（fire-and-forget），不阻塞 API response (僅在非歷史模式下自動建立)
+      if (!isHistorical) {
+        autoCreateEvents(clusters, time, _pm25Thresh);
+      }
 
       return NextResponse.json({
         time,
@@ -372,8 +377,10 @@ export async function GET(request: NextRequest) {
     const anomalies = allPoints.filter((p) => p.isAnomaly);
     const clusters = buildClusters(anomalies as any[], clusterRadius, minStations);
 
-    // 背景寫入事件（fire-and-forget），不阻塞 API response
-    autoCreateEvents(clusters, mockTime, pm25Thresh);
+    // 背景寫入事件（fire-and-forget），不阻塞 API response (僅在非歷史模式下自動建立)
+    if (!isHistorical) {
+      autoCreateEvents(clusters, mockTime, pm25Thresh);
+    }
 
     return NextResponse.json({
       time: mockTime,
