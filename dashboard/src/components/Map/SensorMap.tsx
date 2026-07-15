@@ -49,6 +49,43 @@ const getEventSourceSensor = (
   return null;
 };
 
+// 取得落在擴散半徑範圍內的所有測站 (用於計算平均、最小、最大值)
+const getEventSensorsInBounds = (
+  event: Event | null | undefined,
+  points: (Sensor & Observation)[]
+): (Sensor & Observation)[] => {
+  if (!event) return [];
+  if (event.sensors && event.sensors.length > 0) {
+    return event.sensors.map(s => ({
+      id: s.id,
+      name: s.name,
+      lat: s.lat,
+      lon: s.lon,
+      county: s.county,
+      status: s.status,
+      pm2_5: s.pm2_5,
+      temperature: s.temperature,
+      humidity: s.humidity,
+      voc: s.voc
+    })) as any;
+  }
+  if (event.bounds?.center && points.length > 0) {
+    const center = event.bounds.center;
+    const centerLon = (center as any).lon ?? (center as any).lng;
+    const centerLat = center.lat;
+    const radiusKm = event.bounds.radiusKm ?? 1.0;
+    if (centerLon && centerLat) {
+      return points.filter(p => {
+        const dLon = (p.lon - centerLon) * 111.32 * Math.cos(centerLat * Math.PI / 180);
+        const dLat = (p.lat - centerLat) * 110.57;
+        const dist = Math.sqrt(dLon * dLon + dLat * dLat);
+        return dist <= radiusKm;
+      });
+    }
+  }
+  return [];
+};
+
 interface SensorMapProps {
   points: (Sensor & Observation)[];
   clusters: Cluster[];
@@ -155,6 +192,10 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     });
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-left');
+    map.addControl(new mapboxgl.ScaleControl({
+      maxWidth: 100,
+      unit: 'metric'
+    }), 'bottom-left');
 
     map.on('rotate', () => {
       setBearing(map.getBearing());
@@ -1119,6 +1160,17 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       if (simAnimRef.current) { cancelAnimationFrame(simAnimRef.current); simAnimRef.current = null; }
     };
   }, [dispersionEvent, isLoaded]);
+
+  // 3.4 啟動擴散模擬時，自動關閉熱區圖層，結束時自動復原
+  const prevDispersionRef = useRef<any>(null);
+  useEffect(() => {
+    if (dispersionEvent && !prevDispersionRef.current) {
+      setShowHeatmap(false);
+    } else if (!dispersionEvent && prevDispersionRef.current) {
+      setShowHeatmap(true);
+    }
+    prevDispersionRef.current = dispersionEvent;
+  }, [dispersionEvent]);
 
   // 3.2 同步控制風場 Canvas 柵格圖層可見度 + 貼心相機傾斜引導
   useEffect(() => {
@@ -2124,6 +2176,22 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         if (srcPm25 >= 54.4) pmColor = '#ef4444';
         else if (srcPm25 >= 35.4) pmColor = '#f97316';
         else if (srcPm25 >= 15.5) pmColor = '#eab308';
+
+        // 取得事件範圍內的所有測站並計算 PM2.5 平均值、最小值、最大值
+        const eventSensors = getEventSensorsInBounds(dispersionEvent, points);
+        const pmValues = eventSensors
+          .map(s => s.pm2_5)
+          .filter((val): val is number => val !== null && val !== undefined);
+        
+        let avgPm = 0;
+        let minPm = 0;
+        let maxPm = 0;
+        if (pmValues.length > 0) {
+          avgPm = pmValues.reduce((sum, v) => sum + v, 0) / pmValues.length;
+          minPm = Math.min(...pmValues);
+          maxPm = Math.max(...pmValues);
+        }
+
         return (
           <div className="absolute bottom-28 left-4 z-20 bg-slate-950/90 backdrop-blur-md border border-orange-500/40 rounded-2xl p-4 shadow-2xl min-w-[260px] max-w-[300px] flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -2136,14 +2204,29 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 className="text-slate-500 hover:text-slate-300 p-0.5 rounded cursor-pointer"
               >✕</button>
             </div>
-            <div className="flex flex-col gap-1.5 text-[11px]">
+            <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2">
               <div className="flex justify-between">
                 <span className="text-slate-500">污染來源</span>
                 <span className="text-slate-200 font-semibold truncate max-w-[150px]">{srcSensor?.name ?? '未知'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">PM₂.₅ 濃度</span>
+                <span className="text-slate-500">源頭 PM₂.₅</span>
                 <span className="font-bold" style={{ color: pmColor }}>{srcPm25 ? `${srcPm25.toFixed(1)} μg/m³` : 'N/A'}</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2">
+              <div className="text-[10px] text-slate-400 font-bold mb-0.5">影響範圍內測站 ({eventSensors.length} 站)</div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">平均 PM₂.₅</span>
+                <span className="text-slate-200 font-semibold">{pmValues.length > 0 ? `${avgPm.toFixed(1)} μg/m³` : 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">最小 PM₂.₅</span>
+                <span className="text-emerald-400 font-semibold">{pmValues.length > 0 ? `${minPm.toFixed(1)} μg/m³` : 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">最大 PM₂.₅</span>
+                <span className="text-red-400 font-semibold">{pmValues.length > 0 ? `${maxPm.toFixed(1)} μg/m³` : 'N/A'}</span>
               </div>
             </div>
             {/* 時間進度條 */}
