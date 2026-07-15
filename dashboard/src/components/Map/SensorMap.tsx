@@ -2333,10 +2333,21 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
+                    // 1. 立即同步取消任何現有 RAF，防止舊回調重新繪製 4h 畫面
+                    if (simAnimRef.current) {
+                      cancelAnimationFrame(simAnimRef.current);
+                      simAnimRef.current = null;
+                    }
+                    // 2. 同步重置所有動畫 phase 與計時 ref
+                    simPhaseRef.current = 'animating';
+                    simStartTimeRef.current = null;
+                    simHoldStartRef.current = null;
+                    // 3. 清空畫布（此時已無任何舊 RAF 能再次污染畫布）
                     const dispCanvas = document.getElementById('dispersion-canvas') as HTMLCanvasElement | null;
                     if (dispCanvas) {
                       dispCanvas.getContext('2d')?.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
                     }
+                    // 4. 重置顯示時間後觸發重播
                     setSimTimeH(0);
                     setPlayTrigger(prev => prev + 1);
                   }}
