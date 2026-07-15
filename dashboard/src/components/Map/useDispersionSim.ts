@@ -87,6 +87,41 @@ export const getElevation = (
   return Math.max(0, elev);
 };
 
+// 依據日照（白天/夜間）與風速判斷 Pasquill-Gifford 大氣穩定度 A~F
+export const getStabilityClass = (
+  isDay: boolean,
+  windSpeed: number
+): 'A' | 'B' | 'C' | 'D' | 'E' | 'F' => {
+  if (isDay) {
+    if (windSpeed < 2) return 'A'; // 強日照、極不穩定 (大範圍稀釋)
+    if (windSpeed < 3) return 'B'; // 中度不穩定
+    if (windSpeed < 5) return 'C'; // 微幅不穩定
+    return 'D';                    // 強風中性
+  } else {
+    if (windSpeed < 2) return 'F'; // 夜間低風速、極度穩定 (窄帶高濃度)
+    if (windSpeed < 3) return 'E'; // 夜間微風、微幅穩定
+    return 'D';                    // 夜間強風中性
+  }
+};
+
+// 計算 Briggs 橫向擴散係數 (Rural 鄉村地形條件公式)
+export const getBriggsSigmaY = (
+  stability: 'A' | 'B' | 'C' | 'D' | 'E' | 'F',
+  xMeters: number
+): number => {
+  const x = Math.max(1.0, xMeters);
+  let alpha = 0.08;
+  switch (stability) {
+    case 'A': alpha = 0.22; break;
+    case 'B': alpha = 0.16; break;
+    case 'C': alpha = 0.11; break;
+    case 'D': alpha = 0.08; break;
+    case 'E': alpha = 0.06; break;
+    case 'F': alpha = 0.04; break;
+  }
+  return (alpha * x) / Math.sqrt(1.0 + 0.0001 * x);
+};
+
 interface UseDispersionSimProps {
   map: mapboxgl.Map | null;
   isLoaded: boolean;
@@ -193,6 +228,11 @@ export function useDispersionSim({
     const windSpeedMs = sumW > 0 ? sumWs / sumW : 4.0;
     const windToRad = Math.atan2(windDLon, windDLat);
 
+    const eventTimeStr = dispersionEvent.event_time || dispersionEvent.start_time || new Date().toISOString();
+    const eventHour = new Date(eventTimeStr.replace('T', ' ').replace(/-/g, '/')).getHours();
+    const eventIsDay = eventHour >= 7 && eventHour <= 18;
+    const stability = getStabilityClass(eventIsDay, windSpeedMs);
+
     const MIN_LON = 120.30, MAX_LON = 120.98, MIN_LAT = 23.85, MAX_LAT = 24.45;
     const lonWidth = MAX_LON - MIN_LON;
     const latHeight = MAX_LAT - MIN_LAT;
@@ -229,9 +269,13 @@ export function useDispersionSim({
         const tLayer = tHours * (fraction * 0.6 + 0.4);
         const currPm25 = srcPm25 * Math.exp(-0.45 * tLayer);
         const t_sL = tLayer * 3600;
-        const sigmaL = Math.sqrt(2 * K * t_sL);
-        let sxPx = Math.max((sigmaL * 1.4) / mPerPxX, 2);
-        let syPx = Math.max(sigmaL / mPerPxY, 2);
+
+        // 採用 Briggs 橫向擴散係數與順風向擴散折算
+        const travelDist = windSpeedMs * t_sL;
+        const sigmaY = getBriggsSigmaY(stability, travelDist);
+        const sigmaX = sigmaY * 1.4;
+        let sxPx = Math.max(sigmaX / mPerPxX, 2);
+        let syPx = Math.max(sigmaY / mPerPxY, 2);
         const dMX = windSpeedMs * t_sL * Math.sin(windToRad);
         const dMY = windSpeedMs * t_sL * Math.cos(windToRad);
 
