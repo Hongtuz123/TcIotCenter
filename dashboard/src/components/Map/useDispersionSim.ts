@@ -149,6 +149,11 @@ export function useDispersionSim({
   const prevEventIdRef = useRef<string | undefined>(undefined);
   const prevPlayTriggerRef = useRef<number>(0);
 
+  const pointsRef = useRef(points);
+  useEffect(() => {
+    pointsRef.current = points;
+  }, [points]);
+
   // 3.3 污染擴散模擬：Gaussian Puff 動畫引擎
   useEffect(() => {
     if (!map || !isLoaded) return;
@@ -192,7 +197,7 @@ export function useDispersionSim({
     // 立刻清空畫布，避免殘留上一輪模擬的最後一幀導致視覺卡頓/回放閃爍
     dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
 
-    const srcSensor = getEventSourceSensor(dispersionEvent, points);
+    const srcSensor = getEventSourceSensor(dispersionEvent, pointsRef.current);
     if (!srcSensor) return;
     const srcLon = srcSensor.lon;
     const srcLat = srcSensor.lat;
@@ -200,8 +205,8 @@ export function useDispersionSim({
     // 為了確保模擬播放時能展現清晰的等值線（Contour）色彩層次，設定最低模擬源頭濃度為 60 µg/m³
     const srcPm25 = Math.max(realPm25, 60.0);
 
-    if (windVectorsRef.current.length === 0 && points.length > 0) {
-      windVectorsRef.current = points.map((p: any) => {
+    if (windVectorsRef.current.length === 0 && pointsRef.current.length > 0) {
+      windVectorsRef.current = pointsRef.current.map((p: any) => {
         const lon = p.lon; const lat = p.lat;
         const hour = new Date().getHours();
         const isCoastal = lon < 120.55; const isMountain = lon > 120.75;
@@ -478,7 +483,7 @@ export function useDispersionSim({
     return () => {
       if (simAnimRef.current) { cancelAnimationFrame(simAnimRef.current); simAnimRef.current = null; }
     };
-  }, [dispersionEvent, isLoaded, playTrigger, points, map]);
+  }, [dispersionEvent, isLoaded, playTrigger, map]);
 
   return {
     simTimeH,
