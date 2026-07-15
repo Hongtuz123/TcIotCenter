@@ -95,11 +95,27 @@ export default function DashboardPage() {
   const [selectedSensor, setSelectedSensor] = useState<Sensor | null>(null);
   const [historyData, setHistoryData] = useState<Observation[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
-    pm25_threshold: 54,
-    consecutive_exceeds: 3,
-    cluster_radius_km: 1.0,
-    min_cluster_stations: 2
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    if (typeof window !== 'undefined') {
+      const pm25 = localStorage.getItem('pm25_threshold');
+      const consecutive = localStorage.getItem('consecutive_exceeds');
+      const radius = localStorage.getItem('cluster_radius_km');
+      const minStations = localStorage.getItem('min_cluster_stations');
+      if (pm25) {
+        return {
+          pm25_threshold: parseFloat(pm25),
+          consecutive_exceeds: parseInt(consecutive || '3', 10),
+          cluster_radius_km: parseFloat(radius || '1.0'),
+          min_cluster_stations: parseInt(minStations || '2', 10)
+        };
+      }
+    }
+    return {
+      pm25_threshold: 54,
+      consecutive_exceeds: 3,
+      cluster_radius_km: 1.0,
+      min_cluster_stations: 2
+    };
   });
 
   // UI 狀態
@@ -182,6 +198,30 @@ export default function DashboardPage() {
 
     const initData = async () => {
       try {
+        // 優先取得系統閾值設定，以便儘快更新 UI
+        const settingsRes = await fetch('/api/settings');
+        const settingsData = await settingsRes.json();
+        if (settingsData && settingsData.pm25_threshold) {
+          const pm25Val = parseFloat(settingsData.pm25_threshold);
+          const consecutiveVal = parseInt(settingsData.consecutive_exceeds || '3', 10);
+          const radiusVal = parseFloat(settingsData.cluster_radius_km);
+          const minStationsVal = parseInt(settingsData.min_cluster_stations, 10);
+
+          setSystemSettings({
+            pm25_threshold: pm25Val,
+            consecutive_exceeds: consecutiveVal,
+            cluster_radius_km: radiusVal,
+            min_cluster_stations: minStationsVal
+          });
+
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('pm25_threshold', pm25Val.toString());
+            localStorage.setItem('consecutive_exceeds', consecutiveVal.toString());
+            localStorage.setItem('cluster_radius_km', radiusVal.toString());
+            localStorage.setItem('min_cluster_stations', minStationsVal.toString());
+          }
+        }
+
         // 取得所有感測器以提取行政區列表
         const res = await fetch('/api/sensors');
         const sensorsData: Sensor[] = await res.json();
@@ -251,18 +291,6 @@ export default function DashboardPage() {
         setZoneNames(zones.sort());
         setSensorZoneMap(zoneMap);
         setRegionCenters(centers);
-
-        // 取得系統閾值設定
-        const settingsRes = await fetch('/api/settings');
-        const settingsData = await settingsRes.json();
-        if (settingsData && settingsData.pm25_threshold) {
-          setSystemSettings({
-            pm25_threshold: parseFloat(settingsData.pm25_threshold),
-            consecutive_exceeds: parseInt(settingsData.consecutive_exceeds || '3', 10),
-            cluster_radius_km: parseFloat(settingsData.cluster_radius_km),
-            min_cluster_stations: parseInt(settingsData.min_cluster_stations, 10)
-          });
-        }
       } catch (e) {
         console.error('初始化失敗:', e);
       }
@@ -514,6 +542,14 @@ export default function DashboardPage() {
           cluster_radius_km: radiusVal,
           min_cluster_stations: minStationsVal
         });
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('pm25_threshold', pm25Val.toString());
+          localStorage.setItem('consecutive_exceeds', consecutiveVal.toString());
+          localStorage.setItem('cluster_radius_km', radiusVal.toString());
+          localStorage.setItem('min_cluster_stations', minStationsVal.toString());
+        }
+
         setShowSettingsModal(false);
         // 強制刷新當前點位資料
         const refreshRes = await fetch(
@@ -712,7 +748,15 @@ export default function DashboardPage() {
             </span>
           </div>
           <button
-            onClick={() => setShowSettingsModal(true)}
+            onClick={() => {
+              if (systemSettings) {
+                setPm25Input(systemSettings.pm25_threshold?.toString() ?? '54');
+                setConsecutiveInput(systemSettings.consecutive_exceeds?.toString() ?? '3');
+                setRadiusInput(systemSettings.cluster_radius_km?.toString() ?? '1.0');
+                setMinStationsInput(systemSettings.min_cluster_stations?.toString() ?? '2');
+              }
+              setShowSettingsModal(true);
+            }}
             className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white p-2 lg:px-4 lg:py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
             title="事件門檻設定"
           >
