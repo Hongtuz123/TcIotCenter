@@ -478,16 +478,6 @@ export function useDispersionSim({
       // 來源標記
       dCtx.beginPath(); dCtx.arc(srcX, srcY, 5, 0, Math.PI * 2); dCtx.fillStyle = getColor(srcPm25, 0.9); dCtx.fill();
       dCtx.beginPath(); dCtx.arc(srcX, srcY, 9, 0, Math.PI * 2); dCtx.strokeStyle = getColor(srcPm25, 0.4); dCtx.lineWidth = 1.5; dCtx.stroke();
-      // 小時標記 1h / 2h / 3h
-      for (let h = 1; h <= Math.min(Math.floor(tHours), 3); h++) {
-        const LOCAL_SCALE = 0.085;
-        const hMX = windSpeedMs * h * 3600 * Math.sin(windToRad) * LOCAL_SCALE;
-        const hMY = windSpeedMs * h * 3600 * Math.cos(windToRad) * LOCAL_SCALE;
-        const hX = ((srcLon + hMX / mPerDegLon - MIN_LON) / lonWidth) * dispCanvas.width;
-        const hY = ((MAX_LAT - (srcLat + hMY / mPerDegLat)) / latHeight) * dispCanvas.height;
-        dCtx.beginPath(); dCtx.arc(hX, hY, 3, 0, Math.PI * 2); dCtx.fillStyle = 'rgba(255,255,255,0.6)'; dCtx.fill();
-        dCtx.fillStyle = 'rgba(255,255,255,0.8)'; dCtx.font = 'bold 11px Inter, sans-serif'; dCtx.fillText(`${h}h`, hX + 7, hY - 4);
-      }
       try { (map.getSource('dispersion-canvas-source') as mapboxgl.CanvasSource)?.play(); } catch {}
       map.triggerRepaint();
     };
