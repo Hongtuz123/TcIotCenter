@@ -149,6 +149,11 @@ export function useDispersionSim({
   const prevEventIdRef = useRef<string | undefined>(undefined);
   const prevPlayTriggerRef = useRef<number>(0);
 
+  const dispersionEventRef = useRef(dispersionEvent);
+  useEffect(() => {
+    dispersionEventRef.current = dispersionEvent;
+  }, [dispersionEvent]);
+
   const pointsRef = useRef(points);
   useEffect(() => {
     pointsRef.current = points;
@@ -174,7 +179,7 @@ export function useDispersionSim({
       simAnimRef.current = null;
     }
 
-    if (!dispersionEvent) {
+    if (!dispersionEventRef.current) {
       const dispCanvas = document.getElementById('dispersion-canvas') as HTMLCanvasElement | null;
       if (dispCanvas) {
         dispCanvas.getContext('2d')?.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
@@ -197,7 +202,7 @@ export function useDispersionSim({
     // 立刻清空畫布，避免殘留上一輪模擬的最後一幀導致視覺卡頓/回放閃爍
     dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
 
-    const srcSensor = getEventSourceSensor(dispersionEvent, pointsRef.current);
+    const srcSensor = getEventSourceSensor(dispersionEventRef.current, pointsRef.current);
     if (!srcSensor) return;
     const srcLon = srcSensor.lon;
     const srcLat = srcSensor.lat;
@@ -235,7 +240,7 @@ export function useDispersionSim({
     const windSpeedMs = sumW > 0 ? sumWs / sumW : 4.0;
     const windToRad = Math.atan2(windDLon, windDLat);
 
-    const eventTimeStr = dispersionEvent.event_time || dispersionEvent.start_time || new Date().toISOString();
+    const eventTimeStr = dispersionEventRef.current.event_time || dispersionEventRef.current.start_time || new Date().toISOString();
     const eventHour = new Date(eventTimeStr.replace('T', ' ').replace(/-/g, '/')).getHours();
     const eventIsDay = eventHour >= 7 && eventHour <= 18;
     const stability = getStabilityClass(eventIsDay, windSpeedMs);
@@ -483,7 +488,7 @@ export function useDispersionSim({
     return () => {
       if (simAnimRef.current) { cancelAnimationFrame(simAnimRef.current); simAnimRef.current = null; }
     };
-  }, [dispersionEvent, isLoaded, playTrigger, map]);
+  }, [dispersionEvent?.id, isLoaded, playTrigger, map]);
 
   return {
     simTimeH,
