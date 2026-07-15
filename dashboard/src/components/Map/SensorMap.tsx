@@ -86,6 +86,47 @@ const getEventSensorsInBounds = (
   return [];
 };
 
+// 結合 Mapbox 實測高程與臺中地形數學模型，確保無地形高程資料時依然有穩定、顯著的地形阻擋效果
+const getElevation = (
+  lon: number,
+  lat: number,
+  map: mapboxgl.Map | null
+): number => {
+  let mapboxElev: number | null = null;
+  if (map) {
+    try {
+      mapboxElev = map.queryTerrainElevation([lon, lat]);
+    } catch {}
+  }
+
+  // 若 Mapbox 高程查詢可用且大於 0，優先使用 (並乘上擴張係數以增強視覺效果)
+  if (mapboxElev !== null && mapboxElev !== undefined && mapboxElev > 0) {
+    return mapboxElev * 1.5;
+  }
+
+  // 否則，使用臺中盆地到東側山區的經度高程斷面數學模型作為 Backup
+  let elev = 60; // 預設台中盆地平原海拔
+  if (lon > 120.70) {
+    // 東側山區阻擋 (太平、大坑山區)
+    const dx = lon - 120.70;
+    elev = 100 + dx * 4200; // 海拔快速從 100m 爬升至 500m 以上
+    elev += Math.sin(lon * 200) * 80 + Math.cos(lat * 150) * 50; // 山脊與山谷波折
+  } else if (lon > 120.53 && lon < 120.61) {
+    // 大肚山台地
+    const mid = 120.57;
+    const width = 0.04;
+    const dist = Math.abs(lon - mid);
+    if (dist < width) {
+      const t = 1 - (dist / width);
+      elev = 60 + t * t * 240; // 最高處約 300m
+    }
+  } else if (lon <= 120.53) {
+    // 西側海岸
+    elev = Math.max(5, 5 + (lon - 120.30) * 200);
+  }
+  return Math.max(0, elev);
+};
+
 interface SensorMapProps {
   points: (Sensor & Observation)[];
   clusters: Cluster[];
@@ -1079,7 +1120,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       const K = 50;
       const layerCount = Math.min(Math.floor(tHours * 2) + 1, 5);
       
-      const sourceElev = map.queryTerrainElevation([srcLon, srcLat]) ?? 0;
+      const sourceElev = getElevation(srcLon, srcLat, map);
 
       for (let li = 0; li < layerCount; li++) {
         const fraction = 1 - li / layerCount;
@@ -1096,10 +1137,10 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const targetLat = srcLat + dMY / mPerDegLat;
 
         // 地形海拔高度檢測與折減 (以 source 為基準)
-        const targetElev = map.queryTerrainElevation([targetLon, targetLat]) ?? 0;
+        const targetElev = getElevation(targetLon, targetLat, map);
         const midLon = (srcLon + targetLon) / 2;
         const midLat = (srcLat + targetLat) / 2;
-        const midElev = map.queryTerrainElevation([midLon, midLat]) ?? 0;
+        const midElev = getElevation(midLon, midLat, map);
 
         const maxElevDiff = Math.max(0, targetElev - sourceElev, midElev - sourceElev);
 
@@ -1114,7 +1155,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const adjLat = srcLat + (dMY / mPerDegLat) * travelFactor;
 
         // 計算該處的局部高程差，模擬撞山積累與擠壓
-        const actualElev = map.queryTerrainElevation([adjLon, adjLat]) ?? 0;
+        const actualElev = getElevation(adjLon, adjLat, map);
         const actualElevDiff = Math.max(0, actualElev - sourceElev);
 
         // 濃度積累係數：撞山時，風速降低，濃度（不透明度）增加最多 2.0 倍
@@ -1160,10 +1201,10 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       const tTargetLon = srcLon + dMXt / mPerDegLon;
       const tTargetLat = srcLat + dMYt / mPerDegLat;
-      const tTargetElev = map.queryTerrainElevation([tTargetLon, tTargetLat]) ?? 0;
+      const tTargetElev = getElevation(tTargetLon, tTargetLat, map);
       const tMidLon = (srcLon + tTargetLon) / 2;
       const tMidLat = (srcLat + tTargetLat) / 2;
-      const tMidElev = map.queryTerrainElevation([tMidLon, tMidLat]) ?? 0;
+      const tMidElev = getElevation(tMidLon, tMidLat, map);
 
       const tMaxElevDiff = Math.max(0, tTargetElev - sourceElev, tMidElev - sourceElev);
       let tTravelFactor = 1.0;
