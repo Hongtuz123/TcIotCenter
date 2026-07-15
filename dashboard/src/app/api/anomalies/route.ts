@@ -238,11 +238,16 @@ export async function GET(request: NextRequest) {
         const sensor = (latestRow as any).sensors;
         const pm25 = latestRow.pm2_5;
         
-        // 判定是否連續 N 筆超標
-        let isAnomaly = false;
-        if (obsList.length >= consecutiveExceeds) {
-          const checkSlice = obsList.slice(0, consecutiveExceeds);
-          isAnomaly = checkSlice.every((row) => row.pm2_5 != null && row.pm2_5 >= pm25Thresh);
+        // 判定是否連續 N 筆超標 (嚴格比對時間序列，確保每一筆皆存在且超標)
+        let isAnomaly = true;
+        const untilTs = new Date(until).getTime();
+        for (let i = 0; i < consecutiveExceeds; i++) {
+          const targetTs = untilTs - i * 5 * 60 * 1000;
+          const record = obsList.find((row) => new Date(row.bucket_time).getTime() === targetTs);
+          if (!record || record.pm2_5 === null || record.pm2_5 < pm25Thresh) {
+            isAnomaly = false;
+            break;
+          }
         }
 
         const anomalyType = isAnomaly ? `連續 ${consecutiveExceeds} 筆 PM₂.₅ 超標` : '';
@@ -326,10 +331,16 @@ export async function GET(request: NextRequest) {
 
         const latest = obsList[0];
         
-        let isAnomaly = false;
-        if (obsList.length >= _consecutive) {
-          const checkSlice = obsList.slice(0, _consecutive);
-          isAnomaly = checkSlice.every((r) => r.pm2_5 != null && r.pm2_5 >= _pm25Thresh);
+        // 判定是否連續 N 筆超標 (嚴格比對時間序列，確保每一筆皆存在且超標)
+        let isAnomaly = true;
+        const untilTs = new Date(time.replace(' ', 'T')).getTime();
+        for (let i = 0; i < _consecutive; i++) {
+          const targetTs = untilTs - i * 5 * 60 * 1000;
+          const record = obsList.find((r) => new Date(r.time.replace(' ', 'T')).getTime() === targetTs);
+          if (!record || record.pm2_5 === null || record.pm2_5 < _pm25Thresh) {
+            isAnomaly = false;
+            break;
+          }
         }
 
         const anomalyType = isAnomaly ? `連續 ${_consecutive} 筆 PM₂.₅ 超標` : '';

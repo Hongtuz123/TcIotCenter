@@ -4,50 +4,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Sensor, Cluster, Observation, Event, EventSensorDetail } from '@/types';
 import { Layers, Flame, AlertTriangle, ShieldCheck, Compass, RotateCcw } from 'lucide-react';
+import { useDispersionSim, getEventSourceSensor, getElevation } from './useDispersionSim';
 
-// 取得擴散模擬的污染源測站 (Supabase 模式下若 sensors 為空，則從 points 尋找距離 bounds 中心最近的測站)
-const getEventSourceSensor = (
-  event: Event | null | undefined,
-  points: (Sensor & Observation)[]
-): EventSensorDetail | null => {
-  if (!event) return null;
-  if (event.sensors && event.sensors.length > 0) {
-    return event.sensors[0];
-  }
-  if (event.bounds?.center && points.length > 0) {
-    const center = event.bounds.center;
-    const centerLon = (center as any).lon ?? (center as any).lng;
-    const centerLat = center.lat;
-    if (centerLon && centerLat) {
-      let minDistance = Infinity;
-      let nearestSensor = null;
-      for (const p of points) {
-        const dLon = p.lon - centerLon;
-        const dLat = p.lat - centerLat;
-        const dist = dLon * dLon + dLat * dLat;
-        if (dist < minDistance) {
-          minDistance = dist;
-          nearestSensor = p;
-        }
-      }
-      if (nearestSensor) {
-        return {
-          id: nearestSensor.id,
-          name: nearestSensor.name,
-          lat: nearestSensor.lat,
-          lon: nearestSensor.lon,
-          county: nearestSensor.county,
-          status: nearestSensor.status,
-          pm2_5: nearestSensor.pm2_5 ?? null,
-          temperature: nearestSensor.temperature ?? null,
-          humidity: nearestSensor.humidity ?? null,
-          voc: nearestSensor.voc ?? null
-        };
-      }
-    }
-  }
-  return null;
-};
+
 
 // 取得落在擴散半徑範圍內的所有測站 (用於計算平均、最小、最大值)
 const getEventSensorsInBounds = (
@@ -86,46 +45,7 @@ const getEventSensorsInBounds = (
   return [];
 };
 
-// 結合 Mapbox 實測高程與臺中地形數學模型，確保無地形高程資料時（如瓦片加載中）依然有穩定、顯著的地形阻擋效果
-const getElevation = (
-  lon: number,
-  lat: number,
-  map: mapboxgl.Map | null
-): number => {
-  let mapboxElev: number | null = null;
-  if (map) {
-    try {
-      mapboxElev = map.queryTerrainElevation([lon, lat]);
-    } catch {}
-  }
 
-  // 若 Mapbox 高程查詢可用且大於 0，優先使用 (並乘上擴張係數以增強視覺效果)
-  if (mapboxElev !== null && mapboxElev !== undefined && mapboxElev > 0) {
-    return mapboxElev * 1.5;
-  }
-
-  // 否則，使用臺中盆地到東側山區的經度高程斷面數學模型作為 Backup
-  let elev = 60; // 預設台中盆地平原海拔
-  if (lon > 120.70) {
-    // 東側山區阻擋 (太平、大坑山區)
-    const dx = lon - 120.70;
-    elev = 100 + dx * 4200; // 海拔快速從 100m 爬升至 500m 以上
-    elev += Math.sin(lon * 200) * 80 + Math.cos(lat * 150) * 50; // 山脊與山谷波折
-  } else if (lon > 120.53 && lon < 120.61) {
-    // 大肚山台地
-    const mid = 120.57;
-    const width = 0.04;
-    const dist = Math.abs(lon - mid);
-    if (dist < width) {
-      const t = 1 - (dist / width);
-      elev = 60 + t * t * 240; // 最高處約 300m
-    }
-  } else if (lon <= 120.53) {
-    // 西側海岸
-    elev = Math.max(5, 5 + (lon - 120.30) * 200);
-  }
-  return Math.max(0, elev);
-};
 
 interface SensorMapProps {
   points: (Sensor & Observation)[];
@@ -185,15 +105,25 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const windAnimRef = useRef<number | null>(null);
   const windVectorsRef = useRef<{ id: string; lon: number; lat: number; dLon: number; dLat: number; hashOffset: number; ws: number }[]>([]);
 
-  // 污染擴散模擬相關
-  const [simTimeH, setSimTimeH] = useState(0); // 目前模擬時間 (0~4 小時)
-  const simAnimRef = useRef<number | null>(null);
-  const simPhaseRef = useRef<'animating' | 'holding'>('animating');
-  const simStartTimeRef = useRef<number | null>(null);
-  const simHoldStartRef = useRef<number | null>(null);
   const [playTrigger, setPlayTrigger] = useState(0);
-  const prevEventIdRef = useRef<string | undefined>(undefined);
-  const prevPlayTriggerRef = useRef<number>(0);
+
+  // 污染擴散模擬相關 (委託自定義 Hook 管理)
+  const {
+    simTimeH,
+    setSimTimeH,
+    simAnimRef,
+    simPhaseRef,
+    simStartTimeRef,
+    simHoldStartRef
+  } = useDispersionSim({
+    map: mapRef.current,
+    isLoaded,
+    dispersionEvent,
+    playTrigger,
+    points,
+    setShowWindArrows,
+    windVectorsRef
+  });
 
   // 用於驅動超標圓圈的外環動畫（WebGL 雷達脈衝環）
   const [pulseRadius, setPulseRadius] = useState(6);
@@ -1027,280 +957,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     };
   }, [showWindArrows, isLoaded]);
 
-  // 3.3 \u6c61\u67d3\u64f4\u6563\u6a21\u64ec\uff1aGaussian Puff \u52d5\u756b\u5f15\u64ce
-  useEffect(() => {
-    if (!mapRef.current || !isLoaded) return;
-    const map = mapRef.current;
-
-    const currentEventId = dispersionEvent?.id;
-    const isEventChanged = currentEventId !== prevEventIdRef.current;
-    const isPlayTriggerChanged = playTrigger !== prevPlayTriggerRef.current;
-
-    // 只有在事件改變或使用者手動點擊重新播放時，才重新初始化動畫，防止輪詢 (poll) 導致自動重播
-    if (!isEventChanged && !isPlayTriggerChanged) {
-      return;
-    }
-    prevEventIdRef.current = currentEventId;
-    prevPlayTriggerRef.current = playTrigger;
-
-    if (simAnimRef.current) {
-      cancelAnimationFrame(simAnimRef.current);
-      simAnimRef.current = null;
-    }
-
-    if (!dispersionEvent) {
-      const dispCanvas = document.getElementById('dispersion-canvas') as HTMLCanvasElement | null;
-      if (dispCanvas) {
-        dispCanvas.getContext('2d')?.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
-      }
-      try { map.getLayer('dispersion-canvas-layer') && map.setLayoutProperty('dispersion-canvas-layer', 'visibility', 'none'); } catch {}
-      setSimTimeH(0);
-      simStartTimeRef.current = null;
-      simPhaseRef.current = 'animating';
-      return;
-    }
-
-    setShowWindArrows(false);
-    try { map.getLayer('dispersion-canvas-layer') && map.setLayoutProperty('dispersion-canvas-layer', 'visibility', 'visible'); } catch {}
-
-    const dispCanvas = document.getElementById('dispersion-canvas') as HTMLCanvasElement | null;
-    if (!dispCanvas) return;
-    const dCtx = dispCanvas.getContext('2d');
-    if (!dCtx) return;
-
-    // 立刻清空畫布，避免殘留上一輪模擬的最後一幀導致視覺卡頓/回放閃爍
-    dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
-
-    const srcSensor = getEventSourceSensor(dispersionEvent, points);
-    if (!srcSensor) return;
-    const srcLon = srcSensor.lon;
-    const srcLat = srcSensor.lat;
-    const srcPm25: number = (srcSensor as any).pm2_5 ?? 50;
-
-    if (windVectorsRef.current.length === 0 && points.length > 0) {
-    windVectorsRef.current = points.map((p: any) => {
-        const lon = p.lon; const lat = p.lat;
-        const hour = new Date().getHours();
-        const isCoastal = lon < 120.55; const isMountain = lon > 120.75;
-        const isDay = hour >= 7 && hour <= 18;
-        let baseWd = isCoastal ? (isDay ? 250 : 65) : isMountain ? (isDay ? 290 : 110) : (isDay ? 220 : 45);
-        const baseWs = isCoastal ? (isDay ? 6.5 : 4.2) : isMountain ? (isDay ? 3.8 : 2.5) : (isDay ? 5.0 : 3.5);
-        baseWd = (baseWd + (lat - 24.15) * 15 + 360) % 360;
-        let hash = 0;
-        for (const c of String(p.id || '')) hash += c.charCodeAt(0);
-        const wd = (baseWd + (hash % 41) - 20 + 360) % 360;
-        const ws = Math.max(1.5, baseWs + ((hash % 31) - 15) / 10);
-        const rad = ((wd + 180) * Math.PI) / 180;
-        const scale = 0.00045 * ws;
-        return { id: p.id, lon, lat, dLon: Math.sin(rad) * scale, dLat: Math.cos(rad) * scale, hashOffset: 0, ws };
-      });
-    }
-
-    let sumW = 0, sumLon = 0, sumLat = 0, sumWs = 0;
-    for (const v of windVectorsRef.current) {
-      const dLon = srcLon - v.lon; const dLat = srcLat - v.lat;
-      const w = 1.0 / (dLon * dLon + dLat * dLat + 0.000001);
-      sumW += w; sumLon += v.dLon * w; sumLat += v.dLat * w; sumWs += v.ws * w;
-    }
-    const windDLon = sumW > 0 ? sumLon / sumW : 0.0003;
-    const windDLat = sumW > 0 ? sumLat / sumW : 0.0002;
-    const windSpeedMs = sumW > 0 ? sumWs / sumW : 4.0;
-    const windToRad = Math.atan2(windDLon, windDLat);
-
-    const MIN_LON = 120.30, MAX_LON = 120.98, MIN_LAT = 23.85, MAX_LAT = 24.45;
-    const lonWidth = MAX_LON - MIN_LON;
-    const latHeight = MAX_LAT - MIN_LAT;
-    const mPerDegLon = 111000 * Math.cos(srcLat * Math.PI / 180);
-    const mPerDegLat = 111000;
-    const mPerPxX = lonWidth * mPerDegLon / dispCanvas.width;
-    const mPerPxY = latHeight * mPerDegLat / dispCanvas.height;
-    const srcX = ((srcLon - MIN_LON) / lonWidth) * dispCanvas.width;
-    const srcY = ((MAX_LAT - srcLat) / latHeight) * dispCanvas.height;
-
-    const getColor = (currentPm25: number, opacity: number) => {
-      if (currentPm25 >= 54.4) return `rgba(239,68,68,${opacity.toFixed(3)})`;
-      if (currentPm25 >= 35.4) return `rgba(249,115,22,${opacity.toFixed(3)})`;
-      if (currentPm25 >= 15.5) return `rgba(234,179,8,${opacity.toFixed(3)})`;
-      return `rgba(52,211,153,${opacity.toFixed(3)})`;
-    };
-
-    simPhaseRef.current = 'animating';
-    simStartTimeRef.current = null;
-    simHoldStartRef.current = null;
-
-    const SIM_REAL_S = 20; // 運行速度放慢為原先的 0.5 倍
-    const SIM_HOLD_MS = 2500;
-
-    const drawFrame = (tHours: number) => {
-      dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
-      if (tHours < 0.02) return;
-      const K = 50;
-      const layerCount = Math.min(Math.floor(tHours * 2) + 1, 5);
-      
-      const sourceElev = getElevation(srcLon, srcLat, map);
-
-      for (let li = 0; li < layerCount; li++) {
-        const fraction = 1 - li / layerCount;
-        const tLayer = tHours * (fraction * 0.6 + 0.4);
-        const currPm25 = srcPm25 * Math.exp(-0.45 * tLayer);
-        const t_sL = tLayer * 3600;
-        const sigmaL = Math.sqrt(2 * K * t_sL);
-        let sxPx = Math.max((sigmaL * 1.4) / mPerPxX, 2);
-        let syPx = Math.max(sigmaL / mPerPxY, 2);
-        const dMX = windSpeedMs * t_sL * Math.sin(windToRad);
-        const dMY = windSpeedMs * t_sL * Math.cos(windToRad);
-
-        // 原始預計位置
-        const targetLon = srcLon + dMX / mPerDegLon;
-        const targetLat = srcLat + dMY / mPerDegLat;
-
-        // 地形海拔高度檢測與折減 (以 source 為基準)
-        const targetElev = getElevation(targetLon, targetLat, map);
-        const midLon = (srcLon + targetLon) / 2;
-        const midLat = (srcLat + targetLat) / 2;
-        const midElev = getElevation(midLon, midLat, map);
-
-        const maxElevDiff = Math.max(0, targetElev - sourceElev, midElev - sourceElev);
-
-        // 位移折減：高度差超過 30 公尺開始阻擋，超過 120 公尺則幾乎折減到底，模擬撞山障礙
-        let travelFactor = 1.0;
-        if (maxElevDiff > 30) {
-          travelFactor = Math.max(0.2, 1.0 - (maxElevDiff - 30) / 90);
-        }
-
-        // 折減後實際粒子位置
-        const adjLon = srcLon + (dMX / mPerDegLon) * travelFactor;
-        const adjLat = srcLat + (dMY / mPerDegLat) * travelFactor;
-
-        // 計算該處的局部高程差，模擬撞山積累與擠壓
-        const actualElev = getElevation(adjLon, adjLat, map);
-        const actualElevDiff = Math.max(0, actualElev - sourceElev);
-
-        // 濃度積累係數：撞山時，風速降低，濃度（不透明度）增加最多 2.0 倍
-        let accumulationFactor = 1.0;
-        if (actualElevDiff > 10) {
-          accumulationFactor = 1.0 + Math.min(actualElevDiff / 50, 1.0);
-        }
-
-        // 擴散壓縮係數：氣流撞山受阻，水平與垂直擴散受壓制而變窄
-        let compressFactor = 1.0;
-        if (actualElevDiff > 20) {
-          compressFactor = Math.max(0.65, 1.0 - (actualElevDiff - 20) / 150);
-        }
-
-        const pX = ((adjLon - MIN_LON) / lonWidth) * dispCanvas.width;
-        const pY = ((MAX_LAT - adjLat) / latHeight) * dispCanvas.height;
-
-        // 當撞山坡度過陡時 (高度差大於 60 公尺，視為陡峭山崖/障壁)
-        // 粒子發生強烈撞擊沉降 (Deposition/Absorption)，不透明度直接衰減至趨近於 0
-        let depositionFactor = 1.0;
-        if (actualElevDiff > 60) {
-          depositionFactor = Math.max(0.0, 1.0 - (actualElevDiff - 60) / 60);
-        }
-
-        // 隨時間呈指數衰減 (e^-0.45t)，模擬擴散稀釋與乾沉降，吹越遠越淡
-        const timeDecay = Math.exp(-0.45 * tHours);
-        let opacity = Math.max(0.02, 0.55 * timeDecay * fraction) * accumulationFactor * depositionFactor;
-        opacity = Math.min(opacity, 0.95); // 防止不透明度過高
-
-        sxPx = sxPx * compressFactor;
-        syPx = syPx * compressFactor;
-        const radius = Math.max(syPx * 3, 12);
-
-        dCtx.save();
-        dCtx.translate(pX, pY);
-        dCtx.rotate(windToRad);
-        dCtx.scale(Math.max(sxPx / Math.max(syPx, 1), 1), 1);
-        const grad = dCtx.createRadialGradient(0, 0, 0, 0, 0, radius);
-        grad.addColorStop(0, getColor(currPm25, Math.min(opacity * 1.6, 0.9)));
-        grad.addColorStop(0.35, getColor(currPm25, opacity * 0.8));
-        grad.addColorStop(1, getColor(currPm25, 0));
-        dCtx.beginPath();
-        dCtx.arc(0, 0, radius, 0, Math.PI * 2);
-        dCtx.fillStyle = grad;
-        dCtx.fill();
-        dCtx.restore();
-      }
-      // \u7119\u5305\u4e2d\u5fc3\u4f4d\u5740 (t=current)
-      const t_s = tHours * 3600;
-      const dMXt = windSpeedMs * t_s * Math.sin(windToRad);
-      const dMYt = windSpeedMs * t_s * Math.cos(windToRad);
-
-      const tTargetLon = srcLon + dMXt / mPerDegLon;
-      const tTargetLat = srcLat + dMYt / mPerDegLat;
-      const tTargetElev = getElevation(tTargetLon, tTargetLat, map);
-      const tMidLon = (srcLon + tTargetLon) / 2;
-      const tMidLat = (srcLat + tTargetLat) / 2;
-      const tMidElev = getElevation(tMidLon, tMidLat, map);
-
-      const tMaxElevDiff = Math.max(0, tTargetElev - sourceElev, tMidElev - sourceElev);
-      let tTravelFactor = 1.0;
-      if (tMaxElevDiff > 30) {
-        tTravelFactor = Math.max(0.2, 1.0 - (tMaxElevDiff - 30) / 90);
-      }
-
-      const tAdjLon = srcLon + (dMXt / mPerDegLon) * tTravelFactor;
-      const tAdjLat = srcLat + (dMYt / mPerDegLat) * tTravelFactor;
-
-      // 終點撞山沉降消散計算 (控制虛線與標記的淡出)
-      const tActualElev = getElevation(tAdjLon, tAdjLat, map);
-      const tActualElevDiff = Math.max(0, tActualElev - sourceElev);
-      let tDepositionFactor = 1.0;
-      if (tActualElevDiff > 60) {
-        tDepositionFactor = Math.max(0.0, 1.0 - (tActualElevDiff - 60) / 60);
-      }
-
-      const puffX = ((tAdjLon - MIN_LON) / lonWidth) * dispCanvas.width;
-      const puffY = ((MAX_LAT - tAdjLat) / latHeight) * dispCanvas.height;
-      // 軌跡虛線 (維持不用消失)
-      if (tHours > 0.15) {
-        dCtx.beginPath();
-        dCtx.moveTo(srcX, srcY);
-        dCtx.lineTo(puffX, puffY);
-        dCtx.setLineDash([6, 6]);
-        dCtx.strokeStyle = getColor(srcPm25, 0.3);
-        dCtx.lineWidth = 1.5;
-        dCtx.stroke();
-        dCtx.setLineDash([]);
-      }
-      // 來源標記
-      dCtx.beginPath(); dCtx.arc(srcX, srcY, 5, 0, Math.PI * 2); dCtx.fillStyle = getColor(srcPm25, 0.9); dCtx.fill();
-      dCtx.beginPath(); dCtx.arc(srcX, srcY, 9, 0, Math.PI * 2); dCtx.strokeStyle = getColor(srcPm25, 0.4); dCtx.lineWidth = 1.5; dCtx.stroke();
-      // \u5c0f\u6642\u6a19\u8a18 1h / 2h / 3h
-      for (let h = 1; h <= Math.min(Math.floor(tHours), 3); h++) {
-        const hMX = windSpeedMs * h * 3600 * Math.sin(windToRad);
-        const hMY = windSpeedMs * h * 3600 * Math.cos(windToRad);
-        const hX = ((srcLon + hMX / mPerDegLon - MIN_LON) / lonWidth) * dispCanvas.width;
-        const hY = ((MAX_LAT - (srcLat + hMY / mPerDegLat)) / latHeight) * dispCanvas.height;
-        dCtx.beginPath(); dCtx.arc(hX, hY, 3, 0, Math.PI * 2); dCtx.fillStyle = 'rgba(255,255,255,0.6)'; dCtx.fill();
-        dCtx.fillStyle = 'rgba(255,255,255,0.8)'; dCtx.font = 'bold 11px Inter, sans-serif'; dCtx.fillText(`${h}h`, hX + 7, hY - 4);
-      }
-      try { (map.getSource('dispersion-canvas-source') as mapboxgl.CanvasSource)?.play(); } catch {}
-    };
-
-    const animate = (timestamp: number) => {
-      if (simPhaseRef.current === 'holding') {
-        setSimTimeH(4.0);
-        drawFrame(4.0);
-        return;
-      }
-      if (!simStartTimeRef.current) simStartTimeRef.current = timestamp;
-      const tHours = Math.min(((timestamp - simStartTimeRef.current) / 1000 / SIM_REAL_S) * 4, 4);
-      setSimTimeH(tHours);
-      drawFrame(tHours);
-      if (tHours >= 4) {
-        simPhaseRef.current = 'holding';
-      } else {
-        simAnimRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    simAnimRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (simAnimRef.current) { cancelAnimationFrame(simAnimRef.current); simAnimRef.current = null; }
-    };
-  }, [dispersionEvent, isLoaded, playTrigger]);
+  // 3.3 污染擴散模擬動畫已移至 useDispersionSim 自定義 Hook 中處理
 
   // 3.4 啟動擴散模擬時，自動關閉熱區圖層並強制開啟 3D 立體地形，結束時自動復原
   const prevDispersionRef = useRef<any>(null);
