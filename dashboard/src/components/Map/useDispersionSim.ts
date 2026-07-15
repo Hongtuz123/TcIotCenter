@@ -90,7 +90,7 @@ export const getElevation = (
 interface UseDispersionSimProps {
   map: mapboxgl.Map | null;
   isLoaded: boolean;
-  dispersionEvent: Event | null;
+  dispersionEvent: Event | null | undefined;
   playTrigger: number;
   points: (Sensor & Observation)[];
   setShowWindArrows: (show: boolean) => void;
