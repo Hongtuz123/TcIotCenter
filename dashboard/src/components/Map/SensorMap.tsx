@@ -1285,6 +1285,14 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       original3DTerrainRef.current = show3DTerrain;
       setShowHeatmap(false);
       setShow3DTerrain(true);
+      if (mapRef.current) {
+        mapRef.current.flyTo({
+          pitch: 60,
+          bearing: -20,
+          duration: 1500,
+          essential: true
+        });
+      }
     } else if (!dispersionEvent && prevDispersionRef.current) {
       setShowHeatmap(true);
       setShow3DTerrain(original3DTerrainRef.current);
@@ -1913,15 +1921,18 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     if (lat !== undefined && lng !== undefined) {
       console.log(`Zooming in to active event center at [${lng}, ${lat}]`);
+      const isSimulating = !!dispersionEvent;
       mapRef.current.flyTo({
         center: [lng, lat],
         zoom: 14.5,
+        pitch: isSimulating ? 60 : mapRef.current.getPitch(),
+        bearing: isSimulating ? -20 : mapRef.current.getBearing(),
         speed: 1.2,
         curve: 1.4,
         essential: true
       });
     }
-  }, [activeEvent, isLoaded]);
+  }, [activeEvent, isLoaded, dispersionEvent]);
 
   // 5.5 監聽第一層篩選變更，地圖平滑飛越與縮放至區域中心
   useEffect(() => {
@@ -2321,7 +2332,14 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setPlayTrigger(prev => prev + 1)}
+                  onClick={() => {
+                    const dispCanvas = document.getElementById('dispersion-canvas') as HTMLCanvasElement | null;
+                    if (dispCanvas) {
+                      dispCanvas.getContext('2d')?.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
+                    }
+                    setSimTimeH(0);
+                    setPlayTrigger(prev => prev + 1);
+                  }}
                   className="text-slate-500 hover:text-orange-400 p-0.5 rounded cursor-pointer transition-colors"
                   title="重新播放"
                 >
