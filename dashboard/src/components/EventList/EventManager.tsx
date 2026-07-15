@@ -85,15 +85,15 @@ export const EventManager: React.FC<EventManagerProps> = ({
       }
     }
 
-    // 3. 備援：如果 title 裡面有寫死產業園區 (例如使用者手動輸入 "關連工業區-微感事件")
+    // 3. 備援：如果 title 裡面有寫死產業園區 (例如使用者手動輸入 "關連工業區-微感事件" 或 "關連工業區-事件管理")
     if (!zone && event.title) {
-      const match = event.title.match(/(.*產業園區|.*工業區)-微感事件/);
+      const match = event.title.match(/(.*產業園區|.*工業區)-(微感事件|事件管理)/);
       if (match && match[1]) {
         zone = match[1];
       }
     }
 
-    return zone ? `${zone}-微感事件` : '微感事件';
+    return zone ? `${zone}-事件管理` : '事件管理';
   };
 
   // 表單狀態
@@ -182,7 +182,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
       <div className="border-b border-slate-800 pb-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <AlertCircle className="text-orange-500 w-5 h-5" />
-          <h2 className="text-lg font-bold text-slate-100">微感事件</h2>
+          <h2 className="text-lg font-bold text-slate-100">事件管理</h2>
         </div>
         {/* 已改為達到門檻自動生成事件，移除手動新增事件按鈕 */}
       </div>

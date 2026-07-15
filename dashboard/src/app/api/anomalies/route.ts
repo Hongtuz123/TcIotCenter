@@ -76,7 +76,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
       try {
         const { error } = await client.from('events').upsert({
           id: eventId,
-          title: `[自動] 微感事件 (門檻: PM₂.₅ ${pm25Thresh})`,
+          title: `[自動] 事件管理 (門檻: PM₂.₅ ${pm25Thresh})`,
           description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${dominantType}。`,
           status: '待確認',
           created_at: nowStr,
@@ -108,7 +108,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
       const lon = cluster.center.lon;
       const fmtTime = timeStr.replace(/[- :T]/g, '').substring(0, 12);
       const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
-      const title = `[自動] 微感事件 (門檻: PM₂.₅ ${pm25Thresh})`;
+      const title = `[自動] 事件管理 (門檻: PM₂.₅ ${pm25Thresh})`;
       const description = `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${cluster.dominantType && cluster.dominantType !== '--' && cluster.dominantType !== 'undefined' ? cluster.dominantType : '微感超標-群聚'}。`;
       const boundsJson = JSON.stringify({ center: { lat, lng: lon }, radiusKm: cluster.radiusKm });
 
@@ -142,7 +142,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
     if (!exists) {
       globalMockState.events.unshift({
         id: eventId,
-        title: `[自動] 微感事件 (門檻: PM₂.₅ ${pm25Thresh})`,
+        title: `[自動] 事件管理 (門檻: PM₂.₅ ${pm25Thresh})`,
         description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³。`,
         status: '待確認' as const,
         created_at: nowStr,

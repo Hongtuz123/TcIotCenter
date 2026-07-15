@@ -21,13 +21,13 @@ export async function GET() {
         throw error;
       }
 
-      // 一次性歷史資料清理：將帶有行政區或舊格式的 title 統一修改為無行政區的 "[自動] 微感事件"
-      const oldEvents = (data || []).filter((ev: any) => ev.title && (ev.title.includes('微感超標群聚事件') || ev.title.includes('區-微感事件')));
+      // 一次性歷史資料清理：將帶有行政區、舊格式或 "微感事件" 的 title 統一修改為無行政區的 "[自動] 事件管理"
+      const oldEvents = (data || []).filter((ev: any) => ev.title && (ev.title.includes('微感超標群聚事件') || ev.title.includes('區-微感事件') || ev.title.includes('微感事件')));
       if (oldEvents.length > 0) {
         for (const ev of oldEvents) {
           const threshMatch = ev.title.match(/門檻: PM₂.₅ (\d+(\.\d+)?)/);
           const thresh = threshMatch ? threshMatch[1] : '54';
-          const newTitle = `[自動] 微感事件 (門檻: PM₂.₅ ${thresh})`;
+          const newTitle = `[自動] 事件管理 (門檻: PM₂.₅ ${thresh})`;
           
           await client.from('events').update({ title: newTitle }).eq('id', ev.id);
           ev.title = newTitle; // 同步更新當前 response 記憶體
@@ -53,12 +53,12 @@ export async function GET() {
     
     // 一次性歷史資料清理（SQLite）
     const rawEvents = await db.all('SELECT * FROM events ORDER BY created_at DESC');
-    const oldSQLiteEvents = rawEvents.filter((ev: any) => ev.title && (ev.title.includes('微感超標群聚事件') || ev.title.includes('區-微感事件')));
+    const oldSQLiteEvents = rawEvents.filter((ev: any) => ev.title && (ev.title.includes('微感超標群聚事件') || ev.title.includes('區-微感事件') || ev.title.includes('微感事件')));
     if (oldSQLiteEvents.length > 0) {
       for (const ev of oldSQLiteEvents) {
         const threshMatch = ev.title.match(/門檻: PM₂.₅ (\d+(\.\d+)?)/);
         const thresh = threshMatch ? threshMatch[1] : '54';
-        const newTitle = `[自動] 微感事件 (門檻: PM₂.₅ ${thresh})`;
+        const newTitle = `[自動] 事件管理 (門檻: PM₂.₅ ${thresh})`;
         
         await db.run('UPDATE events SET title = ? WHERE id = ?', [newTitle, ev.id]);
         ev.title = newTitle; // 同步更新
