@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Sensor, Cluster, Observation, Event, EventSensorDetail } from '@/types';
-import { Layers, Flame, AlertTriangle, ShieldCheck, Compass } from 'lucide-react';
+import { Layers, Flame, AlertTriangle, ShieldCheck, Compass, RotateCcw } from 'lucide-react';
 
 // 取得擴散模擬的污染源測站 (Supabase 模式下若 sensors 為空，則從 points 尋找距離 bounds 中心最近的測站)
 const getEventSourceSensor = (
@@ -86,45 +86,20 @@ const getEventSensorsInBounds = (
   return [];
 };
 
-// 結合 Mapbox 實測高程與臺中地形數學模型，確保無地形高程資料時依然有穩定、顯著的地形阻擋效果
+// 僅使用 Mapbox DEM 實測高程數據 (乘以 1.5 倍以增強三維地勢阻擋視覺效果)
 const getElevation = (
   lon: number,
   lat: number,
   map: mapboxgl.Map | null
 ): number => {
-  let mapboxElev: number | null = null;
-  if (map) {
-    try {
-      mapboxElev = map.queryTerrainElevation([lon, lat]);
-    } catch {}
-  }
-
-  // 若 Mapbox 高程查詢可用且大於 0，優先使用 (並乘上擴張係數以增強視覺效果)
-  if (mapboxElev !== null && mapboxElev !== undefined && mapboxElev > 0) {
-    return mapboxElev * 1.5;
-  }
-
-  // 否則，使用臺中盆地到東側山區的經度高程斷面數學模型作為 Backup
-  let elev = 60; // 預設台中盆地平原海拔
-  if (lon > 120.70) {
-    // 東側山區阻擋 (太平、大坑山區)
-    const dx = lon - 120.70;
-    elev = 100 + dx * 4200; // 海拔快速從 100m 爬升至 500m 以上
-    elev += Math.sin(lon * 200) * 80 + Math.cos(lat * 150) * 50; // 山脊與山谷波折
-  } else if (lon > 120.53 && lon < 120.61) {
-    // 大肚山台地
-    const mid = 120.57;
-    const width = 0.04;
-    const dist = Math.abs(lon - mid);
-    if (dist < width) {
-      const t = 1 - (dist / width);
-      elev = 60 + t * t * 240; // 最高處約 300m
+  if (!map) return 0;
+  try {
+    const mapboxElev = map.queryTerrainElevation([lon, lat]);
+    if (mapboxElev !== null && mapboxElev !== undefined && mapboxElev > 0) {
+      return mapboxElev * 1.5;
     }
-  } else if (lon <= 120.53) {
-    // 西側海岸
-    elev = Math.max(5, 5 + (lon - 120.30) * 200);
-  }
-  return Math.max(0, elev);
+  } catch {}
+  return 0;
 };
 
 interface SensorMapProps {
@@ -191,6 +166,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const simPhaseRef = useRef<'animating' | 'holding'>('animating');
   const simStartTimeRef = useRef<number | null>(null);
   const simHoldStartRef = useRef<number | null>(null);
+  const [playTrigger, setPlayTrigger] = useState(0);
 
   // 用於驅動超標圓圈的外環動畫（WebGL 雷達脈衝環）
   const [pulseRadius, setPulseRadius] = useState(6);
@@ -1111,7 +1087,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     simStartTimeRef.current = null;
     simHoldStartRef.current = null;
 
-    const SIM_REAL_S = 10;
+    const SIM_REAL_S = 20; // 運行速度放慢為原先的 0.5 倍
     const SIM_HOLD_MS = 2500;
 
     const drawFrame = (tHours: number) => {
@@ -1245,19 +1221,19 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     const animate = (timestamp: number) => {
       if (simPhaseRef.current === 'holding') {
-        if (!simHoldStartRef.current) simHoldStartRef.current = timestamp;
-        if (timestamp - simHoldStartRef.current > SIM_HOLD_MS) {
-          simPhaseRef.current = 'animating'; simStartTimeRef.current = null; simHoldStartRef.current = null;
-        }
-        simAnimRef.current = requestAnimationFrame(animate);
+        setSimTimeH(4.0);
+        drawFrame(4.0);
         return;
       }
       if (!simStartTimeRef.current) simStartTimeRef.current = timestamp;
       const tHours = Math.min(((timestamp - simStartTimeRef.current) / 1000 / SIM_REAL_S) * 4, 4);
       setSimTimeH(tHours);
       drawFrame(tHours);
-      if (tHours >= 4) simPhaseRef.current = 'holding';
-      simAnimRef.current = requestAnimationFrame(animate);
+      if (tHours >= 4) {
+        simPhaseRef.current = 'holding';
+      } else {
+        simAnimRef.current = requestAnimationFrame(animate);
+      }
     };
 
     simAnimRef.current = requestAnimationFrame(animate);
@@ -1265,15 +1241,19 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     return () => {
       if (simAnimRef.current) { cancelAnimationFrame(simAnimRef.current); simAnimRef.current = null; }
     };
-  }, [dispersionEvent, isLoaded]);
+  }, [dispersionEvent, isLoaded, playTrigger]);
 
-  // 3.4 啟動擴散模擬時，自動關閉熱區圖層，結束時自動復原
+  // 3.4 啟動擴散模擬時，自動關閉熱區圖層並強制開啟 3D 立體地形，結束時自動復原
   const prevDispersionRef = useRef<any>(null);
+  const original3DTerrainRef = useRef<boolean>(show3DTerrain);
   useEffect(() => {
     if (dispersionEvent && !prevDispersionRef.current) {
+      original3DTerrainRef.current = show3DTerrain;
       setShowHeatmap(false);
+      setShow3DTerrain(true);
     } else if (!dispersionEvent && prevDispersionRef.current) {
       setShowHeatmap(true);
+      setShow3DTerrain(original3DTerrainRef.current);
     }
     prevDispersionRef.current = dispersionEvent;
   }, [dispersionEvent]);
@@ -2305,10 +2285,19 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 <span className="text-lg">🌫️</span>
                 <h4 className="text-xs font-bold text-orange-400">污染擴散模擬</h4>
               </div>
-              <button
-                onClick={() => onClearDispersion?.()}
-                className="text-slate-500 hover:text-slate-300 p-0.5 rounded cursor-pointer"
-              >✕</button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPlayTrigger(prev => prev + 1)}
+                  className="text-slate-500 hover:text-orange-400 p-0.5 rounded cursor-pointer transition-colors"
+                  title="重新播放"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => onClearDispersion?.()}
+                  className="text-slate-500 hover:text-slate-300 p-0.5 rounded cursor-pointer"
+                >✕</button>
+              </div>
             </div>
             <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2">
               <div className="flex justify-between">
