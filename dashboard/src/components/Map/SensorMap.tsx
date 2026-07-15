@@ -1020,7 +1020,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const srcPm25: number = (srcSensor as any).pm2_5 ?? 50;
 
     if (windVectorsRef.current.length === 0 && points.length > 0) {
-      windVectorsRef.current = points.map((p: any) => {
+    windVectorsRef.current = points.map((p: any) => {
         const lon = p.lon; const lat = p.lat;
         const hour = new Date().getHours();
         const isCoastal = lon < 120.55; const isMountain = lon > 120.75;
@@ -1078,19 +1078,67 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       if (tHours < 0.02) return;
       const K = 50;
       const layerCount = Math.min(Math.floor(tHours * 2) + 1, 5);
+      
+      const sourceElev = map.queryTerrainElevation([srcLon, srcLat]) ?? 0;
+
       for (let li = 0; li < layerCount; li++) {
         const fraction = 1 - li / layerCount;
         const tLayer = tHours * (fraction * 0.6 + 0.4);
         const t_sL = tLayer * 3600;
         const sigmaL = Math.sqrt(2 * K * t_sL);
-        const sxPx = Math.max((sigmaL * 1.4) / mPerPxX, 2);
-        const syPx = Math.max(sigmaL / mPerPxY, 2);
+        let sxPx = Math.max((sigmaL * 1.4) / mPerPxX, 2);
+        let syPx = Math.max(sigmaL / mPerPxY, 2);
         const dMX = windSpeedMs * t_sL * Math.sin(windToRad);
         const dMY = windSpeedMs * t_sL * Math.cos(windToRad);
-        const pX = ((srcLon + dMX / mPerDegLon - MIN_LON) / lonWidth) * dispCanvas.width;
-        const pY = ((MAX_LAT - (srcLat + dMY / mPerDegLat)) / latHeight) * dispCanvas.height;
-        const opacity = Math.max(0.04, (0.52 - tHours * 0.08) * fraction);
+
+        // 原始預計位置
+        const targetLon = srcLon + dMX / mPerDegLon;
+        const targetLat = srcLat + dMY / mPerDegLat;
+
+        // 地形海拔高度檢測與折減 (以 source 為基準)
+        const targetElev = map.queryTerrainElevation([targetLon, targetLat]) ?? 0;
+        const midLon = (srcLon + targetLon) / 2;
+        const midLat = (srcLat + targetLat) / 2;
+        const midElev = map.queryTerrainElevation([midLon, midLat]) ?? 0;
+
+        const maxElevDiff = Math.max(0, targetElev - sourceElev, midElev - sourceElev);
+
+        // 位移折減：高度差超過 30 公尺開始阻擋，超過 120 公尺則幾乎折減到底，模擬撞山障礙
+        let travelFactor = 1.0;
+        if (maxElevDiff > 30) {
+          travelFactor = Math.max(0.2, 1.0 - (maxElevDiff - 30) / 90);
+        }
+
+        // 折減後實際粒子位置
+        const adjLon = srcLon + (dMX / mPerDegLon) * travelFactor;
+        const adjLat = srcLat + (dMY / mPerDegLat) * travelFactor;
+
+        // 計算該處的局部高程差，模擬撞山積累與擠壓
+        const actualElev = map.queryTerrainElevation([adjLon, adjLat]) ?? 0;
+        const actualElevDiff = Math.max(0, actualElev - sourceElev);
+
+        // 濃度積累係數：撞山時，風速降低，濃度（不透明度）增加最多 2.0 倍
+        let accumulationFactor = 1.0;
+        if (actualElevDiff > 10) {
+          accumulationFactor = 1.0 + Math.min(actualElevDiff / 50, 1.0);
+        }
+
+        // 擴散壓縮係數：氣流撞山受阻，水平與垂直擴散受壓制而變窄
+        let compressFactor = 1.0;
+        if (actualElevDiff > 20) {
+          compressFactor = Math.max(0.65, 1.0 - (actualElevDiff - 20) / 150);
+        }
+
+        const pX = ((adjLon - MIN_LON) / lonWidth) * dispCanvas.width;
+        const pY = ((MAX_LAT - adjLat) / latHeight) * dispCanvas.height;
+
+        let opacity = Math.max(0.04, (0.52 - tHours * 0.08) * fraction) * accumulationFactor;
+        opacity = Math.min(opacity, 0.95); // 防止不透明度過高
+
+        sxPx = sxPx * compressFactor;
+        syPx = syPx * compressFactor;
         const radius = Math.max(syPx * 3, 12);
+
         dCtx.save();
         dCtx.translate(pX, pY);
         dCtx.rotate(windToRad);
@@ -1109,8 +1157,25 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       const t_s = tHours * 3600;
       const dMXt = windSpeedMs * t_s * Math.sin(windToRad);
       const dMYt = windSpeedMs * t_s * Math.cos(windToRad);
-      const puffX = ((srcLon + dMXt / mPerDegLon - MIN_LON) / lonWidth) * dispCanvas.width;
-      const puffY = ((MAX_LAT - (srcLat + dMYt / mPerDegLat)) / latHeight) * dispCanvas.height;
+
+      const tTargetLon = srcLon + dMXt / mPerDegLon;
+      const tTargetLat = srcLat + dMYt / mPerDegLat;
+      const tTargetElev = map.queryTerrainElevation([tTargetLon, tTargetLat]) ?? 0;
+      const tMidLon = (srcLon + tTargetLon) / 2;
+      const tMidLat = (srcLat + tTargetLat) / 2;
+      const tMidElev = map.queryTerrainElevation([tMidLon, tMidLat]) ?? 0;
+
+      const tMaxElevDiff = Math.max(0, tTargetElev - sourceElev, tMidElev - sourceElev);
+      let tTravelFactor = 1.0;
+      if (tMaxElevDiff > 30) {
+        tTravelFactor = Math.max(0.2, 1.0 - (tMaxElevDiff - 30) / 90);
+      }
+
+      const tAdjLon = srcLon + (dMXt / mPerDegLon) * tTravelFactor;
+      const tAdjLat = srcLat + (dMYt / mPerDegLat) * tTravelFactor;
+
+      const puffX = ((tAdjLon - MIN_LON) / lonWidth) * dispCanvas.width;
+      const puffY = ((MAX_LAT - tAdjLat) / latHeight) * dispCanvas.height;
       // \u8ecc\u8de1\u865b\u7dda
       if (tHours > 0.15) {
         dCtx.beginPath();
