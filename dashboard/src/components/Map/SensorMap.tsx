@@ -2,8 +2,52 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { Sensor, Cluster, Observation, Event } from '@/types';
+import { Sensor, Cluster, Observation, Event, EventSensorDetail } from '@/types';
 import { Layers, Flame, AlertTriangle, ShieldCheck, Compass } from 'lucide-react';
+
+// 取得擴散模擬的污染源測站 (Supabase 模式下若 sensors 為空，則從 points 尋找距離 bounds 中心最近的測站)
+const getEventSourceSensor = (
+  event: Event | null | undefined,
+  points: (Sensor & Observation)[]
+): EventSensorDetail | null => {
+  if (!event) return null;
+  if (event.sensors && event.sensors.length > 0) {
+    return event.sensors[0];
+  }
+  if (event.bounds?.center && points.length > 0) {
+    const center = event.bounds.center;
+    const centerLon = (center as any).lon ?? (center as any).lng;
+    const centerLat = center.lat;
+    if (centerLon && centerLat) {
+      let minDistance = Infinity;
+      let nearestSensor = null;
+      for (const p of points) {
+        const dLon = p.lon - centerLon;
+        const dLat = p.lat - centerLat;
+        const dist = dLon * dLon + dLat * dLat;
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearestSensor = p;
+        }
+      }
+      if (nearestSensor) {
+        return {
+          id: nearestSensor.id,
+          name: nearestSensor.name,
+          lat: nearestSensor.lat,
+          lon: nearestSensor.lon,
+          county: nearestSensor.county,
+          status: nearestSensor.status,
+          pm2_5: nearestSensor.pm2_5 ?? null,
+          temperature: nearestSensor.temperature ?? null,
+          humidity: nearestSensor.humidity ?? null,
+          voc: nearestSensor.voc ?? null
+        };
+      }
+    }
+  }
+  return null;
+};
 
 interface SensorMapProps {
   points: (Sensor & Observation)[];
@@ -928,7 +972,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const dCtx = dispCanvas.getContext('2d');
     if (!dCtx) return;
 
-    const srcSensor = dispersionEvent.sensors?.[0];
+    const srcSensor = getEventSourceSensor(dispersionEvent, points);
     if (!srcSensor) return;
     const srcLon = srcSensor.lon;
     const srcLat = srcSensor.lat;
@@ -2072,7 +2116,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       {/* 污染擴散模擬浮動面板 */}
       {dispersionEvent && (() => {
-        const srcSensor = dispersionEvent.sensors?.[0];
+        const srcSensor = getEventSourceSensor(dispersionEvent, points);
         const srcPm25 = srcSensor?.pm2_5 ?? 0;
         const hours = Math.floor(simTimeH);
         const mins = Math.floor((simTimeH - hours) * 60);
