@@ -393,22 +393,44 @@ export function useDispersionSim({
         }
         boundaries.sort((a, b) => a.x - b.x);
 
-        // 設定中心點顏色
-        grad.addColorStop(0, getContourColor(safeCurrPm, finalOpacity));
-
+        // 收集所有漸變 Stop 點，以排序與去重機制防範 addColorStop 位置非單調遞增所造成的 Canvas Exception
+        const stops: { offset: number; color: string }[] = [];
+        
+        // 中心點
+        stops.push({ offset: 0, color: getContourColor(safeCurrPm, finalOpacity) });
+        
         for (const b of boundaries) {
           const bX = Math.min(b.x, 0.99);
           const opBefore = finalOpacity * Math.max(0.1, 1 - bX * bX);
-          grad.addColorStop(bX, getContourColor(b.val + 0.1, opBefore));
+          stops.push({ offset: bX, color: getContourColor(b.val + 0.1, opBefore) });
           
-          // 在界線處突變為外圍的顏色 (保留 0.015 過渡以防止邊界走樣與鋸齒)
           const bXNext = Math.min(bX + 0.015, 0.995);
           const opAfter = finalOpacity * Math.max(0.1, 1 - bXNext * bXNext);
-          grad.addColorStop(bXNext, getContourColor(b.val - 0.1, opAfter));
+          stops.push({ offset: bXNext, color: getContourColor(b.val - 0.1, opAfter) });
         }
         
         // 邊緣淡出到完全透明
-        grad.addColorStop(1.0, getContourColor(0, 0));
+        stops.push({ offset: 1.0, color: getContourColor(0, 0) });
+        
+        // 1. 依 offset 由小到大進行排序 (確保單調遞增)
+        stops.sort((a, b) => a.offset - b.offset);
+        
+        // 2. 進行去重與極度鄰近位置覆蓋處理，預防浮點數精度或多邊界擠壓引發的 Exception
+        const uniqueStops: { offset: number; color: string }[] = [];
+        for (const s of stops) {
+          const safeOffset = Math.max(0, Math.min(1.0, safeNum(s.offset, 0)));
+          if (uniqueStops.length > 0 && Math.abs(uniqueStops[uniqueStops.length - 1].offset - safeOffset) < 0.0002) {
+            // 如果相鄰兩個 Stop 距離小於 0.0002 則直接覆蓋，避免 Canvas 核心報錯
+            uniqueStops[uniqueStops.length - 1].color = s.color;
+          } else {
+            uniqueStops.push({ offset: safeOffset, color: s.color });
+          }
+        }
+        
+        // 3. 安全呼叫 addColorStop
+        for (const s of uniqueStops) {
+          grad.addColorStop(s.offset, s.color);
+        }
 
         dCtx.beginPath();
         dCtx.arc(0, 0, finalRadius, 0, Math.PI * 2);
