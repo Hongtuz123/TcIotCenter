@@ -196,7 +196,9 @@ export function useDispersionSim({
     if (!srcSensor) return;
     const srcLon = srcSensor.lon;
     const srcLat = srcSensor.lat;
-    const srcPm25: number = (srcSensor as any).pm2_5 ?? 50;
+    const realPm25: number = (srcSensor as any).pm2_5 ?? 50;
+    // 為了確保模擬播放時能展現清晰的等值線（Contour）色彩層次，設定最低模擬源頭濃度為 60 µg/m³
+    const srcPm25 = Math.max(realPm25, 60.0);
 
     if (windVectorsRef.current.length === 0 && points.length > 0) {
       windVectorsRef.current = points.map((p: any) => {
@@ -320,11 +322,10 @@ export function useDispersionSim({
         const pX = ((adjLon - MIN_LON) / lonWidth) * dispCanvas.width;
         const pY = ((MAX_LAT - adjLat) / latHeight) * dispCanvas.height;
 
-        // 當撞山坡度過陡時 (高度差大於 60 公尺，視為陡峭山崖/障壁)
-        // 粒子發生強烈撞擊沉降 (Deposition/Absorption)，不透明度直接衰減至趨近於 0
+        // 放寬撞山沉降判定，避免粒子因地形高度差稍微增加就完全隱形消失，保留撞山堆積效果
         let depositionFactor = 1.0;
-        if (actualElevDiff > 60) {
-          depositionFactor = Math.max(0.0, 1.0 - (actualElevDiff - 60) / 60);
+        if (actualElevDiff > 120) {
+          depositionFactor = Math.max(0.4, 1.0 - (actualElevDiff - 120) / 400);
         }
 
         // 隨時間呈指數衰減 (e^-0.45t)，模擬擴散稀釋與乾沉降，吹越遠越淡
@@ -334,31 +335,47 @@ export function useDispersionSim({
 
         sxPx = sxPx * compressFactor;
         syPx = syPx * compressFactor;
-        const radius = Math.max(syPx * 3, 12);
+
+        // 嚴格數值安全防護，避免任何 NaN 導致 Canvas 繪圖靜默失敗
+        const safeNum = (v: any, def = 0): number => {
+          return (typeof v === 'number' && !isNaN(v)) ? v : def;
+        };
+
+        const finalPx = safeNum(pX, srcX);
+        const finalPy = safeNum(pY, srcY);
+        const finalRadius = Math.max(safeNum(syPx * 3, 12), 12);
+        const finalOpacity = Math.min(Math.max(safeNum(opacity, 0.25), 0.02), 0.95);
+        const finalScaleX = Math.max(safeNum(sxPx / Math.max(syPx, 1), 1.0), 1.0);
+        const finalWindToRad = safeNum(windToRad, 0);
 
         dCtx.save();
-        dCtx.translate(pX, pY);
-        dCtx.rotate(windToRad);
-        dCtx.scale(Math.max(sxPx / Math.max(syPx, 1), 1), 1);
+        dCtx.translate(finalPx, finalPy);
+        dCtx.rotate(finalWindToRad);
+        dCtx.scale(finalScaleX, 1);
 
         // 階梯式高斯等值帶漸變產生器 (還原專業數值模擬的視覺質感)
         const getContourColor = (val: number, op: number) => {
-          if (val >= 250.4) return `rgba(127, 29, 29, ${op.toFixed(3)})`;   // 褐紅
-          if (val >= 150.4) return `rgba(168, 85, 247, ${op.toFixed(3)})`;  // 紫色
-          if (val >= 54.4) return `rgba(239, 68, 68, ${op.toFixed(3)})`;   // 紅色
-          if (val >= 35.4) return `rgba(249, 115, 22, ${op.toFixed(3)})`;  // 橘色
-          if (val >= 15.5) return `rgba(234, 179, 8, ${op.toFixed(3)})`;   // 黃色
-          return `rgba(52, 211, 153, ${op.toFixed(3)})`;                  // 綠色
+          // 提供綠色與黃色最低能見度保障，避免在深色背景下過於黯淡
+          const minOp = (o: number) => Math.max(o, 0.18).toFixed(3);
+          const stdOp = (o: number) => o.toFixed(3);
+
+          if (val >= 250.4) return `rgba(127, 29, 29, ${stdOp(op)})`;   // 褐紅
+          if (val >= 150.4) return `rgba(168, 85, 247, ${stdOp(op)})`;  // 紫色
+          if (val >= 54.4) return `rgba(239, 68, 68, ${stdOp(op)})`;   // 紅色
+          if (val >= 35.4) return `rgba(249, 115, 22, ${stdOp(op)})`;  // 橘色
+          if (val >= 15.5) return `rgba(234, 179, 8, ${minOp(op)})`;   // 黃色
+          return `rgba(52, 211, 153, ${minOp(op)})`;                  // 綠色
         };
 
-        const grad = dCtx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        const grad = dCtx.createRadialGradient(0, 0, 0, 0, 0, finalRadius);
         const thresholds = [250.4, 150.4, 54.4, 35.4, 15.5];
         const boundaries: { x: number; val: number }[] = [];
         
         // 依高斯剖面分佈 C(x) = C_max * exp(-1.8 * x^2) 反推各等值線界線的相對半徑 x
+        const safeCurrPm = safeNum(currPm25, 0);
         for (const T of thresholds) {
-          if (currPm25 > T) {
-            const x = Math.sqrt(Math.log(currPm25 / T) / 1.8);
+          if (safeCurrPm > T) {
+            const x = Math.sqrt(Math.log(safeCurrPm / T) / 1.8);
             if (x < 1.0) {
               boundaries.push({ x, val: T });
             }
@@ -367,16 +384,16 @@ export function useDispersionSim({
         boundaries.sort((a, b) => a.x - b.x);
 
         // 設定中心點顏色
-        grad.addColorStop(0, getContourColor(currPm25, opacity));
+        grad.addColorStop(0, getContourColor(safeCurrPm, finalOpacity));
 
         for (const b of boundaries) {
           const bX = Math.min(b.x, 0.99);
-          const opBefore = opacity * Math.max(0.1, 1 - bX * bX);
+          const opBefore = finalOpacity * Math.max(0.1, 1 - bX * bX);
           grad.addColorStop(bX, getContourColor(b.val + 0.1, opBefore));
           
           // 在界線處突變為外圍的顏色 (保留 0.015 過渡以防止邊界走樣與鋸齒)
           const bXNext = Math.min(bX + 0.015, 0.995);
-          const opAfter = opacity * Math.max(0.1, 1 - bXNext * bXNext);
+          const opAfter = finalOpacity * Math.max(0.1, 1 - bXNext * bXNext);
           grad.addColorStop(bXNext, getContourColor(b.val - 0.1, opAfter));
         }
         
@@ -384,7 +401,7 @@ export function useDispersionSim({
         grad.addColorStop(1.0, getContourColor(0, 0));
 
         dCtx.beginPath();
-        dCtx.arc(0, 0, radius, 0, Math.PI * 2);
+        dCtx.arc(0, 0, finalRadius, 0, Math.PI * 2);
         dCtx.fillStyle = grad;
         dCtx.fill();
         dCtx.restore();
@@ -436,6 +453,7 @@ export function useDispersionSim({
         dCtx.fillStyle = 'rgba(255,255,255,0.8)'; dCtx.font = 'bold 11px Inter, sans-serif'; dCtx.fillText(`${h}h`, hX + 7, hY - 4);
       }
       try { (map.getSource('dispersion-canvas-source') as mapboxgl.CanvasSource)?.play(); } catch {}
+      map.triggerRepaint();
     };
 
     const animate = (timestamp: number) => {
