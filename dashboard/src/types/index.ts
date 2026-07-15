@@ -39,6 +39,7 @@ export interface Event {
   created_at: string;
   updated_at: string;
   event_time?: string;
+  start_time?: string;
   bounds?: {
     center: { lat: number; lon: number };
     radiusKm: number;
