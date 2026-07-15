@@ -167,6 +167,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const simStartTimeRef = useRef<number | null>(null);
   const simHoldStartRef = useRef<number | null>(null);
   const [playTrigger, setPlayTrigger] = useState(0);
+  const prevEventIdRef = useRef<string | undefined>(undefined);
+  const prevPlayTriggerRef = useRef<number>(0);
 
   // 用於驅動超標圓圈的外環動畫（WebGL 雷達脈衝環）
   const [pulseRadius, setPulseRadius] = useState(6);
@@ -1004,6 +1006,17 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
+
+    const currentEventId = dispersionEvent?.id;
+    const isEventChanged = currentEventId !== prevEventIdRef.current;
+    const isPlayTriggerChanged = playTrigger !== prevPlayTriggerRef.current;
+
+    // 只有在事件改變或使用者手動點擊重新播放時，才重新初始化動畫，防止輪詢 (poll) 導致自動重播
+    if (!isEventChanged && !isPlayTriggerChanged) {
+      return;
+    }
+    prevEventIdRef.current = currentEventId;
+    prevPlayTriggerRef.current = playTrigger;
 
     if (simAnimRef.current) {
       cancelAnimationFrame(simAnimRef.current);
