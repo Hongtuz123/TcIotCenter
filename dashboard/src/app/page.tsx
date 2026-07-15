@@ -32,6 +32,11 @@ const getTaipeiTime = (offsetMs = 0): string => {
   return `${year}-${month}-${day}T${hour}:${alignedMin}`;
 };
 
+// 全域快取：行政區與產業園區的幾何計算結果，避免重複 Mount 時重複計算
+let globalZoneMap: { [id: string]: string } | null = null;
+let globalZoneNames: string[] | null = null;
+let globalRegionCenters: { [key: string]: [number, number] } | null = null;
+
 export default function DashboardPage() {
   // 時間對齊輔助函數：將 YYYY-MM-DDTHH:mm 無條件捨去至最近的 5 分鐘
   const alignTo5Minutes = (datetimeStr: string): string => {
@@ -126,6 +131,16 @@ export default function DashboardPage() {
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const prevSensorIdRef = useRef<string | null>(null);
 
+  // 快取：測站 7 天歷史趨勢資料
+  const historyCacheRef = useRef<Record<string, Observation[]>>({});
+
+  // 播放速度控制 (1x / 2x / 4x)
+  const [playSpeed, setPlaySpeed] = useState<1 | 2 | 4>(1);
+  const playSpeedRef = useRef<number>(1);
+  useEffect(() => {
+    playSpeedRef.current = playSpeed;
+  }, [playSpeed]);
+
   // 完整率狀態
   const [completeness, setCompleteness] = useState<{
     rate: number | null;
@@ -207,68 +222,80 @@ export default function DashboardPage() {
         const extractedCounties = Array.from(new Set(sensorsData.map((s) => s.county))).filter(Boolean);
         setCounties(extractedCounties);
 
-        // 載入產業園區 GeoJSON 並做 Point-in-Polygon 幾何判斷
-        const geoRes = await fetch('/industrial-zones.geojson');
-        const geojson = await geoRes.json();
-        const zones: string[] = [];
-        const zoneMap: { [id: string]: string } = {};
-        const centers: { [key: string]: [number, number] } = {};
+        if (globalZoneMap && globalZoneNames && globalRegionCenters) {
+          setZoneNames(globalZoneNames);
+          setSensorZoneMap(globalZoneMap);
+          setRegionCenters(globalRegionCenters);
+        } else {
+          // 載入產業園區 GeoJSON 並做 Point-in-Polygon 幾何判斷
+          const geoRes = await fetch('/industrial-zones.geojson');
+          const geojson = await geoRes.json();
+          const zones: string[] = [];
+          const zoneMap: { [id: string]: string } = {};
+          const centers: { [key: string]: [number, number] } = {};
 
-        // 1. 計算行政區的中心座標 (以測點平均經緯度)
-        extractedCounties.forEach((county) => {
-          const countyPts = sensorsData.filter((s) => s.county === county);
-          if (countyPts.length > 0) {
-            const avgLon = countyPts.reduce((sum, p) => sum + p.lon, 0) / countyPts.length;
-            const avgLat = countyPts.reduce((sum, p) => sum + p.lat, 0) / countyPts.length;
-            centers[`county_${county}`] = [avgLon, avgLat];
-          }
-        });
-
-        if (geojson && geojson.features) {
-          geojson.features.forEach((feature: any) => {
-            const zoneName = feature.properties.name;
-            if (zoneName && !zones.includes(zoneName)) {
-              zones.push(zoneName);
+          // 1. 計算行政區的中心座標 (以測點平均經緯度)
+          extractedCounties.forEach((county) => {
+            const countyPts = sensorsData.filter((s) => s.county === county);
+            if (countyPts.length > 0) {
+              const avgLon = countyPts.reduce((sum, p) => sum + p.lon, 0) / countyPts.length;
+              const avgLat = countyPts.reduce((sum, p) => sum + p.lat, 0) / countyPts.length;
+              centers[`county_${county}`] = [avgLon, avgLat];
             }
-            const geom = feature.geometry;
-
-            // 2. 計算園區幾何中心 (多邊形頂點平均經緯度)
-            let sumLon = 0, sumLat = 0, count = 0;
-            const processCoords = (ring: [number, number][]) => {
-              ring.forEach(([lon, lat]) => {
-                sumLon += lon;
-                sumLat += lat;
-                count++;
-              });
-            };
-            if (geom.type === 'Polygon') {
-              geom.coordinates.forEach(processCoords);
-            } else if (geom.type === 'MultiPolygon') {
-              geom.coordinates.forEach((poly: any) => poly.forEach(processCoords));
-            }
-            if (count > 0 && zoneName) {
-              centers[`zone_${zoneName}`] = [sumLon / count, sumLat / count];
-            }
-
-            sensorsData.forEach((sensor) => {
-              const pt: [number, number] = [sensor.lon, sensor.lat];
-              let inZone = false;
-              if (geom.type === 'Polygon') {
-                inZone = geom.coordinates.some((ring: any) => isPointInPolygon(pt, ring));
-              } else if (geom.type === 'MultiPolygon') {
-                inZone = geom.coordinates.some((poly: any) => 
-                  poly.some((ring: any) => isPointInPolygon(pt, ring))
-                );
-              }
-              if (inZone) {
-                zoneMap[sensor.id] = zoneName;
-              }
-            });
           });
+
+          if (geojson && geojson.features) {
+            geojson.features.forEach((feature: any) => {
+              const zoneName = feature.properties.name;
+              if (zoneName && !zones.includes(zoneName)) {
+                zones.push(zoneName);
+              }
+              const geom = feature.geometry;
+
+              // 2. 計算園區幾何中心 (多邊形頂點平均經緯度)
+              let sumLon = 0, sumLat = 0, count = 0;
+              const processCoords = (ring: [number, number][]) => {
+                ring.forEach(([lon, lat]) => {
+                  sumLon += lon;
+                  sumLat += lat;
+                  count++;
+                });
+              };
+              if (geom.type === 'Polygon') {
+                geom.coordinates.forEach(processCoords);
+              } else if (geom.type === 'MultiPolygon') {
+                geom.coordinates.forEach((poly: any) => poly.forEach(processCoords));
+              }
+              if (count > 0 && zoneName) {
+                centers[`zone_${zoneName}`] = [sumLon / count, sumLat / count];
+              }
+
+              sensorsData.forEach((sensor) => {
+                const pt: [number, number] = [sensor.lon, sensor.lat];
+                let inZone = false;
+                if (geom.type === 'Polygon') {
+                  inZone = geom.coordinates.some((ring: any) => isPointInPolygon(pt, ring));
+                } else if (geom.type === 'MultiPolygon') {
+                  inZone = geom.coordinates.some((poly: any) => 
+                    poly.some((ring: any) => isPointInPolygon(pt, ring))
+                  );
+                }
+                if (inZone) {
+                  zoneMap[sensor.id] = zoneName;
+                }
+              });
+            });
+          }
+          const sortedZones = zones.sort();
+          setZoneNames(sortedZones);
+          setSensorZoneMap(zoneMap);
+          setRegionCenters(centers);
+
+          // 寫入快取
+          globalZoneMap = zoneMap;
+          globalZoneNames = sortedZones;
+          globalRegionCenters = centers;
         }
-        setZoneNames(zones.sort());
-        setSensorZoneMap(zoneMap);
-        setRegionCenters(centers);
       } catch (e) {
         console.error('初始化失敗:', e);
       }
@@ -386,6 +413,12 @@ export default function DashboardPage() {
     }
 
     const fetchHistory = async () => {
+      const cacheKey = `${selectedSensorId}_${debouncedTime}`;
+      if (historyCacheRef.current[cacheKey]) {
+        setHistoryData(historyCacheRef.current[cacheKey]);
+        return;
+      }
+
       setIsLoadingHistory(true);
       try {
         // 以 debouncedTime 為基準，往回 7 天的歷史觀測
@@ -401,6 +434,7 @@ export default function DashboardPage() {
           )}&endTime=${encodeURIComponent(queryEnd)}&limit=1000`
         );
         const data = await res.json();
+        historyCacheRef.current[cacheKey] = data;
         setHistoryData(data);
       } catch (e) {
         console.error('載入歷史數據失敗:', e);
@@ -582,7 +616,8 @@ export default function DashboardPage() {
       playIntervalRef.current = setInterval(() => {
         setCurrentDateTime((prev) => {
           const prevTs = new Date(prev.replace('T', ' ')).getTime();
-          const nextTs = prevTs + 5 * 60 * 1000;
+          const speedMultiplier = playSpeedRef.current;
+          const nextTs = prevTs + 5 * speedMultiplier * 60 * 1000;
           if (nextTs >= maxTs) {
             if (playIntervalRef.current) clearInterval(playIntervalRef.current);
             setIsPlaying(false);
@@ -889,6 +924,23 @@ export default function DashboardPage() {
                 <span className="text-xs font-semibold text-slate-300">
                   {isPlaying ? '回溯中（每步 5 分鐘）' : curTs === maxTs ? '最新時間' : '已暫停'}
                 </span>
+              </div>
+
+              {/* 播放速度控制按鈕 */}
+              <div className="flex items-center bg-slate-950/80 border border-slate-800/80 rounded-xl p-0.5 gap-0.5 ml-2">
+                {([1, 2, 4] as const).map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => setPlaySpeed(speed)}
+                    className={`px-2 py-1 rounded-lg text-[9px] font-black tracking-wider transition-all cursor-pointer ${
+                      playSpeed === speed
+                        ? 'bg-orange-500 text-slate-950 font-black'
+                        : 'text-slate-500 hover:text-slate-350'
+                    }`}
+                  >
+                    {speed}x
+                  </button>
+                ))}
               </div>
 
               <div className="ml-auto flex items-center gap-2">

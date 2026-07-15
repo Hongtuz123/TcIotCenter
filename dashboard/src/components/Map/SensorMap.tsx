@@ -86,20 +86,45 @@ const getEventSensorsInBounds = (
   return [];
 };
 
-// 僅使用 Mapbox DEM 實測高程數據 (乘以 1.5 倍以增強三維地勢阻擋視覺效果)
+// 結合 Mapbox 實測高程與臺中地形數學模型，確保無地形高程資料時（如瓦片加載中）依然有穩定、顯著的地形阻擋效果
 const getElevation = (
   lon: number,
   lat: number,
   map: mapboxgl.Map | null
 ): number => {
-  if (!map) return 0;
-  try {
-    const mapboxElev = map.queryTerrainElevation([lon, lat]);
-    if (mapboxElev !== null && mapboxElev !== undefined && mapboxElev > 0) {
-      return mapboxElev * 1.5;
+  let mapboxElev: number | null = null;
+  if (map) {
+    try {
+      mapboxElev = map.queryTerrainElevation([lon, lat]);
+    } catch {}
+  }
+
+  // 若 Mapbox 高程查詢可用且大於 0，優先使用 (並乘上擴張係數以增強視覺效果)
+  if (mapboxElev !== null && mapboxElev !== undefined && mapboxElev > 0) {
+    return mapboxElev * 1.5;
+  }
+
+  // 否則，使用臺中盆地到東側山區的經度高程斷面數學模型作為 Backup
+  let elev = 60; // 預設台中盆地平原海拔
+  if (lon > 120.70) {
+    // 東側山區阻擋 (太平、大坑山區)
+    const dx = lon - 120.70;
+    elev = 100 + dx * 4200; // 海拔快速從 100m 爬升至 500m 以上
+    elev += Math.sin(lon * 200) * 80 + Math.cos(lat * 150) * 50; // 山脊與山谷波折
+  } else if (lon > 120.53 && lon < 120.61) {
+    // 大肚山台地
+    const mid = 120.57;
+    const width = 0.04;
+    const dist = Math.abs(lon - mid);
+    if (dist < width) {
+      const t = 1 - (dist / width);
+      elev = 60 + t * t * 240; // 最高處約 300m
     }
-  } catch {}
-  return 0;
+  } else if (lon <= 120.53) {
+    // 西側海岸
+    elev = Math.max(5, 5 + (lon - 120.30) * 200);
+  }
+  return Math.max(0, elev);
 };
 
 interface SensorMapProps {
