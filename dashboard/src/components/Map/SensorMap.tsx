@@ -1149,7 +1149,16 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const pX = ((adjLon - MIN_LON) / lonWidth) * dispCanvas.width;
         const pY = ((MAX_LAT - adjLat) / latHeight) * dispCanvas.height;
 
-        let opacity = Math.max(0.04, (0.52 - tHours * 0.08) * fraction) * accumulationFactor;
+        // 當撞山坡度過陡時 (高度差大於 60 公尺，視為陡峭山崖/障壁)
+        // 粒子發生強烈撞擊沉降 (Deposition/Absorption)，不透明度直接衰減至趨近於 0
+        let depositionFactor = 1.0;
+        if (actualElevDiff > 60) {
+          depositionFactor = Math.max(0.0, 1.0 - (actualElevDiff - 60) / 60);
+        }
+
+        // 隨時間呈指數衰減 (e^-0.45t)，模擬擴散稀釋與乾沉降，吹越遠越淡
+        const timeDecay = Math.exp(-0.45 * tHours);
+        let opacity = Math.max(0.02, 0.55 * timeDecay * fraction) * accumulationFactor * depositionFactor;
         opacity = Math.min(opacity, 0.95); // 防止不透明度過高
 
         sxPx = sxPx * compressFactor;
@@ -1191,15 +1200,23 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       const tAdjLon = srcLon + (dMXt / mPerDegLon) * tTravelFactor;
       const tAdjLat = srcLat + (dMYt / mPerDegLat) * tTravelFactor;
 
+      // 終點撞山沉降消散計算 (控制虛線與標記的淡出)
+      const tActualElev = getElevation(tAdjLon, tAdjLat, map);
+      const tActualElevDiff = Math.max(0, tActualElev - sourceElev);
+      let tDepositionFactor = 1.0;
+      if (tActualElevDiff > 60) {
+        tDepositionFactor = Math.max(0.0, 1.0 - (tActualElevDiff - 60) / 60);
+      }
+
       const puffX = ((tAdjLon - MIN_LON) / lonWidth) * dispCanvas.width;
       const puffY = ((MAX_LAT - tAdjLat) / latHeight) * dispCanvas.height;
-      // \u8ecc\u8de1\u865b\u7dda
-      if (tHours > 0.15) {
+      // 軌跡虛線
+      if (tHours > 0.15 && tDepositionFactor > 0.01) {
         dCtx.beginPath();
         dCtx.moveTo(srcX, srcY);
         dCtx.lineTo(puffX, puffY);
         dCtx.setLineDash([6, 6]);
-        dCtx.strokeStyle = getColor(0.3);
+        dCtx.strokeStyle = getColor(0.3 * tDepositionFactor);
         dCtx.lineWidth = 1.5;
         dCtx.stroke();
         dCtx.setLineDash([]);
