@@ -52,7 +52,7 @@ export const getElevation = (
   lat: number,
   map: mapboxgl.Map | null
 ): number => {
-  let mapboxElev: number | null = null;
+  let mapboxElev: number | null | undefined = null;
   if (map) {
     try {
       mapboxElev = map.queryTerrainElevation([lon, lat]);
