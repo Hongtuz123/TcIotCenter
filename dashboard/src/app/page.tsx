@@ -479,39 +479,49 @@ export default function DashboardPage() {
 
   // 4.5. 儲存判定門檻設定並重新載入點位
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [pm25Input, setPm25Input] = useState(54);
-  const [consecutiveInput, setConsecutiveInput] = useState(3);
-  const [radiusInput, setRadiusInput] = useState(1.0);
-  const [minStationsInput, setMinStationsInput] = useState(2);
+  const [pm25Input, setPm25Input] = useState<string>('54');
+  const [consecutiveInput, setConsecutiveInput] = useState<string>('3');
+  const [radiusInput, setRadiusInput] = useState<string>('1.0');
+  const [minStationsInput, setMinStationsInput] = useState<string>('2');
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    const pm25Val = parseFloat(pm25Input);
+    const consecutiveVal = parseInt(consecutiveInput, 10);
+    const radiusVal = parseFloat(radiusInput);
+    const minStationsVal = parseInt(minStationsInput, 10);
+
+    if (isNaN(pm25Val) || isNaN(consecutiveVal) || isNaN(radiusVal) || isNaN(minStationsVal)) {
+      alert('請輸入有效的數值');
+      return;
+    }
+
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pm25_threshold: pm25Input,
-          consecutive_exceeds: consecutiveInput,
-          cluster_radius_km: radiusInput,
-          min_cluster_stations: minStationsInput
+          pm25_threshold: pm25Val,
+          consecutive_exceeds: consecutiveVal,
+          cluster_radius_km: radiusVal,
+          min_cluster_stations: minStationsVal
         })
       });
       if (res.ok) {
         setSystemSettings({
-          pm25_threshold: pm25Input,
-          consecutive_exceeds: consecutiveInput,
-          cluster_radius_km: radiusInput,
-          min_cluster_stations: minStationsInput
+          pm25_threshold: pm25Val,
+          consecutive_exceeds: consecutiveVal,
+          cluster_radius_km: radiusVal,
+          min_cluster_stations: minStationsVal
         });
         setShowSettingsModal(false);
         // 強制刷新當前點位資料
         const refreshRes = await fetch(
           `/api/anomalies?time=${encodeURIComponent(currentTime)}` +
-            `&radius=${radiusInput}` +
-            `&min_stations=${minStationsInput}` +
-            `&pm25_threshold=${pm25Input}` +
-            `&consecutive_exceeds=${consecutiveInput}`
+            `&radius=${radiusVal}` +
+            `&min_stations=${minStationsVal}` +
+            `&pm25_threshold=${pm25Val}` +
+            `&consecutive_exceeds=${consecutiveVal}`
         );
         const refreshData = await refreshRes.json();
         if (refreshData.points) setPoints(refreshData.points);
@@ -524,10 +534,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     // 當系統設定加載完成後更新輸入欄位狀態
-    setPm25Input(systemSettings.pm25_threshold);
-    setConsecutiveInput(systemSettings.consecutive_exceeds);
-    setRadiusInput(systemSettings.cluster_radius_km);
-    setMinStationsInput(systemSettings.min_cluster_stations);
+    if (systemSettings) {
+      setPm25Input(systemSettings.pm25_threshold?.toString() ?? '54');
+      setConsecutiveInput(systemSettings.consecutive_exceeds?.toString() ?? '3');
+      setRadiusInput(systemSettings.cluster_radius_km?.toString() ?? '1.0');
+      setMinStationsInput(systemSettings.min_cluster_stations?.toString() ?? '2');
+    }
   }, [systemSettings]);
 
   // 5. 歷史時間軸播放控制（播放時從開始時間往結束時間順向播放，每步 +5 分鐘，播放到結束時間停止）
@@ -993,7 +1005,7 @@ export default function DashboardPage() {
                   step="0.1"
                   required
                   value={pm25Input}
-                  onChange={(e) => setPm25Input(parseFloat(e.target.value))}
+                  onChange={(e) => setPm25Input(e.target.value)}
                   className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500"
                 />
                 <span className="text-[10px] text-slate-500">標準：高於此數值視為空氣品質異常點。</span>
@@ -1007,7 +1019,7 @@ export default function DashboardPage() {
                   max="12"
                   required
                   value={consecutiveInput}
-                  onChange={(e) => setConsecutiveInput(parseInt(e.target.value, 10))}
+                  onChange={(e) => setConsecutiveInput(e.target.value)}
                   className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500"
                 />
                 <span className="text-[10px] text-slate-500">標準：測站需要連續多少筆資料都高於 PM₂.₅ 異常門檻值，才判定為異常點。</span>
@@ -1021,7 +1033,7 @@ export default function DashboardPage() {
                     step="0.1"
                     required
                     value={radiusInput}
-                    onChange={(e) => setRadiusInput(parseFloat(e.target.value))}
+                    onChange={(e) => setRadiusInput(e.target.value)}
                     className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500"
                   />
                 </div>
@@ -1031,7 +1043,7 @@ export default function DashboardPage() {
                     type="number"
                     required
                     value={minStationsInput}
-                    onChange={(e) => setMinStationsInput(parseInt(e.target.value, 10))}
+                    onChange={(e) => setMinStationsInput(e.target.value)}
                     className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-orange-500"
                   />
                 </div>
