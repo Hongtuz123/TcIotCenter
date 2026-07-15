@@ -93,7 +93,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
       }
     }
 
-    return zone ? `${zone}-事件管理` : '事件管理';
+    return zone ? `${zone}-微感事件` : '微感事件';
   };
 
   // 表單狀態
