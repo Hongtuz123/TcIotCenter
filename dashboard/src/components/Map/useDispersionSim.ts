@@ -260,7 +260,7 @@ export function useDispersionSim({
       dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
       if (tHours < 0.02) return;
       const K = 50;
-      const layerCount = Math.min(Math.floor(tHours * 2) + 1, 5);
+      const layerCount = Math.min(Math.floor(tHours * 6) + 1, 24);
       
       const sourceElev = getElevation(srcLon, srcLat, map);
 
@@ -329,8 +329,8 @@ export function useDispersionSim({
 
         // 隨時間呈指數衰減 (e^-0.45t)，模擬擴散稀釋與乾沉降，吹越遠越淡
         const timeDecay = Math.exp(-0.45 * tHours);
-        let opacity = Math.max(0.02, 0.55 * timeDecay * fraction) * accumulationFactor * depositionFactor;
-        opacity = Math.min(opacity, 0.95); // 防止不透明度過高
+        let opacity = Math.max(0.01, 0.28 * timeDecay * fraction) * accumulationFactor * depositionFactor;
+        opacity = Math.min(opacity, 0.65); // 防止不透明度過高
 
         sxPx = sxPx * compressFactor;
         syPx = syPx * compressFactor;
@@ -340,10 +340,49 @@ export function useDispersionSim({
         dCtx.translate(pX, pY);
         dCtx.rotate(windToRad);
         dCtx.scale(Math.max(sxPx / Math.max(syPx, 1), 1), 1);
+
+        // 階梯式高斯等值帶漸變產生器 (還原專業數值模擬的視覺質感)
+        const getContourColor = (val: number, op: number) => {
+          if (val >= 250.4) return `rgba(127, 29, 29, ${op.toFixed(3)})`;   // 褐紅
+          if (val >= 150.4) return `rgba(168, 85, 247, ${op.toFixed(3)})`;  // 紫色
+          if (val >= 54.4) return `rgba(239, 68, 68, ${op.toFixed(3)})`;   // 紅色
+          if (val >= 35.4) return `rgba(249, 115, 22, ${op.toFixed(3)})`;  // 橘色
+          if (val >= 15.5) return `rgba(234, 179, 8, ${op.toFixed(3)})`;   // 黃色
+          return `rgba(52, 211, 153, ${op.toFixed(3)})`;                  // 綠色
+        };
+
         const grad = dCtx.createRadialGradient(0, 0, 0, 0, 0, radius);
-        grad.addColorStop(0, getColor(currPm25, Math.min(opacity * 1.6, 0.9)));
-        grad.addColorStop(0.35, getColor(currPm25, opacity * 0.8));
-        grad.addColorStop(1, getColor(currPm25, 0));
+        const thresholds = [250.4, 150.4, 54.4, 35.4, 15.5];
+        const boundaries: { x: number; val: number }[] = [];
+        
+        // 依高斯剖面分佈 C(x) = C_max * exp(-1.8 * x^2) 反推各等值線界線的相對半徑 x
+        for (const T of thresholds) {
+          if (currPm25 > T) {
+            const x = Math.sqrt(Math.log(currPm25 / T) / 1.8);
+            if (x < 1.0) {
+              boundaries.push({ x, val: T });
+            }
+          }
+        }
+        boundaries.sort((a, b) => a.x - b.x);
+
+        // 設定中心點顏色
+        grad.addColorStop(0, getContourColor(currPm25, opacity));
+
+        for (const b of boundaries) {
+          const bX = Math.min(b.x, 0.99);
+          const opBefore = opacity * Math.max(0.1, 1 - bX * bX);
+          grad.addColorStop(bX, getContourColor(b.val + 0.1, opBefore));
+          
+          // 在界線處突變為外圍的顏色 (保留 0.015 過渡以防止邊界走樣與鋸齒)
+          const bXNext = Math.min(bX + 0.015, 0.995);
+          const opAfter = opacity * Math.max(0.1, 1 - bXNext * bXNext);
+          grad.addColorStop(bXNext, getContourColor(b.val - 0.1, opAfter));
+        }
+        
+        // 邊緣淡出到完全透明
+        grad.addColorStop(1.0, getContourColor(0, 0));
+
         dCtx.beginPath();
         dCtx.arc(0, 0, radius, 0, Math.PI * 2);
         dCtx.fillStyle = grad;
