@@ -282,14 +282,16 @@ export function useDispersionSim({
         const currPm25 = srcPm25 * Math.exp(-0.45 * tLayer);
         const t_sL = tLayer * 3600;
 
+        const LOCAL_SCALE = 0.085; // 引入局地尺度折減係數，使 4 小時動畫擴散控制在合理局地範圍 (最大約 4.5~5 公里)
+
         // 採用 Briggs 橫向擴散係數與順風向擴散折算
-        const travelDist = windSpeedMs * t_sL;
+        const travelDist = windSpeedMs * t_sL * LOCAL_SCALE;
         const sigmaY = getBriggsSigmaY(stability, travelDist);
         const sigmaX = sigmaY * 1.4;
         let sxPx = Math.max(sigmaX / mPerPxX, 2);
         let syPx = Math.max(sigmaY / mPerPxY, 2);
-        const dMX = windSpeedMs * t_sL * Math.sin(windToRad);
-        const dMY = windSpeedMs * t_sL * Math.cos(windToRad);
+        const dMX = travelDist * Math.sin(windToRad);
+        const dMY = travelDist * Math.cos(windToRad);
 
         // 原始預計位置
         const targetLon = srcLon + dMX / mPerDegLon;
@@ -439,9 +441,10 @@ export function useDispersionSim({
         dCtx.restore();
       }
       // 煙包中心位置 (t=current)
+      const LOCAL_SCALE = 0.085;
       const t_s = tHours * 3600;
-      const dMXt = windSpeedMs * t_s * Math.sin(windToRad);
-      const dMYt = windSpeedMs * t_s * Math.cos(windToRad);
+      const dMXt = windSpeedMs * t_s * Math.sin(windToRad) * LOCAL_SCALE;
+      const dMYt = windSpeedMs * t_s * Math.cos(windToRad) * LOCAL_SCALE;
 
       const tTargetLon = srcLon + dMXt / mPerDegLon;
       const tTargetLat = srcLat + dMYt / mPerDegLat;
@@ -477,8 +480,9 @@ export function useDispersionSim({
       dCtx.beginPath(); dCtx.arc(srcX, srcY, 9, 0, Math.PI * 2); dCtx.strokeStyle = getColor(srcPm25, 0.4); dCtx.lineWidth = 1.5; dCtx.stroke();
       // 小時標記 1h / 2h / 3h
       for (let h = 1; h <= Math.min(Math.floor(tHours), 3); h++) {
-        const hMX = windSpeedMs * h * 3600 * Math.sin(windToRad);
-        const hMY = windSpeedMs * h * 3600 * Math.cos(windToRad);
+        const LOCAL_SCALE = 0.085;
+        const hMX = windSpeedMs * h * 3600 * Math.sin(windToRad) * LOCAL_SCALE;
+        const hMY = windSpeedMs * h * 3600 * Math.cos(windToRad) * LOCAL_SCALE;
         const hX = ((srcLon + hMX / mPerDegLon - MIN_LON) / lonWidth) * dispCanvas.width;
         const hY = ((MAX_LAT - (srcLat + hMY / mPerDegLat)) / latHeight) * dispCanvas.height;
         dCtx.beginPath(); dCtx.arc(hX, hY, 3, 0, Math.PI * 2); dCtx.fillStyle = 'rgba(255,255,255,0.6)'; dCtx.fill();
