@@ -1030,6 +1030,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const dCtx = dispCanvas.getContext('2d');
     if (!dCtx) return;
 
+    // 立刻清空畫布，避免殘留上一輪模擬的最後一幀導致視覺卡頓/回放閃爍
+    dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
+
     const srcSensor = getEventSourceSensor(dispersionEvent, points);
     if (!srcSensor) return;
     const srcLon = srcSensor.lon;
@@ -1076,10 +1079,10 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const srcX = ((srcLon - MIN_LON) / lonWidth) * dispCanvas.width;
     const srcY = ((MAX_LAT - srcLat) / latHeight) * dispCanvas.height;
 
-    const getColor = (opacity: number) => {
-      if (srcPm25 >= 54.4) return `rgba(239,68,68,${opacity.toFixed(3)})`;
-      if (srcPm25 >= 35.4) return `rgba(249,115,22,${opacity.toFixed(3)})`;
-      if (srcPm25 >= 15.5) return `rgba(234,179,8,${opacity.toFixed(3)})`;
+    const getColor = (currentPm25: number, opacity: number) => {
+      if (currentPm25 >= 54.4) return `rgba(239,68,68,${opacity.toFixed(3)})`;
+      if (currentPm25 >= 35.4) return `rgba(249,115,22,${opacity.toFixed(3)})`;
+      if (currentPm25 >= 15.5) return `rgba(234,179,8,${opacity.toFixed(3)})`;
       return `rgba(52,211,153,${opacity.toFixed(3)})`;
     };
 
@@ -1101,6 +1104,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       for (let li = 0; li < layerCount; li++) {
         const fraction = 1 - li / layerCount;
         const tLayer = tHours * (fraction * 0.6 + 0.4);
+        const currPm25 = srcPm25 * Math.exp(-0.45 * tLayer);
         const t_sL = tLayer * 3600;
         const sigmaL = Math.sqrt(2 * K * t_sL);
         let sxPx = Math.max((sigmaL * 1.4) / mPerPxX, 2);
@@ -1170,9 +1174,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         dCtx.rotate(windToRad);
         dCtx.scale(Math.max(sxPx / Math.max(syPx, 1), 1), 1);
         const grad = dCtx.createRadialGradient(0, 0, 0, 0, 0, radius);
-        grad.addColorStop(0, getColor(Math.min(opacity * 1.6, 0.9)));
-        grad.addColorStop(0.35, getColor(opacity * 0.8));
-        grad.addColorStop(1, getColor(0));
+        grad.addColorStop(0, getColor(currPm25, Math.min(opacity * 1.6, 0.9)));
+        grad.addColorStop(0.35, getColor(currPm25, opacity * 0.8));
+        grad.addColorStop(1, getColor(currPm25, 0));
         dCtx.beginPath();
         dCtx.arc(0, 0, radius, 0, Math.PI * 2);
         dCtx.fillStyle = grad;
@@ -1210,20 +1214,20 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
       const puffX = ((tAdjLon - MIN_LON) / lonWidth) * dispCanvas.width;
       const puffY = ((MAX_LAT - tAdjLat) / latHeight) * dispCanvas.height;
-      // 軌跡虛線
-      if (tHours > 0.15 && tDepositionFactor > 0.01) {
+      // 軌跡虛線 (維持不用消失)
+      if (tHours > 0.15) {
         dCtx.beginPath();
         dCtx.moveTo(srcX, srcY);
         dCtx.lineTo(puffX, puffY);
         dCtx.setLineDash([6, 6]);
-        dCtx.strokeStyle = getColor(0.3 * tDepositionFactor);
+        dCtx.strokeStyle = getColor(srcPm25, 0.3);
         dCtx.lineWidth = 1.5;
         dCtx.stroke();
         dCtx.setLineDash([]);
       }
-      // \u4f86\u6e90\u6a19\u8a18
-      dCtx.beginPath(); dCtx.arc(srcX, srcY, 5, 0, Math.PI * 2); dCtx.fillStyle = getColor(0.9); dCtx.fill();
-      dCtx.beginPath(); dCtx.arc(srcX, srcY, 9, 0, Math.PI * 2); dCtx.strokeStyle = getColor(0.4); dCtx.lineWidth = 1.5; dCtx.stroke();
+      // 來源標記
+      dCtx.beginPath(); dCtx.arc(srcX, srcY, 5, 0, Math.PI * 2); dCtx.fillStyle = getColor(srcPm25, 0.9); dCtx.fill();
+      dCtx.beginPath(); dCtx.arc(srcX, srcY, 9, 0, Math.PI * 2); dCtx.strokeStyle = getColor(srcPm25, 0.4); dCtx.lineWidth = 1.5; dCtx.stroke();
       // \u5c0f\u6642\u6a19\u8a18 1h / 2h / 3h
       for (let h = 1; h <= Math.min(Math.floor(tHours), 3); h++) {
         const hMX = windSpeedMs * h * 3600 * Math.sin(windToRad);
