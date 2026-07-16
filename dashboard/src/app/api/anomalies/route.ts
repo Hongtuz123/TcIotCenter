@@ -160,25 +160,65 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const time = searchParams.get('time');
 
-    const pm25Thresh = parseFloat(searchParams.get('pm25_threshold') || '54');
-    const clusterRadius = parseFloat(searchParams.get('radius') || '1.0');
-    const minStations = parseInt(searchParams.get('min_stations') || '2', 10);
     const isHistorical = searchParams.get('is_historical') === 'true';
+
+    // 1. 初始化門檻預設值 (只有在資料庫無任何設定時使用)
+    let pm25Thresh = 54.0;
+    let consecutiveExceeds = 3;
+    let clusterRadius = 1.0;
+    let minStations = 2;
+
+    // 2. 優先讀取資料庫設定，徹底落實「使用者最後設的門檻是什麼就是什麼」
+    if (supabase) {
+      try {
+        const { data: setRows } = await supabase.from('settings').select('*');
+        if (setRows) {
+          const setObj = setRows.reduce((acc: any, r: any) => {
+            acc[r.key] = parseFloat(r.value);
+            return acc;
+          }, {});
+          if (setObj.pm25_threshold !== undefined) pm25Thresh = setObj.pm25_threshold;
+          if (setObj.consecutive_exceeds !== undefined) consecutiveExceeds = Math.round(setObj.consecutive_exceeds);
+          if (setObj.cluster_radius_km !== undefined) clusterRadius = setObj.cluster_radius_km;
+          if (setObj.min_cluster_stations !== undefined) minStations = Math.round(setObj.min_cluster_stations);
+        }
+      } catch (e) {}
+    } else {
+      const db = await getDb();
+      if (db) {
+        try {
+          const settingsRows = await db.all('SELECT * FROM settings');
+          const setObj = settingsRows.reduce((acc: any, row: any) => {
+            acc[row.key] = parseFloat(row.value);
+            return acc;
+          }, {});
+          if (setObj.pm25_threshold !== undefined) pm25Thresh = setObj.pm25_threshold;
+          if (setObj.consecutive_exceeds !== undefined) consecutiveExceeds = Math.round(setObj.consecutive_exceeds);
+          if (setObj.cluster_radius_km !== undefined) clusterRadius = setObj.cluster_radius_km;
+          if (setObj.min_cluster_stations !== undefined) minStations = Math.round(setObj.min_cluster_stations);
+        } catch (e) {}
+      } else {
+        // Mock 降級模式
+        pm25Thresh = globalMockState.settings.pm25_threshold;
+        consecutiveExceeds = globalMockState.settings.consecutive_exceeds;
+        clusterRadius = globalMockState.settings.cluster_radius_km;
+        minStations = globalMockState.settings.min_cluster_stations;
+      }
+    }
+
+    // 3. 只有當前端 query parameter 是有效數字且不是 'undefined' / NaN 時，才覆蓋資料庫設定
+    const qPm25 = searchParams.get('pm25_threshold');
+    const qRadius = searchParams.get('radius');
+    const qMinStations = searchParams.get('min_stations');
+    const qConsec = searchParams.get('consecutive_exceeds');
+
+    if (qPm25 && qPm25 !== 'undefined' && !isNaN(parseFloat(qPm25))) pm25Thresh = parseFloat(qPm25);
+    if (qRadius && qRadius !== 'undefined' && !isNaN(parseFloat(qRadius))) clusterRadius = parseFloat(qRadius);
+    if (qMinStations && qMinStations !== 'undefined' && !isNaN(parseInt(qMinStations))) minStations = parseInt(qMinStations, 10);
+    if (qConsec && qConsec !== 'undefined' && !isNaN(parseInt(qConsec))) consecutiveExceeds = parseInt(qConsec, 10);
 
     // ── Tier 1: Supabase ──────────────────────────────────────────────────────
     if (supabase) {
-      // 讀取設定中的 consecutive_exceeds
-      let consecutiveExceeds = 3;
-      try {
-        const { data: setRows } = await supabase.from('settings').select('*');
-        const setObj = setRows?.reduce((acc: any, r: any) => {
-          acc[r.key] = parseFloat(r.value);
-          return acc;
-        }, {});
-        if (setObj && setObj.consecutive_exceeds !== undefined) {
-          consecutiveExceeds = parseInt(setObj.consecutive_exceeds, 10);
-        }
-      } catch (e) {}
 
       let until = new Date().toISOString();
       let since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
@@ -292,18 +332,8 @@ export async function GET(request: NextRequest) {
     // ── Tier 2: SQLite ────────────────────────────────────────────────────────
     const db = await getDb();
     if (db && time) {
-      const settingsRows = await db.all('SELECT * FROM settings');
-      const settings = settingsRows.reduce((acc: any, row: any) => {
-        acc[row.key] = parseFloat(row.value);
-        return acc;
-      }, {});
-      const _pm25Thresh = settings.pm25_threshold || 54.0;
-      const _clusterRadius = settings.cluster_radius_km || 1.0;
-      const _minStations = settings.min_cluster_stations || 2;
-      const _consecutive = parseInt(settings.consecutive_exceeds || '3', 10);
-
       const dateObj = new Date(time.replace(' ', 'T'));
-      const startTimeObj = new Date(dateObj.getTime() - _consecutive * 5 * 60 * 1000);
+      const startTimeObj = new Date(dateObj.getTime() - consecutiveExceeds * 5 * 60 * 1000);
       const startTimeStr = startTimeObj.toISOString().replace('T', ' ').substring(0, 19);
 
       const records = await db.all(
@@ -334,16 +364,16 @@ export async function GET(request: NextRequest) {
         // 判定是否連續 N 筆超標 (嚴格比對時間序列，確保每一筆皆存在且超標)
         let isAnomaly = true;
         const untilTs = new Date(time.replace(' ', 'T')).getTime();
-        for (let i = 0; i < _consecutive; i++) {
+        for (let i = 0; i < consecutiveExceeds; i++) {
           const targetTs = untilTs - i * 5 * 60 * 1000;
           const record = obsList.find((r) => new Date(r.time.replace(' ', 'T')).getTime() === targetTs);
-          if (!record || record.pm2_5 === null || record.pm2_5 < _pm25Thresh) {
+          if (!record || record.pm2_5 === null || record.pm2_5 < pm25Thresh) {
             isAnomaly = false;
             break;
           }
         }
 
-        const anomalyType = isAnomaly ? `連續 ${_consecutive} 筆 PM₂.₅ 超標` : '';
+        const anomalyType = isAnomaly ? `連續 ${consecutiveExceeds} 筆 PM₂.₅ 超標` : '';
 
         return {
           id: latest.id,
@@ -365,11 +395,11 @@ export async function GET(request: NextRequest) {
       });
 
       const anomalies = allPoints.filter((p: any) => p.isAnomaly);
-      const clusters = buildClusters(anomalies, _clusterRadius, _minStations);
+      const clusters = buildClusters(anomalies, clusterRadius, minStations);
 
       // 背景寫入事件（fire-and-forget），不阻塞 API response (僅在非歷史模式下自動建立)
       if (!isHistorical) {
-        autoCreateEvents(clusters, time, _pm25Thresh);
+        autoCreateEvents(clusters, time, pm25Thresh);
       }
 
       return NextResponse.json({
@@ -378,7 +408,7 @@ export async function GET(request: NextRequest) {
         points: allPoints,
         anomaliesCount: anomalies.length,
         clusters,
-        settings: { pm25Thresh: _pm25Thresh, clusterRadius: _clusterRadius, minStations: _minStations },
+        settings: { pm25Thresh, clusterRadius, minStations },
       });
     }
 
