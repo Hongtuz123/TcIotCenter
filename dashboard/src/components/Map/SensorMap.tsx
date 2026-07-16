@@ -981,10 +981,26 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           duration: 1500,
           essential: true
         });
+        try {
+          if (mapRef.current.getLayer('active-event-fill-layer')) {
+            mapRef.current.setPaintProperty('active-event-fill-layer', 'fill-opacity', 0.05);
+          }
+        } catch (e) {
+          console.error('Error lowering fill-opacity:', e);
+        }
       }
     } else if (!dispersionEvent && prevDispersionRef.current) {
       setShowHeatmap(true);
       setShow3DTerrain(original3DTerrainRef.current);
+      if (mapRef.current) {
+        try {
+          if (mapRef.current.getLayer('active-event-fill-layer')) {
+            mapRef.current.setPaintProperty('active-event-fill-layer', 'fill-opacity', 0.3);
+          }
+        } catch (e) {
+          console.error('Error restoring fill-opacity:', e);
+        }
+      }
     }
     prevDispersionRef.current = dispersionEvent;
   }, [dispersionEvent]);
@@ -1560,14 +1576,14 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       });
 
-      // 紅色半透明填充
+      // 紅色半透明填充 (若在擴散模擬中，降低不透明度至 0.05，以便看清底下擴散顏色)
       map.addLayer({
         id: fillLayerId,
         type: 'fill',
         source: sourceId,
         paint: {
           'fill-color': '#ef4444',
-          'fill-opacity': 0.3
+          'fill-opacity': dispersionEvent ? 0.05 : 0.3
         }
       });
 
@@ -1583,7 +1599,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       });
     }
-  }, [activeEvent, isLoaded, styleVersion]);
+  }, [activeEvent, isLoaded, styleVersion, dispersionEvent]);
 
   // 5. 監聽 selectedClusterId 變更，地圖平滑飛越與縮放
   useEffect(() => {
