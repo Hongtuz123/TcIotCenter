@@ -276,10 +276,10 @@ export function useDispersionSim({
       
       const sourceElev = getElevation(srcLon, srcLat, map);
 
-      for (let li = 0; li < layerCount; li++) {
-        const fraction = 1 - li / layerCount;
-        const tLayer = tHours * (fraction * 0.6 + 0.4);
-        const currPm25 = srcPm25 * Math.exp(-0.45 * tLayer);
+      // 從老煙團繪製到新煙團，讓新煙團能疊在最上方
+      for (let li = layerCount - 1; li >= 0; li--) {
+        const tLayer = tHours * (li / (layerCount - 1 || 1));
+        const currPm25 = srcPm25 * Math.exp(-0.35 * tLayer);
         const t_sL = tLayer * 3600;
 
         const LOCAL_SCALE = 0.085; // 引入局地尺度折減係數，使 4 小時動畫擴散控制在合理局地範圍 (最大約 4.5~5 公里)
@@ -340,9 +340,9 @@ export function useDispersionSim({
           depositionFactor = Math.max(0.4, 1.0 - (actualElevDiff - 120) / 400);
         }
 
-        // 隨時間呈指數衰減 (e^-0.45t)，模擬擴散稀釋與乾沉降，吹越遠越淡
-        const timeDecay = Math.exp(-0.45 * tHours);
-        let opacity = Math.max(0.01, 0.28 * timeDecay * fraction) * accumulationFactor * depositionFactor;
+        // 隨該煙團自身的漂流時間呈指數衰減 (e^-0.35 * tLayer)，模擬擴散稀釋與乾沉降，吹越遠越淡
+        const timeDecay = Math.exp(-0.35 * tLayer);
+        let opacity = Math.max(0.01, 0.32 * timeDecay) * accumulationFactor * depositionFactor;
         opacity = Math.min(opacity, 0.65); // 防止不透明度過高
 
         sxPx = sxPx * compressFactor;
@@ -475,9 +475,7 @@ export function useDispersionSim({
         dCtx.stroke();
         dCtx.setLineDash([]);
       }
-      // 來源標記
-      dCtx.beginPath(); dCtx.arc(srcX, srcY, 5, 0, Math.PI * 2); dCtx.fillStyle = getColor(srcPm25, 0.9); dCtx.fill();
-      dCtx.beginPath(); dCtx.arc(srcX, srcY, 9, 0, Math.PI * 2); dCtx.strokeStyle = getColor(srcPm25, 0.4); dCtx.lineWidth = 1.5; dCtx.stroke();
+      // 來源標記改由 WebGL 圖層的 Sensor 點以白色實心渲染，此處不重複畫圓圈
       try { (map.getSource('dispersion-canvas-source') as mapboxgl.CanvasSource)?.play(); } catch {}
       map.triggerRepaint();
     };

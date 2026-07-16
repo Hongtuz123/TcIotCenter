@@ -177,6 +177,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     const circleColorExpression = [
       'case',
+      ['==', ['get', 'isDispersionSource'], true], '#ffffff',
       ['==', ['get', 'value'], null], '#64748b',
       ['==', ['literal', selectedMetric], 'pm2_5'], [
         'step', ['get', 'value'],
@@ -252,6 +253,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             'circle-color': circleColorExpression,
             'circle-radius': [
               'case',
+              ['get', 'isDispersionSource'], 8,
               ['get', 'isSelected'], 8,
               ['get', 'isAnomaly'], 6.5,
               4
@@ -678,11 +680,15 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const source = map.getSource('sensors-source') as mapboxgl.GeoJSONSource;
     if (!source) return;
 
+    const srcSensor = getEventSourceSensor(dispersionEvent, points);
+    const srcSensorId = srcSensor?.id;
+
     // 建立 GeoJSON FeatureCollection
     const features: any = points.map((point) => {
       const val = point[selectedMetric];
       const isPm25Anomaly = selectedMetric === 'pm2_5' && val !== null && val !== undefined && val >= (pm25Threshold ?? 54);
       const isAnomalyPoint = point.isAnomaly || isPm25Anomaly;
+      const isDispersionSource = srcSensorId && point.id === srcSensorId;
 
       return {
         type: 'Feature',
@@ -705,7 +711,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           isAnomaly: isAnomalyPoint,
           anomalyType: point.anomalyType,
           value: val,
-          isSelected: point.id === selectedSensorId
+          isSelected: point.id === selectedSensorId,
+          isDispersionSource: !!isDispersionSource
         }
       };
     });
@@ -714,7 +721,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       type: 'FeatureCollection',
       features: features
     });
-  }, [points, isLoaded, selectedMetric, selectedSensorId, pm25Threshold]);
+  }, [points, isLoaded, selectedMetric, selectedSensorId, pm25Threshold, dispersionEvent]);
 
   // 3.1 更新風向向量快取 (供 Windy 全域插值粒子使用)
   useEffect(() => {
@@ -1040,6 +1047,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     const circleColorExpression = [
       'case',
+      ['==', ['get', 'isDispersionSource'], true], '#ffffff',
       ['==', ['get', 'value'], null], '#64748b',
       ['==', ['literal', selectedMetric], 'pm2_5'], [
         'step', ['get', 'value'],
