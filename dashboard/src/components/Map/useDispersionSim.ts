@@ -276,6 +276,24 @@ export function useDispersionSim({
       
       const sourceElev = getElevation(srcLon, srcLat, map);
 
+      // 沿路徑多步高程阻擋檢測，限制最大位移
+      const getBlockedTravelDist = (dist: number): number => {
+        const steps = 8;
+        for (let i = 1; i <= steps; i++) {
+          const checkFraction = i / steps;
+          const checkDist = dist * checkFraction;
+          const checkLon = srcLon + (checkDist * Math.sin(windToRad)) / mPerDegLon;
+          const checkLat = srcLat + (checkDist * Math.cos(windToRad)) / mPerDegLat;
+          const checkElev = getElevation(checkLon, checkLat, map);
+          const elevDiff = checkElev - sourceElev;
+          
+          if (elevDiff > 35) {
+            return checkDist * 0.85; // 限制在撞山前的 85% 位置
+          }
+        }
+        return dist;
+      };
+
       // 從老煙團繪製到新煙團，讓新煙團能疊在最上方
       for (let li = layerCount - 1; li >= 0; li--) {
         const tLayer = tHours * (li / (layerCount - 1 || 1));
@@ -286,34 +304,15 @@ export function useDispersionSim({
 
         // 採用 Briggs 橫向擴散係數與順風向擴散折算
         const travelDist = windSpeedMs * t_sL * LOCAL_SCALE;
-        const sigmaY = getBriggsSigmaY(stability, travelDist);
+        const adjTravelDist = getBlockedTravelDist(travelDist);
+        const sigmaY = getBriggsSigmaY(stability, adjTravelDist);
         const sigmaX = sigmaY * 1.4;
         let sxPx = Math.max(sigmaX / mPerPxX, 2);
         let syPx = Math.max(sigmaY / mPerPxY, 2);
-        const dMX = travelDist * Math.sin(windToRad);
-        const dMY = travelDist * Math.cos(windToRad);
-
-        // 原始預計位置
-        const targetLon = srcLon + dMX / mPerDegLon;
-        const targetLat = srcLat + dMY / mPerDegLat;
-
-        // 地形海拔高度檢測與折減 (以 source 為基準)
-        const targetElev = getElevation(targetLon, targetLat, map);
-        const midLon = (srcLon + targetLon) / 2;
-        const midLat = (srcLat + targetLat) / 2;
-        const midElev = getElevation(midLon, midLat, map);
-
-        const maxElevDiff = Math.max(0, targetElev - sourceElev, midElev - sourceElev);
-
-        // 位移折減：高度差超過 30 公尺開始阻擋，超過 120 公尺則幾乎折減到底，模擬撞山障礙
-        let travelFactor = 1.0;
-        if (maxElevDiff > 30) {
-          travelFactor = Math.max(0.2, 1.0 - (maxElevDiff - 30) / 90);
-        }
 
         // 折減後實際粒子位置
-        const adjLon = srcLon + (dMX / mPerDegLon) * travelFactor;
-        const adjLat = srcLat + (dMY / mPerDegLat) * travelFactor;
+        const adjLon = srcLon + (adjTravelDist * Math.sin(windToRad)) / mPerDegLon;
+        const adjLat = srcLat + (adjTravelDist * Math.cos(windToRad)) / mPerDegLat;
 
         // 計算該處的局部高程差，模擬撞山積累與擠壓
         const actualElev = getElevation(adjLon, adjLat, map);
@@ -443,24 +442,11 @@ export function useDispersionSim({
       // 煙包中心位置 (t=current)
       const LOCAL_SCALE = 0.085;
       const t_s = tHours * 3600;
-      const dMXt = windSpeedMs * t_s * Math.sin(windToRad) * LOCAL_SCALE;
-      const dMYt = windSpeedMs * t_s * Math.cos(windToRad) * LOCAL_SCALE;
+      const tTravelDist = windSpeedMs * t_s * LOCAL_SCALE;
+      const adjTTravelDist = getBlockedTravelDist(tTravelDist);
 
-      const tTargetLon = srcLon + dMXt / mPerDegLon;
-      const tTargetLat = srcLat + dMYt / mPerDegLat;
-      const tTargetElev = getElevation(tTargetLon, tTargetLat, map);
-      const tMidLon = (srcLon + tTargetLon) / 2;
-      const tMidLat = (srcLat + tTargetLat) / 2;
-      const tMidElev = getElevation(tMidLon, tMidLat, map);
-
-      const tMaxElevDiff = Math.max(0, tTargetElev - sourceElev, tMidElev - sourceElev);
-      let tTravelFactor = 1.0;
-      if (tMaxElevDiff > 30) {
-        tTravelFactor = Math.max(0.2, 1.0 - (tMaxElevDiff - 30) / 90);
-      }
-
-      const tAdjLon = srcLon + (dMXt / mPerDegLon) * tTravelFactor;
-      const tAdjLat = srcLat + (dMYt / mPerDegLat) * tTravelFactor;
+      const tAdjLon = srcLon + (adjTTravelDist * Math.sin(windToRad)) / mPerDegLon;
+      const tAdjLat = srcLat + (adjTTravelDist * Math.cos(windToRad)) / mPerDegLat;
 
       const puffX = ((tAdjLon - MIN_LON) / lonWidth) * dispCanvas.width;
       const puffY = ((MAX_LAT - tAdjLat) / latHeight) * dispCanvas.height;
