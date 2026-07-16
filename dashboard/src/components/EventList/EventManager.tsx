@@ -46,6 +46,156 @@ export const EventManager: React.FC<EventManagerProps> = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
+  const handleShpUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    const fileName = file.name;
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const arrayBuffer = event.target?.result as ArrayBuffer;
+        if (!arrayBuffer) return;
+        
+        const view = new DataView(arrayBuffer);
+        const fileCode = view.getInt32(0, false);
+        if (fileCode !== 9994) {
+          alert("無效的 Shapefile 檔案格式 (.shp)");
+          return;
+        }
+        
+        const pointsList: { x: number; y: number }[] = [];
+        let offset = 100;
+        const fileLengthBytes = view.getInt32(24, false) * 2;
+        
+        while (offset < fileLengthBytes) {
+          if (offset + 8 > arrayBuffer.byteLength) break;
+          const contentLengthBytes = view.getInt32(offset + 4, false) * 2;
+          if (offset + 8 + contentLengthBytes > arrayBuffer.byteLength) break;
+          
+          const recordContentOffset = offset + 8;
+          const shapeType = view.getInt32(recordContentOffset, true);
+          
+          if (shapeType === 5) { // Polygon
+            const numParts = view.getInt32(recordContentOffset + 36, true);
+            const numPoints = view.getInt32(recordContentOffset + 40, true);
+            const partsOffset = recordContentOffset + 44;
+            const pointsOffset = partsOffset + numParts * 4;
+            
+            for (let i = 0; i < numPoints; i++) {
+              const ptOffset = pointsOffset + i * 16;
+              if (ptOffset + 16 > arrayBuffer.byteLength) break;
+              const x = view.getFloat64(ptOffset, true);
+              const y = view.getFloat64(ptOffset + 8, true);
+              pointsList.push({ x, y });
+            }
+          } else if (shapeType === 1) { // Point
+            const x = view.getFloat64(recordContentOffset + 4, true);
+            const y = view.getFloat64(recordContentOffset + 12, true);
+            pointsList.push({ x, y });
+          }
+          
+          offset += 8 + contentLengthBytes;
+        }
+        
+        if (pointsList.length === 0) {
+          alert("無法從 shp 檔案中解析出幾何點位，目前僅支援 Point (1) 或 Polygon (5) 類型。");
+          return;
+        }
+        
+        // 座標轉換為 WGS84
+        const wgsPoints = pointsList.map((pt) => {
+          if (pt.x > 1000) {
+            return twd97ToWgs84(pt.x, pt.y);
+          } else {
+            return { lon: pt.x, lat: pt.y };
+          }
+        });
+        
+        // 計算中心點與半徑
+        const sumLon = wgsPoints.reduce((sum, pt) => sum + pt.lon, 0);
+        const sumLat = wgsPoints.reduce((sum, pt) => sum + pt.lat, 0);
+        const centerLon = sumLon / wgsPoints.length;
+        const centerLat = sumLat / wgsPoints.length;
+        
+        let maxDistKm = 0;
+        for (const pt of wgsPoints) {
+          const dist = getDistanceKm(centerLat, centerLon, pt.lat, pt.lon);
+          if (dist > maxDistKm) maxDistKm = dist;
+        }
+        
+        // 設定警示半徑
+        const radiusKm = Math.max(1.0, Math.min(5.0, maxDistKm));
+        
+        // 綁定感測器：尋找最鄰近與半徑內的
+        let eventSensors: any[] = [];
+        let nearestSensor: any = null;
+        let minDistance = Infinity;
+        
+        for (const s of points) {
+          const dist = getDistanceKm(centerLat, centerLon, s.lat, s.lon);
+          if (dist < minDistance) {
+            minDistance = dist;
+            nearestSensor = s;
+          }
+          if (dist <= radiusKm) {
+            eventSensors.push({
+              id: s.id,
+              name: s.name,
+              lat: s.lat,
+              lon: s.lon,
+              county: s.county || '臺中市',
+              status: s.status || '正常',
+              pm2_5: (s as any).pm2_5 !== undefined ? (s as any).pm2_5 : 11.1,
+              temperature: (s as any).temperature !== undefined ? (s as any).temperature : 28.5,
+              humidity: (s as any).humidity !== undefined ? (s as any).humidity : 75.0,
+              voc: (s as any).voc !== undefined ? (s as any).voc : null
+            });
+          }
+        }
+        
+        if (eventSensors.length === 0 && nearestSensor) {
+          console.log(`Radius empty. Binding nearest sensor ${nearestSensor.id} at distance ${minDistance.toFixed(2)} km`);
+          eventSensors.push({
+            id: nearestSensor.id,
+            name: nearestSensor.name,
+            lat: nearestSensor.lat,
+            lon: nearestSensor.lon,
+            county: nearestSensor.county || '臺中市',
+            status: nearestSensor.status || '正常',
+            pm2_5: (nearestSensor as any).pm2_5 !== undefined ? (nearestSensor as any).pm2_5 : 11.1,
+            temperature: (nearestSensor as any).temperature !== undefined ? (nearestSensor as any).temperature : 28.5,
+            humidity: (nearestSensor as any).humidity !== undefined ? (nearestSensor as any).humidity : 75.0,
+            voc: (nearestSensor as any).voc !== undefined ? (nearestSensor as any).voc : null
+          });
+        }
+        
+        const eventTitle = `${fileName.replace('.shp', '')} 測試事件 (門檻: PM₂.₅ 54)`;
+        const eventTimeStr = '2026-07-13 11:10:00'; // 固定在有完整氣象背景觀測的時間點，以利擴散播放
+        
+        await onAddEvent({
+          title: eventTitle,
+          description: `由前端上傳 Shapefile (${fileName}) 解析新增之測試事件`,
+          status: '待確認',
+          event_time: eventTimeStr,
+          bounds: {
+            center: { lat: centerLat, lon: centerLon },
+            radiusKm: radiusKm
+          },
+          sensors: eventSensors
+        });
+        
+        alert(`成功解析 ${fileName}！\n中心位置: ${centerLon.toFixed(6)}, ${centerLat.toFixed(6)}\n已新增事件至列表，可點擊「擴散」進行模擬。`);
+      } catch (err: any) {
+        console.error("SHP upload/parse error:", err);
+        alert(`SHP 檔案解析失敗: ${err.message}`);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
   // 根據事件關聯的測站或 bounds 經緯度座標推算所屬產業園區，若無則回傳空
   const getEventTitle = (event: Event) => {
     let zone = '';
@@ -184,7 +334,26 @@ export const EventManager: React.FC<EventManagerProps> = ({
           <AlertCircle className="text-orange-500 w-5 h-5" />
           <h2 className="text-lg font-bold text-slate-100">事件管理</h2>
         </div>
-        {/* 已改為達到門檻自動生成事件，移除手動新增事件按鈕 */}
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              const fileInput = document.getElementById('shp-file-input');
+              if (fileInput) fileInput.click();
+            }}
+            className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-all active:scale-95 cursor-pointer select-none shrink-0"
+          >
+            <PlusCircle className="w-3 h-3" />
+            事件新增
+          </button>
+          <input
+            id="shp-file-input"
+            type="file"
+            accept=".shp"
+            onChange={handleShpUpload}
+            className="hidden"
+          />
+        </div>
       </div>
 
       {/* 新增或編輯事件表單 */}
@@ -486,6 +655,65 @@ export const EventManager: React.FC<EventManagerProps> = ({
       )}
     </div>
   );
+};
+
+// 台灣 TWD97 (EPSG:3826) 轉 WGS84 經緯度 (EPSG:4326) 純數學投影公式
+const twd97ToWgs84 = (x: number, y: number) => {
+  const a = 6378137.0;
+  const b = 6356752.314245;
+  const long0 = (121.0 * Math.PI) / 180;
+  const k0 = 0.9999;
+  const dx = 250000.0;
+  
+  const dy = y;
+  const xAdjusted = x - dx;
+  
+  const e = Math.sqrt(1 - (b * b) / (a * a));
+  const e2 = (e * e) / (1 - e * e);
+  
+  const M = dy / k0;
+  const mu = M / (a * (1 - (e * e) / 4 - 3 * (e * e * e * e) / 64 - 5 * (e * e * e * e * e * e) / 256));
+  const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
+  
+  const j1 = (3 * e1) / 2 - (27 * e1 * e1 * e1) / 32;
+  const j2 = (21 * e1 * e1) / 16 - (55 * e1 * e1 * e1 * e1) / 32;
+  const j3 = (151 * e1 * e1 * e1) / 96;
+  const j4 = (1097 * e1 * e1 * e1 * e1) / 512;
+  
+  const fp = mu + j1 * Math.sin(2 * mu) + j2 * Math.sin(4 * mu) + j3 * Math.sin(6 * mu) + j4 * Math.sin(8 * mu);
+  
+  const C1 = e2 * Math.cos(fp) * Math.cos(fp);
+  const T1 = Math.tan(fp) * Math.tan(fp);
+  const R1 = (a * (1 - e * e)) / Math.pow(1 - (e * e) * Math.sin(fp) * Math.sin(fp), 1.5);
+  const N1 = a / Math.sqrt(1 - (e * e) * Math.sin(fp) * Math.sin(fp));
+  const D = xAdjusted / (N1 * k0);
+  
+  const Q1 = (D * D) / 2;
+  const Q2 = ((5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * e2) * Math.pow(D, 4)) / 24;
+  const Q3 = ((61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 3 * C1 * C1 - 252 * e2) * Math.pow(D, 6)) / 720;
+  let lat = fp - (N1 * Math.tan(fp) / R1) * (Q1 - Q2 + Q3);
+  lat = (lat * 180) / Math.PI;
+  
+  const Q4 = D;
+  const Q5 = ((1 + 2 * T1 + C1) * Math.pow(D, 3)) / 6;
+  const Q6 = ((5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * e2 + 24 * T1 * T1) * Math.pow(D, 5)) / 120;
+  let lon = long0 + (Q4 - Q5 + Q6) / Math.cos(fp);
+  lon = (lon * 180) / Math.PI;
+  
+  return { lon, lat };
+};
+
+const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
 export default EventManager;
