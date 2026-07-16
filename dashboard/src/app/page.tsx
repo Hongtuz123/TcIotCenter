@@ -5,6 +5,7 @@ import FilterPanel from '@/components/Sidebar/FilterPanel';
 import SensorMap from '@/components/Map/SensorMap';
 import EventManager from '@/components/EventList/EventManager';
 import TrendChart from '@/components/Analytics/TrendChart';
+import { getEventSourceSensor } from '@/components/Map/useDispersionSim';
 import { Sensor, Observation, Event, Cluster, SystemSettings } from '@/types';
 import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X } from 'lucide-react';
 
@@ -163,6 +164,30 @@ export default function DashboardPage() {
 
     return () => clearTimeout(handler);
   }, [currentTime, isPlaying]);
+
+  // 當執行非擴散模擬功能時（如切換篩選條件、觀測指標、時間範圍、檢視其他事件或其它測站），自動關掉擴散模擬
+  useEffect(() => {
+    if (!dispersionEvent) return;
+
+    // 1. 若當前檢視的歷史事件改變且非該擴散事件，則關閉
+    if (activeEventId !== dispersionEvent.id) {
+      setDispersionEvent(null);
+      return;
+    }
+
+    // 2. 若選取了非擴散源頭的其它測站，則關閉
+    const srcSensor = getEventSourceSensor(dispersionEvent, points);
+    if (selectedSensorId && selectedSensorId !== srcSensor?.id) {
+      setDispersionEvent(null);
+    }
+  }, [activeEventId, selectedSensorId, points, dispersionEvent]);
+
+  // 對於篩選條件、觀測指標、時間範圍的變動，直接關閉擴散模擬
+  useEffect(() => {
+    if (dispersionEvent) {
+      setDispersionEvent(null);
+    }
+  }, [selectedFilter, selectedDeviceId, selectedMetric, startDateTime, endDateTime]);
 
   // 1. 初始化行政區列表與系統設定
   useEffect(() => {
