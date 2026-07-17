@@ -685,9 +685,50 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     // 建立 GeoJSON FeatureCollection
     const features: any = points.map((point) => {
-      const val = point[selectedMetric];
-      const isPm25Anomaly = selectedMetric === 'pm2_5' && val !== null && val !== undefined && val >= (pm25Threshold ?? 54);
-      const isAnomalyPoint = point.isAnomaly || isPm25Anomaly;
+      let val = point[selectedMetric];
+      let isAnomalyPoint = point.isAnomaly;
+      let anomalyType = point.anomalyType;
+
+      // 污染擴散模擬中的測站測值動態漸進連動
+      if (dispersionEvent && selectedMetric === 'pm2_5') {
+        // 找到該測站在事件中的目標測值
+        const evSensor = dispersionEvent.sensors?.find((s: any) => s.id === point.id);
+        if (evSensor) {
+          const targetPm25 = evSensor.pm2_5 ?? 54.0;
+          const basePm25 = Math.min(12.0, targetPm25 * 0.2); // 預設乾淨背景值 (原值的 20% 或最高 12.0)
+          
+          if (point.id === srcSensorId) {
+            // 源頭測站：0 ~ 0.5 小時內快速上升至最高
+            const ratio = Math.min(1.0, simTimeH / 0.5);
+            val = basePm25 + (targetPm25 - basePm25) * ratio;
+          } else if (srcSensor) {
+            // 其他測站：依距離源頭的遠近計算擴散延遲
+            const dLon = (point.lon - srcSensor.lon) * 111.32 * Math.cos(srcSensor.lat * Math.PI / 180);
+            const dLat = (point.lat - srcSensor.lat) * 110.57;
+            const distKm = Math.sqrt(dLon * dLon + dLat * dLat);
+            
+            // 假設平均擴散波速為 6.0 km/h (即每分鐘 100 公尺)
+            const tDelay = Math.min(3.0, distKm / 6.0);
+            
+            if (simTimeH < tDelay) {
+              val = basePm25;
+            } else {
+              const ratio = Math.min(1.0, (simTimeH - tDelay) / Math.max(0.5, (4.0 - tDelay)));
+              val = basePm25 + (targetPm25 - basePm25) * ratio;
+            }
+          }
+          
+          // 動態更新是否超標判定
+          const isPm25Anomaly = val !== null && val !== undefined && val >= (pm25Threshold ?? 54);
+          isAnomalyPoint = isPm25Anomaly;
+          anomalyType = isAnomalyPoint ? `連續 3 筆 PM₂.₅ 超標` : '';
+        }
+      } else {
+        // 非模擬模式下的正常超標判定
+        const isPm25Anomaly = selectedMetric === 'pm2_5' && val !== null && val !== undefined && val >= (pm25Threshold ?? 54);
+        isAnomalyPoint = point.isAnomaly || isPm25Anomaly;
+      }
+
       const isDispersionSource = srcSensorId && point.id === srcSensorId;
 
       return {
@@ -703,13 +744,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           lon: point.lon,
           county: point.county,
           status: point.status,
-          pm2_5: point.pm2_5,
+          pm2_5: selectedMetric === 'pm2_5' ? val : point.pm2_5,
           temperature: point.temperature,
           humidity: point.humidity,
           voc: point.voc,
           time: point.time,
           isAnomaly: isAnomalyPoint,
-          anomalyType: point.anomalyType,
+          anomalyType: anomalyType,
           value: val,
           isSelected: point.id === selectedSensorId,
           isDispersionSource: !!isDispersionSource
@@ -721,7 +762,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       type: 'FeatureCollection',
       features: features
     });
-  }, [points, isLoaded, selectedMetric, selectedSensorId, pm25Threshold, dispersionEvent]);
+  }, [points, isLoaded, selectedMetric, selectedSensorId, pm25Threshold, dispersionEvent, simTimeH]);
 
   // 3.1 更新風向向量快取 (供 Windy 全域插值粒子使用)
   useEffect(() => {
