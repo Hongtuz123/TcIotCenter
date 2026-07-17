@@ -1714,13 +1714,15 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
   // 5.2 監聽 activeEvent 變更，地圖平滑飛越與縮放至事件中心
   useEffect(() => {
-    if (!mapRef.current || !isLoaded || !activeEvent || !activeEvent.bounds?.center) return;
+    if (!mapRef.current || !isLoaded || !activeEvent) return;
 
-    const lat = activeEvent.bounds.center.lat;
-    const lng = (activeEvent.bounds.center as any).lng ?? (activeEvent.bounds.center as any).lon;
+    // 優先以污染源頭（微型感測器）之經緯度位置作為飛行中心
+    const srcSensor = getEventSourceSensor(activeEvent, points);
+    const lat = srcSensor ? srcSensor.lat : activeEvent.bounds?.center?.lat;
+    const lng = srcSensor ? srcSensor.lon : ((activeEvent.bounds?.center as any)?.lng ?? (activeEvent.bounds?.center as any)?.lon);
 
     if (lat !== undefined && lng !== undefined) {
-      console.log(`Zooming in to active event center at [${lng}, ${lat}]`);
+      console.log(`Zooming in to active event center (Micro Sensor) at [${lng}, ${lat}]`);
       const isSimulating = !!dispersionEvent;
       mapRef.current.flyTo({
         center: [lng, lat],
@@ -1732,7 +1734,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         essential: true
       });
     }
-  }, [activeEvent, isLoaded, dispersionEvent]);
+  }, [activeEvent, isLoaded, dispersionEvent, points]);
 
   // 5.5 監聽第一層篩選變更，地圖平滑飛越與縮放至區域中心
   useEffect(() => {
