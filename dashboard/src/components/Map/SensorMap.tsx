@@ -1506,6 +1506,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         type: 'FeatureCollection',
         features: features
       });
+      if (map.getLayer(fillLayerId)) {
+        map.setPaintProperty(fillLayerId, 'fill-opacity', dispersionEvent ? 0.02 : 0.15);
+      }
+      if (map.getLayer(outlineLayerId)) {
+        map.setPaintProperty(outlineLayerId, 'line-opacity', dispersionEvent ? 0.1 : 0.6);
+      }
     } else {
       // 2. 若不存在，進行初始化建立
       map.addSource(sourceId, {
@@ -1516,18 +1522,18 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       });
 
-      // 填充圓圈顏色 (紅色半透明)
+      // 填充圓圈顏色 (紅色半透明，擴散模擬中降至 0.02)
       map.addLayer({
         id: fillLayerId,
         type: 'fill',
         source: sourceId,
         paint: {
           'fill-color': '#ef4444',
-          'fill-opacity': 0.15
+          'fill-opacity': dispersionEvent ? 0.02 : 0.15
         }
       });
 
-      // 圓圈描邊
+      // 圓圈描邊 (擴散模擬中降至 0.1)
       map.addLayer({
         id: outlineLayerId,
         type: 'line',
@@ -1535,7 +1541,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         paint: {
           'line-color': '#ef4444',
           'line-width': 2,
-          'line-dasharray': [2, 2]
+          'line-dasharray': [2, 2],
+          'line-opacity': dispersionEvent ? 0.1 : 0.6
         }
       });
 
@@ -1579,7 +1586,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         map.getCanvas().style.cursor = '';
       });
     }
-  }, [clusters, isLoaded, styleVersion]);
+  }, [clusters, isLoaded, styleVersion, dispersionEvent]);
 
   // 4.5 更新當前選定事件 (activeEvent) 的警示範圍 Layer
   useEffect(() => {
@@ -1644,6 +1651,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         type: 'FeatureCollection',
         features: [geojsonFeature]
       });
+      
+      if (map.getLayer(fillLayerId)) {
+        map.setPaintProperty(fillLayerId, 'fill-opacity', dispersionEvent ? 0.05 : 0.3);
+      }
+      if (map.getLayer(outlineLayerId)) {
+        map.setPaintProperty(outlineLayerId, 'line-opacity', dispersionEvent ? 0.15 : 0.8);
+      }
     } else {
       map.addSource(sourceId, {
         type: 'geojson',
@@ -1664,7 +1678,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       });
 
-      // 紅色虛線描邊
+      // 紅色虛線描邊 (若在擴散模擬中，降低不透明度至 0.15)
       map.addLayer({
         id: outlineLayerId,
         type: 'line',
@@ -1672,7 +1686,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         paint: {
           'line-color': '#ef4444',
           'line-width': 2.5,
-          'line-dasharray': [3, 2]
+          'line-dasharray': [3, 2],
+          'line-opacity': dispersionEvent ? 0.15 : 0.8
         }
       });
     }

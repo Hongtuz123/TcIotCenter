@@ -125,20 +125,47 @@ export const EventManager: React.FC<EventManagerProps> = ({
           if (dist > maxDistKm) maxDistKm = dist;
         }
         
-        // 設定警示半徑
-        const radiusKm = Math.max(1.0, Math.min(5.0, maxDistKm));
-        
-        // 綁定感測器：尋找最鄰近與半徑內的
-        let eventSensors: any[] = [];
+        // 1. 尋找與 Shapefile 幾何中心 8.0 公里以內、且當時 PM2.5 最高的測站作為污染源頭；若無則取最近測站
+        let sourceSensor: any = null;
+        let maxPm25 = -1;
         let nearestSensor: any = null;
         let minDistance = Infinity;
-        
+
         for (const s of points) {
           const dist = getDistanceKm(centerLat, centerLon, s.lat, s.lon);
           if (dist < minDistance) {
             minDistance = dist;
             nearestSensor = s;
           }
+          if (dist <= 8.0) {
+            const pmVal = (s as any).pm2_5 ?? 0;
+            if (pmVal > maxPm25) {
+              maxPm25 = pmVal;
+              sourceSensor = s;
+            }
+          }
+        }
+        if (!sourceSensor) {
+          sourceSensor = nearestSensor;
+        }
+
+        // 2. 將新的事件中心 bounds.center 設為污染源頭測站座標
+        const finalCenterLat = sourceSensor ? sourceSensor.lat : centerLat;
+        const finalCenterLon = sourceSensor ? sourceSensor.lon : centerLon;
+
+        // 3. 計算污染源頭測站到多邊形所有頂點的最大距離，做為涵蓋半徑
+        let maxDistFromSource = 0;
+        for (const pt of wgsPoints) {
+          const dist = getDistanceKm(finalCenterLat, finalCenterLon, pt.lat, pt.lon);
+          if (dist > maxDistFromSource) maxDistFromSource = dist;
+        }
+        // 警示半徑：包覆多邊形，最低 1.5 公里，最高 6.0 公里
+        const radiusKm = Math.max(1.5, Math.min(6.0, maxDistFromSource));
+
+        // 4. 以污染源頭測站為圓心，以 radiusKm 為半徑，過濾並綁定 eventSensors
+        let eventSensors: any[] = [];
+        for (const s of points) {
+          const dist = getDistanceKm(finalCenterLat, finalCenterLon, s.lat, s.lon);
           if (dist <= radiusKm) {
             eventSensors.push({
               id: s.id,
@@ -154,30 +181,20 @@ export const EventManager: React.FC<EventManagerProps> = ({
             });
           }
         }
-        
-        if (eventSensors.length === 0 && nearestSensor) {
-          console.log(`Radius empty. Binding nearest sensor ${nearestSensor.id} at distance ${minDistance.toFixed(2)} km`);
+
+        if (eventSensors.length === 0 && sourceSensor) {
           eventSensors.push({
-            id: nearestSensor.id,
-            name: nearestSensor.name,
-            lat: nearestSensor.lat,
-            lon: nearestSensor.lon,
-            county: nearestSensor.county || '臺中市',
-            status: nearestSensor.status || '正常',
-            pm2_5: (nearestSensor as any).pm2_5 !== undefined ? (nearestSensor as any).pm2_5 : 11.1,
-            temperature: (nearestSensor as any).temperature !== undefined ? (nearestSensor as any).temperature : 28.5,
-            humidity: (nearestSensor as any).humidity !== undefined ? (nearestSensor as any).humidity : 75.0,
-            voc: (nearestSensor as any).voc !== undefined ? (nearestSensor as any).voc : null
+            id: sourceSensor.id,
+            name: sourceSensor.name,
+            lat: sourceSensor.lat,
+            lon: sourceSensor.lon,
+            county: sourceSensor.county || '臺中市',
+            status: sourceSensor.status || '正常',
+            pm2_5: (sourceSensor as any).pm2_5 !== undefined ? (sourceSensor as any).pm2_5 : 11.1,
+            temperature: (sourceSensor as any).temperature !== undefined ? (sourceSensor as any).temperature : 28.5,
+            humidity: (sourceSensor as any).humidity !== undefined ? (sourceSensor as any).humidity : 75.0,
+            voc: (sourceSensor as any).voc !== undefined ? (sourceSensor as any).voc : null
           });
-        }
-        
-        // 重新調整中心點：以污染源頭（PM2.5 最高之測站）為中心
-        let finalCenterLat = centerLat;
-        let finalCenterLon = centerLon;
-        if (eventSensors.length > 0) {
-          const sortedSensors = [...eventSensors].sort((a, b) => (b.pm2_5 ?? 0) - (a.pm2_5 ?? 0));
-          finalCenterLat = sortedSensors[0].lat;
-          finalCenterLon = sortedSensors[0].lon;
         }
 
         const eventTitle = `${fileName.replace('.shp', '')} 測試事件 (門檻: PM₂.₅ 54)`;
