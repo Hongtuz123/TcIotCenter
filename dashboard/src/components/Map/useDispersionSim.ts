@@ -315,7 +315,15 @@ export function useDispersionSim({
       // 從老煙團繪製到新煙團，讓新煙團能疊在最上方
       for (let li = layerCount - 1; li >= 0; li--) {
         const tLayer = tHours * (li / (layerCount - 1 || 1));
-        const currPm25 = srcPm25 * Math.exp(-0.35 * tLayer);
+        
+        // 煙團排出時的源頭時間 (0 ~ tHours)
+        const tSource = Math.max(0, tHours - tLayer);
+        const basePm25 = 12.0; // 乾淨背景值
+        // 源頭濃度隨時間漸進增強，在第 4 小時達到最大值 srcPm25
+        const activeSrcPm25 = basePm25 + (srcPm25 - basePm25) * Math.pow(tSource / 4.0, 1.2);
+        
+        // 煙團濃度隨漂流時間 tLayer 指數衰減
+        const currPm25 = activeSrcPm25 * Math.exp(-0.35 * tLayer);
         const t_sL = tLayer * 3600;
 
         const LOCAL_SCALE = 0.085; // 引入局地尺度折減係數，使 4 小時動畫擴散控制在合理局地範圍 (最大約 4.5~5 公里)

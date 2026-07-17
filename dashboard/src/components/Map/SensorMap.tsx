@@ -1609,8 +1609,10 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       return;
     }
 
-    const lat = activeEvent.bounds.center.lat;
-    const lng = (activeEvent.bounds.center as any).lng ?? (activeEvent.bounds.center as any).lon;
+    // 圓心一律使用污染源頭（微型感測器）之經緯度位置，以確保圓心一定落在微型感測器上且處於正中心
+    const srcSensor = getEventSourceSensor(activeEvent, points);
+    const lat = srcSensor ? srcSensor.lat : activeEvent.bounds.center.lat;
+    const lng = srcSensor ? srcSensor.lon : ((activeEvent.bounds.center as any).lng ?? (activeEvent.bounds.center as any).lon);
     const radius = activeEvent.bounds.radiusKm || 1.0;
 
     if (lat === undefined || lng === undefined) return;
@@ -1691,7 +1693,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         }
       });
     }
-  }, [activeEvent, isLoaded, styleVersion, dispersionEvent]);
+  }, [activeEvent, isLoaded, styleVersion, dispersionEvent, points]);
 
   // 5. 監聽 selectedClusterId 變更，地圖平滑飛越與縮放
   useEffect(() => {
