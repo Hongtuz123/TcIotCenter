@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 import { getDb } from '@/lib/db';
 import { globalMockState, mockSensors } from '@/lib/mockData';
 
@@ -11,8 +12,46 @@ export async function PUT(
     const body = await request.json();
     const { title, description, status, bounds, event_time, sensors } = body;
 
-    const db = await getDb();
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
+    if (supabase) {
+      const client = supabase;
+      
+      // 先查詢事件是否存在
+      const { data: event, error: findErr } = await client
+        .from('events')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (findErr || !event) {
+        return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+      }
+
+      const { error: updateErr } = await client
+        .from('events')
+        .update({
+          title: title || event.title,
+          description: description !== undefined ? description : event.description,
+          status: status || event.status,
+          updated_at: nowStr,
+          bounds: bounds ? JSON.stringify(bounds) : event.bounds,
+          event_time: event_time !== undefined ? event_time : event.event_time,
+          stations_count: Array.isArray(sensors) ? sensors.length : event.stations_count,
+          avg_pm25: Array.isArray(sensors) && sensors.length > 0 
+            ? sensors.reduce((acc: number, s: any) => acc + (s.pm2_5 || 0), 0) / sensors.length 
+            : event.avg_pm25
+        })
+        .eq('id', id);
+
+      if (updateErr) {
+        throw updateErr;
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    const db = await getDb();
 
     if (!db) {
       // 降級為 Mock，在記憶體中更新事件
@@ -86,6 +125,21 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
+
+    // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
+    if (supabase) {
+      const client = supabase;
+      const { error } = await client
+        .from('events')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+      return NextResponse.json({ success: true });
+    }
+
     const db = await getDb();
 
     if (!db) {
