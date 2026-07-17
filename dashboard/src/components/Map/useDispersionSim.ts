@@ -380,9 +380,9 @@ export function useDispersionSim({
 
         const finalPx = safeNum(pX, srcX);
         const finalPy = safeNum(pY, srcY);
-        // 動態最小半徑：在 tHours 接近 0 時，最小半徑僅有 1.5 像素，隨著擴散演進再逐步放大，實現「從小擴散到大」的視覺過程
-        const minRadiusLimit = 1.5 + 8.5 * Math.min(1.0, tHours / 3.0);
-        const finalRadius = Math.max(safeNum(syPx * 3, minRadiusLimit), minRadiusLimit);
+        // 動態最小半徑與整體半徑縮小一半：使一開始的單位面積減半，避免一大片綠色導致失真
+        const minRadiusLimit = 0.8 + 4.2 * Math.min(1.0, tHours / 3.0);
+        const finalRadius = Math.max(safeNum(syPx * 1.5, minRadiusLimit), minRadiusLimit);
         const finalOpacity = Math.min(Math.max(safeNum(opacity, 0.25), 0.02), 0.95);
         const finalScaleX = Math.max(safeNum(sxPx / Math.max(syPx, 1), 1.0), 1.0);
         const finalWindToRad = safeNum(windToRad, 0);
