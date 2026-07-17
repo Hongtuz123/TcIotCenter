@@ -2108,11 +2108,53 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         else if (srcPm25 >= 35.4) pmColor = '#f97316';
         else if (srcPm25 >= 15.5) pmColor = '#eab308';
 
-        // 取得事件範圍內的所有測站並計算 PM2.5 平均值、最小值、最大值
-        const eventSensors = getEventSensorsInBounds(dispersionEvent, points);
+        // 取得事件範圍內的所有測站 (一律以污染源頭測站為中心進行過濾，以確保圓圈與範圍一致)
+        const eventSensors = (() => {
+          const lat = srcSensor ? srcSensor.lat : dispersionEvent.bounds?.center.lat;
+          const lng = srcSensor ? srcSensor.lon : ((dispersionEvent.bounds?.center as any).lng ?? (dispersionEvent.bounds?.center as any).lon);
+          const radius = dispersionEvent.bounds?.radiusKm || 1.5;
+          if (lat === undefined || lng === undefined) return [];
+          
+          return points.filter(p => {
+            const dLon = (p.lon - lng) * 111.32 * Math.cos(lat * Math.PI / 180);
+            const dLat = (p.lat - lat) * 110.57;
+            const dist = Math.sqrt(dLon * dLon + dLat * dLat);
+            return dist <= radius;
+          });
+        })();
+
+        const srcSensorId = srcSensor?.id;
+
         const pmValues = eventSensors
-          .map(s => s.pm2_5)
-          .filter((val): val is number => val !== null && val !== undefined);
+          .map(s => {
+            let val = s.pm2_5;
+            
+            // 計算當前的動態 PM2.5 數值，與地圖點位渲染完全同步
+            if (selectedMetric === 'pm2_5') {
+              const evSensor = dispersionEvent.sensors?.find((es: any) => es.id === s.id) || s;
+              const targetPm25 = evSensor.pm2_5 ?? 54.0;
+              const basePm25 = Math.min(12.0, targetPm25 * 0.2);
+              
+              if (s.id === srcSensorId) {
+                const ratio = Math.min(1.0, simTimeH / 0.5);
+                val = basePm25 + (targetPm25 - basePm25) * ratio;
+              } else if (srcSensor) {
+                const dLon = (s.lon - srcSensor.lon) * 111.32 * Math.cos(srcSensor.lat * Math.PI / 180);
+                const dLat = (s.lat - srcSensor.lat) * 110.57;
+                const distKm = Math.sqrt(dLon * dLon + dLat * dLat);
+                const tDelay = Math.min(3.0, distKm / 6.0);
+                
+                if (simTimeH < tDelay) {
+                  val = basePm25;
+                } else {
+                  const ratio = Math.min(1.0, (simTimeH - tDelay) / Math.max(0.5, (4.0 - tDelay)));
+                  val = basePm25 + (targetPm25 - basePm25) * ratio;
+                }
+              }
+            }
+            return val;
+          })
+          .filter((val): val is number => val !== null && val !== undefined && !isNaN(val));
         
         let avgPm = 0;
         let minPm = 0;
