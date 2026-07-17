@@ -156,9 +156,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing title' }, { status: 400 });
     }
 
-    const db = await getDb();
     const eventId = `event_${Date.now()}`;
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
+    if (supabase) {
+      const client = supabase;
+      const { error } = await client.from('events').insert({
+        id: eventId,
+        title,
+        description: description || '',
+        status: status || '待確認',
+        created_at: nowStr,
+        updated_at: nowStr,
+        bounds: bounds ? JSON.stringify(bounds) : null,
+        event_time: event_time || null,
+        stations_count: Array.isArray(sensors) ? sensors.length : 0,
+        avg_pm25: Array.isArray(sensors) && sensors.length > 0 
+          ? sensors.reduce((acc: number, s: any) => acc + (s.pm2_5 || 0), 0) / sensors.length 
+          : null,
+        dominant_type: '手動新增事件'
+      });
+
+      if (error) {
+        throw error;
+      }
+      return NextResponse.json({ success: true, id: eventId });
+    }
+
+    const db = await getDb();
 
     if (!db) {
       // 降級為 Mock 並在記憶體中建立
