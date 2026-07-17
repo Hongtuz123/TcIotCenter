@@ -111,6 +111,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
   const {
     simTimeH,
     setSimTimeH,
+    isSimPlaying,
+    setIsSimPlaying,
+    accumulatedTimeRef,
     simAnimRef,
     simPhaseRef,
     simStartTimeRef,
@@ -1247,7 +1250,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               <span style="color:#64748b;font-weight:600;">風向:</span>
               <span style="font-weight:700;color:#22d3ee;">${wdStr}</span>
             </div>
-            \${point.anomalyType ? \`<p style="margin-top:8px;font-size:11px;font-weight:700;color:#f87171;background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:6px;text-align:center;border:1px solid rgba(239,68,68,0.2);">🚨 警告：\${point.anomalyType}</p>\` : ''}
+            ${point.anomalyType ? `<p style="margin-top:8px;font-size:11px;font-weight:700;color:#f87171;background:rgba(239,68,68,0.1);padding:3px 8px;border-radius:6px;text-align:center;border:1px solid rgba(239,68,68,0.2);">🚨 警告：${point.anomalyType}</p>` : ''}
           </div>
         `;
 
@@ -1291,23 +1294,56 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
 
+    const srcSensor = getEventSourceSensor(dispersionEvent, points);
+    const srcSensorId = srcSensor?.id;
+
     // 建立 GeoJSON FeatureCollection
     const features: any = points
-      .filter((pt) => {
-        const val = pt[selectedMetric];
-        return val !== null && val !== undefined && !isNaN(val);
-      })
-      .map((pt) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [pt.lon, pt.lat]
-        },
-        properties: {
-          id: pt.id,
-          value: pt[selectedMetric]
+      .map((pt) => {
+        let val = pt[selectedMetric];
+
+        // 污染擴散模擬中的熱區數值動態漸進連動
+        if (dispersionEvent && selectedMetric === 'pm2_5') {
+          const evSensor = dispersionEvent.sensors?.find((s: any) => s.id === pt.id);
+          if (evSensor) {
+            const targetPm25 = evSensor.pm2_5 ?? 54.0;
+            const basePm25 = Math.min(12.0, targetPm25 * 0.2); // 預設乾淨背景值
+            
+            if (pt.id === srcSensorId) {
+              const ratio = Math.min(1.0, simTimeH / 0.5);
+              val = basePm25 + (targetPm25 - basePm25) * ratio;
+            } else if (srcSensor) {
+              const dLon = (pt.lon - srcSensor.lon) * 111.32 * Math.cos(srcSensor.lat * Math.PI / 180);
+              const dLat = (pt.lat - srcSensor.lat) * 110.57;
+              const distKm = Math.sqrt(dLon * dLon + dLat * dLat);
+              const tDelay = Math.min(3.0, distKm / 6.0);
+              
+              if (simTimeH < tDelay) {
+                val = basePm25;
+              } else {
+                const ratio = Math.min(1.0, (simTimeH - tDelay) / Math.max(0.5, (4.0 - tDelay)));
+                val = basePm25 + (targetPm25 - basePm25) * ratio;
+              }
+            }
+          }
         }
-      }));
+
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [pt.lon, pt.lat]
+          },
+          properties: {
+            id: pt.id,
+            value: val
+          }
+        };
+      })
+      .filter((feat) => {
+        const val = feat.properties.value;
+        return val !== null && val !== undefined && !isNaN(val);
+      });
 
     // 根據 selectedMetric 動態調整權重插值範圍
     let maxVal = 100;
@@ -2078,6 +2114,35 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 <h4 className="text-xs font-bold text-orange-400">污染擴散模擬</h4>
               </div>
               <div className="flex items-center gap-2">
+                {/* 播放 / 暫停按鈕 */}
+                <button
+                  onClick={() => {
+                    if (simTimeH >= 4.0) {
+                      // 若已播畢則從頭重新開始播放
+                      if (simAnimRef.current) {
+                        cancelAnimationFrame(simAnimRef.current);
+                        simAnimRef.current = null;
+                      }
+                      simPhaseRef.current = 'animating';
+                      simStartTimeRef.current = null;
+                      simHoldStartRef.current = null;
+                      accumulatedTimeRef.current = 0;
+                      setSimTimeH(0);
+                      setIsSimPlaying(true);
+                    } else {
+                      setIsSimPlaying(!isSimPlaying);
+                    }
+                  }}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-colors flex items-center justify-center ${isSimPlaying ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'}`}
+                  title={isSimPlaying ? '暫停擴散模擬' : '播放擴散模擬'}
+                >
+                  {isSimPlaying ? (
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  )}
+                </button>
+
                 <button
                   onClick={() => {
                     // 1. 立即同步取消任何現有 RAF，防止舊回調重新繪製 4h 畫面
@@ -2089,7 +2154,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                     simPhaseRef.current = 'animating';
                     simStartTimeRef.current = null;
                     simHoldStartRef.current = null;
-                    // 3. 清空畫布（此時已無任何舊 RAF 能再次污染畫布）
+                    accumulatedTimeRef.current = 0;
+                    // 3. 清空畫布（此時已無 any 舊 RAF 能再次污染畫布）
                     const dispCanvas = document.getElementById('dispersion-canvas') as HTMLCanvasElement | null;
                     if (dispCanvas) {
                       dispCanvas.getContext('2d')?.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
@@ -2098,14 +2164,15 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                     setSimTimeH(0);
                     setPlayTrigger(prev => prev + 1);
                   }}
-                  className="text-slate-500 hover:text-orange-400 p-0.5 rounded cursor-pointer transition-colors"
+                  className="text-slate-500 hover:text-orange-400 p-1.5 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer transition-colors flex items-center justify-center"
                   title="重新播放"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => onClearDispersion?.()}
-                  className="text-slate-500 hover:text-slate-300 p-0.5 rounded cursor-pointer"
+                  className="text-slate-500 hover:text-slate-350 p-1.5 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer text-xs font-bold leading-none flex items-center justify-center h-7.5 w-7.5"
+                  title="關閉模擬"
                 >✕</button>
               </div>
             </div>

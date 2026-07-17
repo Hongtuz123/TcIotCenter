@@ -142,6 +142,8 @@ export function useDispersionSim({
   windVectorsRef
 }: UseDispersionSimProps) {
   const [simTimeH, setSimTimeH] = useState(0);
+  const [isSimPlaying, setIsSimPlaying] = useState(false);
+  const accumulatedTimeRef = useRef(0);
   const simAnimRef = useRef<number | null>(null);
   const simStartTimeRef = useRef<number | null>(null);
   const simHoldStartRef = useRef<number | null>(null);
@@ -167,16 +169,28 @@ export function useDispersionSim({
     const isEventChanged = currentEventId !== prevEventIdRef.current;
     const isPlayTriggerChanged = playTrigger !== prevPlayTriggerRef.current;
 
-    // 只有在事件改變或使用者手動點擊重新播放時，才重新初始化動畫，防止輪詢 (poll) 導致自動重播
-    if (!isEventChanged && !isPlayTriggerChanged) {
-      return;
-    }
     prevEventIdRef.current = currentEventId;
     prevPlayTriggerRef.current = playTrigger;
 
     if (simAnimRef.current) {
       cancelAnimationFrame(simAnimRef.current);
       simAnimRef.current = null;
+    }
+
+    if (isEventChanged) {
+      accumulatedTimeRef.current = 0;
+      setSimTimeH(0);
+      setIsSimPlaying(false); // 新增或切換事件時預設暫停，讓使用者主動點擊播放
+      simPhaseRef.current = 'animating';
+      simStartTimeRef.current = null;
+    }
+
+    if (isPlayTriggerChanged) {
+      accumulatedTimeRef.current = 0;
+      setSimTimeH(0);
+      setIsSimPlaying(true); // 重新播放按鈕被點擊時，直接啟動播放
+      simPhaseRef.current = 'animating';
+      simStartTimeRef.current = null;
     }
 
     if (!dispersionEventRef.current) {
@@ -186,6 +200,8 @@ export function useDispersionSim({
       }
       try { map.getLayer('dispersion-canvas-layer') && map.setLayoutProperty('dispersion-canvas-layer', 'visibility', 'none'); } catch {}
       setSimTimeH(0);
+      accumulatedTimeRef.current = 0;
+      setIsSimPlaying(false);
       simStartTimeRef.current = null;
       simPhaseRef.current = 'animating';
       return;
@@ -199,8 +215,10 @@ export function useDispersionSim({
     const dCtx = dispCanvas.getContext('2d');
     if (!dCtx) return;
 
-    // 立刻清空畫布，避免殘留上一輪模擬的最後一幀導致視覺卡頓/回放閃爍
-    dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
+    // 每次重新初始化時清空畫布
+    if (accumulatedTimeRef.current === 0) {
+      dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
+    }
 
     const srcSensor = getEventSourceSensor(dispersionEventRef.current, pointsRef.current);
     if (!srcSensor) return;
@@ -467,32 +485,55 @@ export function useDispersionSim({
     };
 
     const animate = (timestamp: number) => {
+      if (!isSimPlaying) {
+        // 如果處於暫停，重置計時器起點以利續播，並結束循環
+        simStartTimeRef.current = null;
+        return;
+      }
       if (simPhaseRef.current === 'holding') {
         setSimTimeH(4.0);
         drawFrame(4.0);
+        setIsSimPlaying(false);
         return;
       }
       if (!simStartTimeRef.current) simStartTimeRef.current = timestamp;
-      const tHours = Math.min(((timestamp - simStartTimeRef.current) / 1000 / SIM_REAL_S) * 4, 4);
+      const elapsedSeconds = (timestamp - simStartTimeRef.current) / 1000;
+      const currentHours = accumulatedTimeRef.current + (elapsedSeconds / SIM_REAL_S) * 4;
+      const tHours = Math.min(currentHours, 4);
+      
       setSimTimeH(tHours);
       drawFrame(tHours);
+      
       if (tHours >= 4) {
         simPhaseRef.current = 'holding';
+        setIsSimPlaying(false); // 播放結束，自動暫停
+        accumulatedTimeRef.current = 4.0;
       } else {
         simAnimRef.current = requestAnimationFrame(animate);
       }
     };
 
-    simAnimRef.current = requestAnimationFrame(animate);
+    if (isSimPlaying) {
+      simAnimRef.current = requestAnimationFrame(animate);
+    } else {
+      // 暫停時依然繪製目前時間的一幀（例如第 0 小時初始畫面，以防清空）
+      drawFrame(simTimeH);
+    }
 
     return () => {
-      if (simAnimRef.current) { cancelAnimationFrame(simAnimRef.current); simAnimRef.current = null; }
+      if (simAnimRef.current) {
+        cancelAnimationFrame(simAnimRef.current);
+        simAnimRef.current = null;
+      }
     };
-  }, [dispersionEvent?.id, isLoaded, playTrigger, map]);
+  }, [dispersionEvent?.id, isLoaded, playTrigger, map, isSimPlaying]);
 
   return {
     simTimeH,
     setSimTimeH,
+    isSimPlaying,
+    setIsSimPlaying,
+    accumulatedTimeRef,
     simAnimRef,
     simPhaseRef,
     simStartTimeRef,

@@ -171,6 +171,15 @@ export const EventManager: React.FC<EventManagerProps> = ({
           });
         }
         
+        // 重新調整中心點：以污染源頭（PM2.5 最高之測站）為中心
+        let finalCenterLat = centerLat;
+        let finalCenterLon = centerLon;
+        if (eventSensors.length > 0) {
+          const sortedSensors = [...eventSensors].sort((a, b) => (b.pm2_5 ?? 0) - (a.pm2_5 ?? 0));
+          finalCenterLat = sortedSensors[0].lat;
+          finalCenterLon = sortedSensors[0].lon;
+        }
+
         const eventTitle = `${fileName.replace('.shp', '')} 測試事件 (門檻: PM₂.₅ 54)`;
         const eventTimeStr = '2026-07-13 11:10:00'; // 固定在有完整氣象背景觀測的時間點，以利擴散播放
         
@@ -180,7 +189,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
           status: '待確認',
           event_time: eventTimeStr,
           bounds: {
-            center: { lat: centerLat, lon: centerLon },
+            center: { lat: finalCenterLat, lon: finalCenterLon },
             radiusKm: radiusKm
           },
           sensors: eventSensors
