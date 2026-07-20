@@ -2294,7 +2294,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               </div>
               <div className="relative w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                 <div
-                  className="absolute left-0 top-0 h-full rounded-full transition-all"
+                  className="absolute left-0 top-0 h-full rounded-full"
                   style={{
                     width: `${(simTimeH / 4) * 100}%`,
                     background: 'linear-gradient(to right, #10b981, #eab308, #f97316, #ef4444)'
