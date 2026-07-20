@@ -2157,7 +2157,6 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             return val;
           })
           .filter((val): val is number => val !== null && val !== undefined && !isNaN(val));
-        
         let avgPm = 0;
         let minPm = 0;
         let maxPm = 0;
@@ -2206,7 +2205,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
                 <button
                   onClick={() => {
-                    // 1. 立即同步取消任何現有 RAF，防止舊回調重新繪製 4h 畫面
+                    // 1. 立即同步取消 any 現有 RAF，防止舊回調重新繪製 4h 畫面
                     if (simAnimRef.current) {
                       cancelAnimationFrame(simAnimRef.current);
                       simAnimRef.current = null;
@@ -2237,6 +2236,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 >✕</button>
               </div>
             </div>
+            
             <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2">
               <div className="flex justify-between">
                 <span className="text-slate-500">污染來源</span>
@@ -2247,23 +2247,45 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 <span className="font-bold" style={{ color: pmColor }}>{srcPm25 ? `${srcPm25.toFixed(1)} μg/m³` : 'N/A'}</span>
               </div>
             </div>
+
             <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2">
               <div className="text-[10px] text-slate-400 font-bold mb-0.5">影響範圍內測站 ({eventSensors.length} 站)</div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">平均 PM₂.₅</span>
-                <span className="text-slate-200 font-semibold">{pmValues.length > 0 ? `${avgPm.toFixed(1)} μg/m³` : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">最小 PM₂.₅</span>
-                <span className="text-emerald-400 font-semibold">{pmValues.length > 0 ? `${minPm.toFixed(1)} μg/m³` : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">最大 PM₂.₅</span>
-                <span className="text-red-400 font-semibold">{pmValues.length > 0 ? `${maxPm.toFixed(1)} μg/m³` : 'N/A'}</span>
-              </div>
+              {(() => {
+                const getPmColor = (val: number) => {
+                  if (val >= 250.4) return '#7f1d1d'; // 褐紅
+                  if (val >= 150.4) return '#a855f7'; // 紫色
+                  if (val >= 54.4) return '#ef4444';  // 紅色
+                  if (val >= 35.4) return '#f97316';  // 橘色
+                  if (val >= 15.5) return '#eab308';  // 黃色
+                  return '#34d399';                   // 綠色
+                };
+
+                return (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">平均 PM₂.₅</span>
+                      <span className="font-bold transition-colors duration-300" style={{ color: pmValues.length > 0 ? getPmColor(avgPm) : '#e2e8f0' }}>
+                        {pmValues.length > 0 ? `${avgPm.toFixed(1)} μg/m³` : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">最小 PM₂.₅</span>
+                      <span className="font-bold transition-colors duration-300" style={{ color: pmValues.length > 0 ? getPmColor(minPm) : '#34d399' }}>
+                        {pmValues.length > 0 ? `${minPm.toFixed(1)} μg/m³` : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">最大 PM₂.₅</span>
+                      <span className="font-bold transition-colors duration-300" style={{ color: pmValues.length > 0 ? getPmColor(maxPm) : '#ef4444' }}>
+                        {pmValues.length > 0 ? `${maxPm.toFixed(1)} μg/m³` : 'N/A'}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             {/* 時間進度條 */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 border-b border-slate-800 pb-2">
               <div className="flex justify-between text-[10px]">
                 <span className="text-slate-400 font-semibold">模擬時間</span>
                 <span className="text-orange-400 font-bold tabular-nums">
@@ -2283,6 +2305,26 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 <span>0h</span><span>1h</span><span>2h</span><span>3h</span><span>4h</span>
               </div>
             </div>
+            
+            {/* 模擬擴散專屬圖例 */}
+            <div className="flex flex-col gap-1 text-[10px] border-b border-slate-800 pb-2">
+              <div className="text-slate-500 font-bold mb-0.5 text-[9px]">大氣擴散 PM₂.₅ 濃度圖例 (μg/m³)</div>
+              <div className="relative w-full h-3 rounded overflow-hidden flex text-[8px] font-bold text-center">
+                <div className="flex-1 bg-[#34d399] text-slate-900 flex items-center justify-center">15.5</div>
+                <div className="flex-1 bg-[#eab308] text-slate-900 flex items-center justify-center">35.4</div>
+                <div className="flex-1 bg-[#f97316] text-slate-950 flex items-center justify-center">54.4</div>
+                <div className="flex-1 bg-[#ef4444] text-white flex items-center justify-center">150.4</div>
+                <div className="flex-1 bg-[#a855f7] text-white flex items-center justify-center">250.4</div>
+              </div>
+              <div className="flex justify-between text-[8px] text-slate-500 px-0.5">
+                <span>綠 (低)</span>
+                <span>黃 (中)</span>
+                <span>橘 (高)</span>
+                <span>紅 (極高)</span>
+                <span>紫 (危害)</span>
+              </div>
+            </div>
+
             <div className="text-[9px] text-slate-600 italic">
               ※ 基於 Gaussian Puff 模型，僅供參考
             </div>
@@ -2291,8 +2333,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       })()}
 
       <div className="absolute bottom-4 right-4 flex flex-col gap-2.5 z-10 items-end">
-        {/* 指標熱區圖例 */}
-        {renderScaleBar()}
+        {/* 指標熱區圖例 (大氣擴散模擬中時自動隱藏，避免視覺混淆) */}
+        {!dispersionEvent && renderScaleBar()}
         
         {/* Windy 風速風向圖例 */}
         {showWindArrows && renderWindScaleBar()}
