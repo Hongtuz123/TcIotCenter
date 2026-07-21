@@ -5,10 +5,10 @@ import { globalMockState, mockSensors } from '@/lib/mockData';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { title, description, status, bounds, event_time, sensors } = body;
 
@@ -121,10 +121,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
     if (supabase) {
