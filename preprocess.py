@@ -61,7 +61,8 @@ def init_db():
         status TEXT, -- '待確認', '調查中', '已結案'
         created_at TEXT,
         updated_at TEXT,
-        bounds TEXT -- 儲存 GeoJSON 或者是圈選的中心座標與半徑
+        bounds TEXT, -- 儲存 GeoJSON 或者是圈選的中心座標與半徑
+        event_time TEXT -- 事件發生時間
     )
     """)
     
@@ -70,6 +71,10 @@ def init_db():
     CREATE TABLE IF NOT EXISTS event_sensors (
         event_id TEXT,
         sensor_id TEXT,
+        pm25 REAL,
+        temperature REAL,
+        humidity REAL,
+        voc REAL,
         PRIMARY KEY (event_id, sensor_id),
         FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
         FOREIGN KEY (sensor_id) REFERENCES sensors(id) ON DELETE CASCADE
