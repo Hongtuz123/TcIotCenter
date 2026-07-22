@@ -34,10 +34,14 @@ export async function GET() {
         throw error;
       }
 
-      // 淨化事件標題，移除 [白數]、[自動]、[自定義] 前綴，維護乾淨命名與原始檔名
+      // 淨化事件標題，移除 [白數]、[自動]、[自定義] 前綴及 (門檻...) 標記
       const sanitizedData = (data || []).map((ev: any) => {
         if (ev.title) {
-          const cleanTitle = ev.title.replace(/^\[(自動|自定義|白數)\]\s*/g, '').replace(/^事件管理-?/g, '');
+          const cleanTitle = ev.title
+            .replace(/^\[(自動|自定義|白數)\]\s*/g, '')
+            .replace(/^事件管理-?/g, '')
+            .replace(/\s*\([^)]*門檻[^)]*\)/gi, '')
+            .trim();
           if (cleanTitle !== ev.title) {
             (async () => {
               try { await client.from('events').update({ title: cleanTitle }).eq('id', ev.id); } catch (e) {}
@@ -136,6 +140,13 @@ export async function GET() {
     
     // 獲取每個事件關聯的感測器（包含當時測值）
     for (const event of events) {
+      if (event.title) {
+        event.title = event.title
+          .replace(/^\[(自動|自定義|白數)\]\s*/g, '')
+          .replace(/^事件管理-?/g, '')
+          .replace(/\s*\([^)]*門檻[^)]*\)/gi, '')
+          .trim();
+      }
       const sensors = await db.all(`
         SELECT s.id, s.name, s.lat, s.lon, s.county, s.status, es.pm25 AS pm2_5, es.temperature, es.humidity, es.voc
         FROM event_sensors es

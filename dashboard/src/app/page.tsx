@@ -924,7 +924,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2 min-w-0">
                   <ShieldAlert className="w-4 h-4 text-orange-500 shrink-0 animate-pulse" />
                   <span className="truncate">
-                    正在檢視歷史事件：<strong>{events.find(e => e.id === activeEventId)?.title}</strong> 
+                    正在檢視歷史事件：<strong>{events.find(e => e.id === activeEventId)?.title?.replace(/\s*\([^)]*門檻[^)]*\)/gi, '').trim()}</strong> 
                     （事件時間：{events.find(e => e.id === activeEventId)?.event_time}）
                   </span>
                 </div>

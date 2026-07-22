@@ -49,7 +49,7 @@ export const getEventSourceSensor = (
     const centerLat = center.lat;
     return {
       id: event.id,
-      name: event.title ? event.title.replace(/\[.*\]\s*/, '').split(' ')[0] : '事件源頭',
+      name: event.title ? event.title.replace(/\[.*\]\s*/, '').replace(/\s*\([^)]*門檻[^)]*\)/gi, '').trim().split(' ')[0] : '事件源頭',
       lat: centerLat || 24.15,
       lon: centerLon || 120.65,
       county: '臺中市',

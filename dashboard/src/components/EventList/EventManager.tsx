@@ -278,14 +278,18 @@ export const EventManager: React.FC<EventManagerProps> = ({
         const cleanName = event.title
           .replace(/^\[(自動|自定義|白數)\]\s*/g, '')
           .replace(/^自定義事件-?/g, '')
-          .replace(/^事件管理-?/g, '');
+          .replace(/^事件管理-?/g, '')
+          .replace(/\s*\([^)]*門檻[^)]*\)/gi, '')
+          .trim();
         return `自定義事件-${cleanName || '檔名'}`;
       }
 
-      // 自動事件移除 [自動]、[白數] 等前綴
+      // 自動事件移除 [自動]、[白數] 等前綴及 (門檻...) 標示
       const cleanTitle = event.title
         .replace(/^\[(自動|自定義|白數)\]\s*/g, '')
-        .replace(/^事件管理-?/g, '');
+        .replace(/^事件管理-?/g, '')
+        .replace(/\s*\([^)]*門檻[^)]*\)/gi, '')
+        .trim();
       return cleanTitle || event.title;
     }
 
