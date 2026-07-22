@@ -34,15 +34,16 @@ export async function GET() {
         throw error;
       }
 
-      // 自動修正包含 [白數] 或 白數 的歷史事件標題為 [自定義]
+      // 淨化事件標題，移除 [白數]、[自動]、[自定義] 前綴，維護乾淨命名與原始檔名
       const sanitizedData = (data || []).map((ev: any) => {
-        if (ev.title && (ev.title.includes('[白數]') || ev.title.includes('白數'))) {
-          const updatedTitle = ev.title.replace(/\[白數\]/g, '[自定義]').replace(/白數/g, '自定義');
-          // 異步修復雲端庫存數據
-          (async () => {
-            try { await client.from('events').update({ title: updatedTitle }).eq('id', ev.id); } catch (e) {}
-          })();
-          return { ...ev, title: updatedTitle };
+        if (ev.title) {
+          const cleanTitle = ev.title.replace(/^\[(自動|自定義|白數)\]\s*/g, '').replace(/^事件管理-?/g, '');
+          if (cleanTitle !== ev.title) {
+            (async () => {
+              try { await client.from('events').update({ title: cleanTitle }).eq('id', ev.id); } catch (e) {}
+            })();
+            return { ...ev, title: cleanTitle };
+          }
         }
         return ev;
       });

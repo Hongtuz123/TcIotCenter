@@ -245,13 +245,13 @@ export const EventManager: React.FC<EventManagerProps> = ({
         });
       }
 
-      const cleanName = fileName.replace(/\.[^/.]+$/, "").replace(/^\[.*\]\s*/, "");
-      const eventTitle = `[自定義] ${cleanName} (門檻: PM₂.₅ 54)`;
+      const cleanName = fileName.replace(/\.[^/.]+$/, "");
+      const eventTitle = cleanName;
       const eventTimeStr = '2026-07-13 11:10:00';
 
       await onAddEvent({
         title: eventTitle,
-        description: `由前端上傳圖層檔案 (${fileName}) 解析新增之自定義事件`,
+        description: `由前端上傳圖層檔案 (${fileName}) 解析新增之事件`,
         status: '待確認',
         event_time: eventTimeStr,
         bounds: {
@@ -270,11 +270,13 @@ export const EventManager: React.FC<EventManagerProps> = ({
     }
   };
 
-  // 根據事件標題或關聯測站呈現事件名稱
+  // 根據事件標題或關聯測站呈現事件名稱 (不特別加註 [自動] 或 [自定義])
   const getEventTitle = (event: Event) => {
     if (event.title) {
-      const sanitizedTitle = event.title.replace(/\[白數\]/g, '[自定義]').replace(/白數/g, '自定義');
-      return sanitizedTitle;
+      const cleanTitle = event.title
+        .replace(/^\[(自動|自定義|白數)\]\s*/g, '')
+        .replace(/^事件管理-?/g, '');
+      return cleanTitle || event.title;
     }
 
     let zone = '';
@@ -288,7 +290,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
       }
     }
 
-    return zone ? `${zone}-微感事件` : '自定義事件';
+    return zone ? `${zone}-微感事件` : '微感事件';
   };
 
   // 表單狀態
@@ -309,7 +311,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
   };
 
   const handleOpenAddForm = () => {
-    setTitle('[自定義] 微感事件');
+    setTitle('');
     setDescription('');
     setStatus('待確認');
     // 如果當前有選中的測站，預設把它放入關聯清單
