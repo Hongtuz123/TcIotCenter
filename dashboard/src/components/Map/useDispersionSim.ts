@@ -43,6 +43,23 @@ export const getEventSourceSensor = (
       }
     }
   }
+  if (event.bounds?.center) {
+    const center = event.bounds.center;
+    const centerLon = (center as any).lon ?? (center as any).lng;
+    const centerLat = center.lat;
+    return {
+      id: event.id,
+      name: event.title ? event.title.replace(/\[.*\]\s*/, '').split(' ')[0] : '事件源頭',
+      lat: centerLat || 24.15,
+      lon: centerLon || 120.65,
+      county: '臺中市',
+      status: '正常',
+      pm2_5: event.avg_pm25 ?? 54.0,
+      temperature: 26.5,
+      humidity: 70,
+      voc: null
+    };
+  }
   return null;
 };
 

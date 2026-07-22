@@ -669,16 +669,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
                         </div>
                       )}
 
-                      {/* 平均測值 */}
-                      {avgPm25 != null && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[9px] font-black text-orange-400 uppercase tracking-wider">平均 PM₂.₅ 濃度</span>
-                          <span className="text-lg font-black text-red-400 tabular-nums">
-                            {avgPm25.toFixed(1)}
-                            <span className="text-[11px] text-slate-500 font-normal ml-1">µg/m³</span>
-                          </span>
-                        </div>
-                      )}
+
 
                       {/* 刪除按鈕 */}
                       <div className="flex justify-end border-t border-slate-800/60 pt-2 mt-0.5">

@@ -2176,6 +2176,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             if (matchedPoints.length > 0) {
               return matchedPoints;
             }
+            // 備援：若全域點位 points 陣列在特定時間點無數據，直接採用事件自帶之感測站陣列
+            return dispersionEvent.sensors;
           }
 
           // 2. 若無預存清單，則在源頭半徑範圍內篩選達到門檻 (isAnomaly 或 >= pm25Threshold) 的感測站
@@ -2208,13 +2210,17 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             return evSensor?.pm2_5 ?? s.pm2_5;
           })
           .filter((val): val is number => val !== null && val !== undefined && !isNaN(val));
-        let avgPm = 0;
-        let minPm = 0;
-        let maxPm = 0;
+        let avgPm: number | null = null;
+        let minPm: number | null = null;
+        let maxPm: number | null = null;
         if (pmValues.length > 0) {
           avgPm = pmValues.reduce((sum, v) => sum + v, 0) / pmValues.length;
           minPm = Math.min(...pmValues);
           maxPm = Math.max(...pmValues);
+        } else if (srcPm25 !== null && srcPm25 !== undefined) {
+          avgPm = srcPm25;
+          minPm = srcPm25;
+          maxPm = srcPm25;
         }
 
         return (
@@ -2315,20 +2321,20 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                   <>
                     <div className="flex justify-between">
                       <span className="text-slate-500">平均 PM₂.₅</span>
-                      <span className="font-bold transition-colors duration-300" style={{ color: pmValues.length > 0 ? getPmColor(avgPm) : '#e2e8f0' }}>
-                        {pmValues.length > 0 ? `${avgPm.toFixed(1)} μg/m³` : 'N/A'}
+                      <span className="font-bold transition-colors duration-300" style={{ color: avgPm !== null ? getPmColor(avgPm) : '#e2e8f0' }}>
+                        {avgPm !== null ? `${avgPm.toFixed(1)} μg/m³` : 'N/A'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">最小 PM₂.₅</span>
-                      <span className="font-bold transition-colors duration-300" style={{ color: pmValues.length > 0 ? getPmColor(minPm) : '#34d399' }}>
-                        {pmValues.length > 0 ? `${minPm.toFixed(1)} μg/m³` : 'N/A'}
+                      <span className="font-bold transition-colors duration-300" style={{ color: minPm !== null ? getPmColor(minPm) : '#34d399' }}>
+                        {minPm !== null ? `${minPm.toFixed(1)} μg/m³` : 'N/A'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">最大 PM₂.₅</span>
-                      <span className="font-bold transition-colors duration-300" style={{ color: pmValues.length > 0 ? getPmColor(maxPm) : '#ef4444' }}>
-                        {pmValues.length > 0 ? `${maxPm.toFixed(1)} μg/m³` : 'N/A'}
+                      <span className="font-bold transition-colors duration-300" style={{ color: maxPm !== null ? getPmColor(maxPm) : '#ef4444' }}>
+                        {maxPm !== null ? `${maxPm.toFixed(1)} μg/m³` : 'N/A'}
                       </span>
                     </div>
                   </>
