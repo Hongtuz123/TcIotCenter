@@ -2204,32 +2204,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
         const pmValues = eventSensors
           .map(s => {
-            let val = s.pm2_5;
-            
-            // 計算當前的動態 PM2.5 數值，與地圖點位渲染完全同步
-            if (selectedMetric === 'pm2_5') {
-              const evSensor = dispersionEvent.sensors?.find((es: any) => es.id === s.id) || s;
-              const targetPm25 = evSensor.pm2_5 ?? 54.0;
-              const basePm25 = Math.min(12.0, targetPm25 * 0.2);
-              
-              if (s.id === srcSensorId) {
-                const ratio = Math.min(1.0, simTimeH / 0.5);
-                val = basePm25 + (targetPm25 - basePm25) * ratio;
-              } else if (srcSensor) {
-                const dLon = (s.lon - srcSensor.lon) * 111.32 * Math.cos(srcSensor.lat * Math.PI / 180);
-                const dLat = (s.lat - srcSensor.lat) * 110.57;
-                const distKm = Math.sqrt(dLon * dLon + dLat * dLat);
-                const tDelay = Math.min(3.0, distKm / 6.0);
-                
-                if (simTimeH < tDelay) {
-                  val = basePm25;
-                } else {
-                  const ratio = Math.min(1.0, (simTimeH - tDelay) / Math.max(0.5, (4.0 - tDelay)));
-                  val = basePm25 + (targetPm25 - basePm25) * ratio;
-                }
-              }
-            }
-            return val;
+            const evSensor = dispersionEvent.sensors?.find((es: any) => es.id === s.id);
+            return evSensor?.pm2_5 ?? s.pm2_5;
           })
           .filter((val): val is number => val !== null && val !== undefined && !isNaN(val));
         let avgPm = 0;

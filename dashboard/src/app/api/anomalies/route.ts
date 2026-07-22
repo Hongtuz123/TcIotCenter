@@ -278,13 +278,10 @@ export async function GET(request: NextRequest) {
         const sensor = (latestRow as any).sensors;
         const pm25 = latestRow.pm2_5;
         
-        // 判定是否連續 N 筆超標 (嚴格比對時間序列，確保每一筆皆存在且超標)
+        // 判定是否連續 N 筆超標 (直接比對按時間降序排列之序列，確保最新的當下一筆與前 N-1 筆皆存在且超標)
         let isAnomaly = true;
-        const untilTs = new Date(until).getTime();
         for (let i = 0; i < consecutiveExceeds; i++) {
-          const targetTs = untilTs - i * 5 * 60 * 1000;
-          const record = obsList.find((row) => new Date(row.bucket_time).getTime() === targetTs);
-          if (!record || record.pm2_5 === null || record.pm2_5 < pm25Thresh) {
+          if (i >= obsList.length || obsList[i].pm2_5 === null || obsList[i].pm2_5 === undefined || obsList[i].pm2_5 < pm25Thresh) {
             isAnomaly = false;
             break;
           }
@@ -361,13 +358,10 @@ export async function GET(request: NextRequest) {
 
         const latest = obsList[0];
         
-        // 判定是否連續 N 筆超標 (嚴格比對時間序列，確保每一筆皆存在且超標)
+        // 判定是否連續 N 筆超標 (直接比對按時間降序排列之序列，確保最新的當下一筆與前 N-1 筆皆存在且超標)
         let isAnomaly = true;
-        const untilTs = new Date(time.replace(' ', 'T')).getTime();
         for (let i = 0; i < consecutiveExceeds; i++) {
-          const targetTs = untilTs - i * 5 * 60 * 1000;
-          const record = obsList.find((r) => new Date(r.time.replace(' ', 'T')).getTime() === targetTs);
-          if (!record || record.pm2_5 === null || record.pm2_5 < pm25Thresh) {
+          if (i >= obsList.length || obsList[i].pm2_5 === null || obsList[i].pm2_5 === undefined || obsList[i].pm2_5 < pm25Thresh) {
             isAnomaly = false;
             break;
           }
