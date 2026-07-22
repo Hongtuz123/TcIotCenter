@@ -355,11 +355,8 @@ export default function DashboardPage() {
         if (data.clusters) {
           setClusters(data.clusters);
         }
-        // 核心修正：自動事件建立後，必須立即重整事件列表以反映最新狀態！
-        // 只有在非歷史模式（即時模式）下，才需要重整事件列表，避免歷史回放時每 250ms 發起 events 查詢
-        if (!isHist) {
-          fetchEvents();
-        }
+        // 自動事件建立後，立即重整事件列表以反映最新狀態
+        fetchEvents();
       } catch (e) {
         console.error('載入點位失敗:', e);
       } finally {
