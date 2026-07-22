@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import FilterPanel from '@/components/Sidebar/FilterPanel';
 import SensorMap from '@/components/Map/SensorMap';
 import EventManager from '@/components/EventList/EventManager';
@@ -188,6 +188,19 @@ export default function DashboardPage() {
       setDispersionEvent(null);
     }
   }, [selectedFilter, selectedDeviceId, selectedMetric, startDateTime, endDateTime]);
+
+  // 0. 事件管理 API 串接 (提前宣告避免 Hoisting 錯誤)
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await fetch('/api/events');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setEvents(data);
+      }
+    } catch (e) {
+      console.error('載入事件失敗:', e);
+    }
+  }, []);
 
   // 1. 初始化行政區列表與系統設定
   useEffect(() => {
@@ -468,16 +481,7 @@ export default function DashboardPage() {
     fetchHistory();
   }, [selectedSensorId, debouncedTime, isPlaying]);
 
-  // 4. 事件管理 API 串接
-  const fetchEvents = async () => {
-    try {
-      const res = await fetch('/api/events');
-      const data = await res.json();
-      setEvents(data);
-    } catch (e) {
-      console.error('載入事件失敗:', e);
-    }
-  };
+  // 4. 事件管理 API 寫入/更新/刪除操作
 
   const handleAddEvent = async (eventData: any) => {
     try {
