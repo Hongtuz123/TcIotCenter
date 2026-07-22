@@ -245,13 +245,13 @@ export const EventManager: React.FC<EventManagerProps> = ({
         });
       }
 
-      const cleanName = fileName.replace(/\.[^/.]+$/, "");
-      const eventTitle = cleanName;
+      const cleanName = fileName.replace(/\.[^/.]+$/, "").replace(/^\[.*\]\s*/, "").replace(/^自定義事件-?/g, "");
+      const eventTitle = `自定義事件-${cleanName}`;
       const eventTimeStr = '2026-07-13 11:10:00';
 
       await onAddEvent({
         title: eventTitle,
-        description: `由前端上傳圖層檔案 (${fileName}) 解析新增之事件`,
+        description: `由前端上傳圖層檔案 (${fileName}) 解析新增之自定義事件`,
         status: '待確認',
         event_time: eventTimeStr,
         bounds: {
@@ -270,9 +270,19 @@ export const EventManager: React.FC<EventManagerProps> = ({
     }
   };
 
-  // 根據事件標題或關聯測站呈現事件名稱 (不特別加註 [自動] 或 [自定義])
+  // 根據事件標題或關聯測站呈現事件名稱 (自定義事件維持 自定義事件-nnn，自動事件為 xx-微感事件)
   const getEventTitle = (event: Event) => {
     if (event.title) {
+      // 若為上傳/手動建立之自定義事件，確定前綴為 "自定義事件-"
+      if (event.title.startsWith('自定義事件-') || event.dominant_type === '手動新增事件' || event.dominant_type === '自定義事件') {
+        const cleanName = event.title
+          .replace(/^\[(自動|自定義|白數)\]\s*/g, '')
+          .replace(/^自定義事件-?/g, '')
+          .replace(/^事件管理-?/g, '');
+        return `自定義事件-${cleanName || '檔名'}`;
+      }
+
+      // 自動事件移除 [自動]、[白數] 等前綴
       const cleanTitle = event.title
         .replace(/^\[(自動|自定義|白數)\]\s*/g, '')
         .replace(/^事件管理-?/g, '');
@@ -585,6 +595,16 @@ export const EventManager: React.FC<EventManagerProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              const titleStr = getEventTitle(event);
+                              const isCustom = titleStr.startsWith('自定義事件') || event.dominant_type === '手動新增事件' || event.dominant_type === '自定義事件';
+                              if (isCustom) {
+                                alert(
+                                  `【事件判定規則】\n` +
+                                  `📌 此為使用者自定義事件（圖層檔案上傳/手動新增），無設定自動觸發門檻。`
+                                );
+                                return;
+                              }
+
                               const thresh = event.title ? (event.title.match(/門檻: PM₂.₅ (\d+(\.\d+)?)/)?.[1] || systemSettings?.pm25_threshold || 54) : (systemSettings?.pm25_threshold || 54);
                               const consecutive = systemSettings?.consecutive_exceeds || 3;
                               const radius = (event.bounds as any)?.radiusKm || systemSettings?.cluster_radius_km || 1.0;
