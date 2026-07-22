@@ -34,10 +34,24 @@ export async function GET() {
         throw error;
       }
 
-      // 淨化事件標題，移除 [白數]、[自動]、[自定義] 前綴及 (門檻...) 標記
+      // 淨化事件標題，提取歷史門檻至 bounds.pm25Threshold 後移除 (門檻...) 標記
       const sanitizedData = (data || []).map((ev: any) => {
+        let threshVal: number | undefined = undefined;
         if (ev.title) {
-          const cleanTitle = ev.title
+          const m = ev.title.match(/門檻[ :]*PM₂?\.?₅?\s*(\d+(\.\d+)?)/i);
+          if (m) threshVal = parseFloat(m[1]);
+        }
+
+        let parsedBounds = typeof ev.bounds === 'string' ? (() => { try { return JSON.parse(ev.bounds); } catch { return ev.bounds; } })() : ev.bounds;
+        if (threshVal !== undefined && parsedBounds && typeof parsedBounds === 'object') {
+          if (!parsedBounds.pm25Threshold) {
+            parsedBounds.pm25Threshold = threshVal;
+          }
+        }
+
+        let cleanTitle = ev.title;
+        if (ev.title) {
+          cleanTitle = ev.title
             .replace(/^\[(自動|自定義|白數)\]\s*/g, '')
             .replace(/^事件管理-?/g, '')
             .replace(/\s*\([^)]*門檻[^)]*\)/gi, '')
@@ -46,10 +60,9 @@ export async function GET() {
             (async () => {
               try { await client.from('events').update({ title: cleanTitle }).eq('id', ev.id); } catch (e) {}
             })();
-            return { ...ev, title: cleanTitle };
           }
         }
-        return ev;
+        return { ...ev, title: cleanTitle, bounds: parsedBounds };
       });
 
       // 取得所有事件的 unique event_time 以一次性查詢感測值，避免 N+1 查詢問題
@@ -84,7 +97,7 @@ export async function GET() {
       }
 
       // 解析 bounds JSON 並動態過濾落在該 radiusKm 內的所有感測站資料 (補齊 sensors)
-      const events = (data || []).map((ev: any) => {
+      const events = (sanitizedData || []).map((ev: any) => {
         const parsedBounds = typeof ev.bounds === 'string' ? (() => { try { return JSON.parse(ev.bounds); } catch { return ev.bounds; } })() : ev.bounds;
         const eventTs = ev.event_time ? new Date(ev.event_time.replace(' ', 'T')).getTime() : 0;
         const obsList = obsByTimeMap.get(eventTs) || [];
@@ -140,6 +153,26 @@ export async function GET() {
     
     // 獲取每個事件關聯的感測器（包含當時測值）
     for (const event of events) {
+      let threshVal: number | undefined = undefined;
+      if (event.title) {
+        const m = event.title.match(/門檻[ :]*PM₂?\.?₅?\s*(\d+(\.\d+)?)/i);
+        if (m) threshVal = parseFloat(m[1]);
+      }
+
+      if (event.bounds) {
+        try {
+          event.bounds = typeof event.bounds === 'string' ? JSON.parse(event.bounds) : event.bounds;
+        } catch {
+          // 保持原樣
+        }
+      }
+
+      if (threshVal !== undefined && event.bounds && typeof event.bounds === 'object') {
+        if (!event.bounds.pm25Threshold) {
+          event.bounds.pm25Threshold = threshVal;
+        }
+      }
+
       if (event.title) {
         event.title = event.title
           .replace(/^\[(自動|自定義|白數)\]\s*/g, '')

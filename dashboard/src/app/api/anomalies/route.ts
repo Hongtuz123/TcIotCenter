@@ -56,7 +56,7 @@ function buildClusters(anomalies: any[], clusterRadius: number, minStations: num
   return clusters;
 }
 
-async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: number) {
+async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: number, consecutiveExceeds: number = 3) {
   const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
   // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────
@@ -81,7 +81,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
           status: '待確認',
           created_at: nowStr,
           updated_at: nowStr,
-          bounds: JSON.stringify({ center: { lat, lng: lon }, radiusKm: cluster.radiusKm }),
+          bounds: JSON.stringify({ center: { lat, lng: lon }, radiusKm: cluster.radiusKm, pm25Threshold: pm25Thresh, consecutiveExceeds }),
           event_time: timeStr,
           stations_count: cluster.stationsCount,
           avg_pm25: cluster.avgPm25,
@@ -110,7 +110,7 @@ async function autoCreateEvents(clusters: any[], timeStr: string, pm25Thresh: nu
       const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
       const title = `[自動] 微感事件`;
       const description = `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${cluster.dominantType && cluster.dominantType !== '--' && cluster.dominantType !== 'undefined' ? cluster.dominantType : '微感超標-群聚'}。`;
-      const boundsJson = JSON.stringify({ center: { lat, lng: lon }, radiusKm: cluster.radiusKm });
+      const boundsJson = JSON.stringify({ center: { lat, lng: lon }, radiusKm: cluster.radiusKm, pm25Threshold: pm25Thresh, consecutiveExceeds });
 
       try {
         await db.run(`
@@ -319,7 +319,7 @@ export async function GET(request: NextRequest) {
 
       // 背景寫入事件（fire-and-forget），不阻塞 API response
       if (clusters.length > 0) {
-        autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh);
+        autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh, consecutiveExceeds);
       }
 
       return NextResponse.json({

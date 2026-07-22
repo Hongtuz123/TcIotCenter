@@ -43,6 +43,9 @@ export interface Event {
   bounds?: {
     center: { lat: number; lon: number };
     radiusKm: number;
+    pm25Threshold?: number;
+    consecutiveExceeds?: number;
+    minStations?: number;
   } | null;
   sensors?: EventSensorDetail[];
   // Supabase 自動事件額外欄位
