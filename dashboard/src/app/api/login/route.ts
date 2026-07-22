@@ -1,6 +1,21 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+export async function GET() {
+  try {
+    const cookieStore = await cookies();
+    const session = cookieStore.get("auth_session")?.value;
+    if (!session || !session.startsWith("session_verified_")) {
+      return NextResponse.json({ authenticated: false, role: 'user', username: '' });
+    }
+    const username = session.replace("session_verified_", "");
+    const role = username === "tim" ? "admin" : "user";
+    return NextResponse.json({ authenticated: true, role, username });
+  } catch {
+    return NextResponse.json({ authenticated: false, role: 'user', username: '' });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
@@ -10,6 +25,7 @@ export async function POST(request: Request) {
 
     // 帳號驗證
     if (validUsers.includes(username) && password === systemPassword) {
+      const role = username === "tim" ? "admin" : "user";
       const cookieStore = await cookies();
       cookieStore.set("auth_session", `session_verified_${username}`, {
         httpOnly: true,
@@ -18,8 +34,15 @@ export async function POST(request: Request) {
         path: "/",
         maxAge: 60 * 60 * 24 * 30, // 30 天
       });
+      cookieStore.set("user_role", role, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, role, username });
     }
 
     return NextResponse.json(

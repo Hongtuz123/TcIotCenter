@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { supabase } from '@/lib/supabase';
 import { getDb } from '@/lib/db';
 import { globalMockState, mockSensors } from '@/lib/mockData';
@@ -124,6 +125,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 管理者權限驗證：只有 tim/pstcom 帳號 (session_verified_tim) 具備刪除權限
+    const cookieStore = await cookies();
+    const session = cookieStore.get('auth_session')?.value;
+    const username = session?.startsWith('session_verified_') ? session.replace('session_verified_', '') : '';
+    
+    if (username !== 'tim') {
+      return NextResponse.json(
+        { error: '權限不足：只有 Admin (tim) 可執行事件刪除操作' },
+        { status: 403 }
+      );
+    }
     const { id } = await params;
 
     // ── Tier 1: Supabase（Vercel 線上環境）─────────────────────────────────────

@@ -24,6 +24,8 @@ interface EventManagerProps {
   /** 污染擴散模擬相關 */
   onSimulateDispersion?: (event: Event) => void;
   dispersionEventId?: string | null;
+  /** 管理者權限 */
+  isAdmin?: boolean;
 }
 
 export const EventManager: React.FC<EventManagerProps> = ({
@@ -41,7 +43,8 @@ export const EventManager: React.FC<EventManagerProps> = ({
   points,
   sensorZoneMap,
   onSimulateDispersion,
-  dispersionEventId
+  dispersionEventId,
+  isAdmin = false
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -579,6 +582,23 @@ export const EventManager: React.FC<EventManagerProps> = ({
                             >
                               <Wind className="w-2.5 h-2.5" />
                               擴散
+                            </button>
+                          )}
+                          {/* 刪除事件按鈕 (管理者 admin 專屬) */}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`確定要刪除事件「${getEventTitle(event)}」嗎？刪除後將無法復原。`)) {
+                                  onDeleteEvent(event.id);
+                                }
+                              }}
+                              className="text-[9px] px-1.5 py-0.5 rounded border font-black cursor-pointer shrink-0 transition-all select-none flex items-center gap-0.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border-red-500/30 active:scale-95"
+                              title="管理者權限 (admin)：刪除此事件"
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
+                              刪除
                             </button>
                           )}
                         </div>

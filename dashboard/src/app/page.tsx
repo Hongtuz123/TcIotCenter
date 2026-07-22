@@ -202,8 +202,19 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // 1. 初始化行政區列表與系統設定
+  const [currentUser, setCurrentUser] = useState<{ username: string; role: string } | null>(null);
+
+  // 1. 初始化行政區列表、系統設定與當前使用者身份
   useEffect(() => {
+    fetch('/api/login')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          setCurrentUser({ username: data.username, role: data.role });
+        }
+      })
+      .catch(err => console.error('獲取使用者身份失敗:', err));
+
     const isPointInPolygon = (point: [number, number], vs: [number, number][]) => {
       const x = point[0], y = point[1];
       let inside = false;
@@ -784,6 +795,19 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {currentUser && (
+            <div className="text-xs bg-slate-950/60 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center gap-1.5 font-mono select-none">
+              <span className="text-slate-300 font-semibold">👤 {currentUser.username}</span>
+              <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border uppercase ${
+                currentUser.role === 'admin'
+                  ? 'bg-red-500/20 text-red-400 border-red-500/40 ring-1 ring-red-500/20'
+                  : 'bg-slate-800 text-slate-400 border-slate-700'
+              }`}>
+                {currentUser.role}
+              </span>
+            </div>
+          )}
+
           <div className="text-xs bg-slate-950/60 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center gap-2">
             <span className="text-slate-500 font-medium">更新狀態:</span>
             <span className="text-emerald-400 flex items-center gap-1 font-semibold">
@@ -1046,6 +1070,7 @@ export default function DashboardPage() {
               onDeleteEvent={handleDeleteEvent}
               isLoading={isLoadingPoints}
               activeEventId={activeEventId}
+              isAdmin={currentUser?.role === 'admin'}
               onViewEvent={(event) => {
                 if (event) {
                   setActiveEventId(event.id);
