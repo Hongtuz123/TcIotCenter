@@ -686,6 +686,32 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const srcSensor = getEventSourceSensor(dispersionEvent, points);
     const srcSensorId = srcSensor?.id;
 
+    // 計算擴散模式下所有被列入計算的門檻/達標測站 ID 集合
+    const dispersionStationIds = new Set<string>();
+    if (dispersionEvent) {
+      if (dispersionEvent.sensors && dispersionEvent.sensors.length > 0) {
+        dispersionEvent.sensors.forEach((s: any) => dispersionStationIds.add(s.id));
+      } else {
+        const lat = srcSensor ? srcSensor.lat : dispersionEvent.bounds?.center.lat;
+        const lng = srcSensor ? srcSensor.lon : ((dispersionEvent.bounds?.center as any).lng ?? (dispersionEvent.bounds?.center as any).lon);
+        const radius = dispersionEvent.bounds?.radiusKm || 1.5;
+        if (lat !== undefined && lng !== undefined) {
+          const thresh = pm25Threshold ?? 54.0;
+          points.forEach(p => {
+            const dLon = (p.lon - lng) * 111.32 * Math.cos(lat * Math.PI / 180);
+            const dLat = (p.lat - lat) * 110.57;
+            const dist = Math.sqrt(dLon * dLon + dLat * dLat);
+            if (dist <= radius && (p.isAnomaly || (p.pm2_5 !== null && p.pm2_5 !== undefined && p.pm2_5 >= thresh))) {
+              dispersionStationIds.add(p.id);
+            }
+          });
+        }
+      }
+      if (srcSensorId) {
+        dispersionStationIds.add(srcSensorId);
+      }
+    }
+
     // 建立 GeoJSON FeatureCollection
     const features: any = points.map((point) => {
       let val = point[selectedMetric];
@@ -733,6 +759,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       }
 
       const isDispersionSource = srcSensorId && point.id === srcSensorId;
+      const isDispersionStation = dispersionStationIds.has(point.id);
 
       return {
         type: 'Feature',
@@ -756,7 +783,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           anomalyType: anomalyType,
           value: val,
           isSelected: point.id === selectedSensorId,
-          isDispersionSource: !!isDispersionSource
+          isDispersionSource: !!isDispersionSource,
+          isDispersionStation: !!isDispersionStation
         }
       };
     });
@@ -1100,7 +1128,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     }
   }, [pulseRadius, pulseOpacity, isLoaded]);
 
-  // 3.0.3 監聽指標切換，更新 WebGL 點位色彩 Expressions
+  // 3.0.3 監聽指標切換，更新 WebGL 點位色彩、半徑與外框 Expressions
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
@@ -1108,6 +1136,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     const circleColorExpression = [
       'case',
       ['==', ['get', 'isDispersionSource'], true], '#ffffff',
+      ['==', ['get', 'isDispersionStation'], true], '#ffffff',
       ['==', ['get', 'value'], null], '#64748b',
       ['==', ['literal', selectedMetric], 'pm2_5'], [
         'step', ['get', 'value'],
@@ -1134,10 +1163,38 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       '#64748b'
     ] as any;
 
+    const circleRadiusExpression = [
+      'case',
+      ['==', ['get', 'isDispersionSource'], true], 9,
+      ['==', ['get', 'isDispersionStation'], true], 8,
+      ['==', ['get', 'isSelected'], true], 8,
+      ['==', ['get', 'isAnomaly'], true], 6,
+      4.5
+    ] as any;
+
+    const circleStrokeColorExpression = [
+      'case',
+      ['==', ['get', 'isDispersionSource'], true], '#ffffff',
+      ['==', ['get', 'isDispersionStation'], true], '#ffffff',
+      ['==', ['get', 'isSelected'], true], '#f97316',
+      '#000000'
+    ] as any;
+
+    const circleStrokeWidthExpression = [
+      'case',
+      ['==', ['get', 'isDispersionSource'], true], 3,
+      ['==', ['get', 'isDispersionStation'], true], 2.5,
+      ['==', ['get', 'isSelected'], true], 2,
+      1
+    ] as any;
+
     if (map.getLayer('sensors-circles')) {
       map.setPaintProperty('sensors-circles', 'circle-color', circleColorExpression);
+      map.setPaintProperty('sensors-circles', 'circle-radius', circleRadiusExpression);
+      map.setPaintProperty('sensors-circles', 'circle-stroke-color', circleStrokeColorExpression);
+      map.setPaintProperty('sensors-circles', 'circle-stroke-width', circleStrokeWidthExpression);
     }
-  }, [selectedMetric, isLoaded]);
+  }, [selectedMetric, isLoaded, dispersionEvent]);
 
   // 3.1 同步更新全域唯一 Popup 顯示狀態
   useEffect(() => {
