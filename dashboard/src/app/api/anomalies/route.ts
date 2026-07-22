@@ -231,8 +231,8 @@ export async function GET(request: NextRequest) {
         const d = new Date(normalizedTime);
         if (!isNaN(d.getTime())) {
           until = d.toISOString();
-          // 將 window 窗口設為能包含 N 筆的範圍，多給 5 分鐘緩衝
-          since = new Date(d.getTime() - consecutiveExceeds * 5 * 60 * 1000).toISOString(); 
+          // 將 window 窗口設為 2 小時，確保完整涵蓋全台中市微感測站之最新觀測資料
+          since = new Date(d.getTime() - 2 * 60 * 60 * 1000).toISOString(); 
         }
       }
 
@@ -249,6 +249,8 @@ export async function GET(request: NextRequest) {
             pm2_5,
             temperature,
             humidity,
+            wind_speed,
+            wind_direction,
             is_anomaly,
             anomaly_type,
             sensors!inner(device_name, lat, lon, township, area)
@@ -300,6 +302,10 @@ export async function GET(request: NextRequest) {
           pm2_5: pm25,
           temperature: latestRow.temperature,
           humidity: latestRow.humidity,
+          wind_speed: latestRow.wind_speed,
+          wind_direction: latestRow.wind_direction,
+          windSpeed: latestRow.wind_speed,
+          windDirection: latestRow.wind_direction,
           voc: null,
           isAnomaly,
           anomalyType,
