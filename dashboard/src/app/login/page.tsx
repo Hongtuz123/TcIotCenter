@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, User, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("tim");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");

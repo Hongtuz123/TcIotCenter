@@ -7,7 +7,7 @@ import EventManager from '@/components/EventList/EventManager';
 import TrendChart from '@/components/Analytics/TrendChart';
 import { getEventSourceSensor } from '@/components/Map/useDispersionSim';
 import { Sensor, Observation, Event, Cluster, SystemSettings } from '@/types';
-import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X } from 'lucide-react';
+import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X, LogOut } from 'lucide-react';
 
 // 取得當前台北時間（可傳入 offset 毫秒）並對齊到 5 分鐘
 const getTaipeiTime = (offsetMs = 0): string => {
@@ -796,15 +796,31 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-3">
           {currentUser && (
-            <div className="text-xs bg-slate-950/60 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center gap-1.5 font-mono select-none">
-              <span className="text-slate-300 font-semibold">👤 {currentUser.username}</span>
-              <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border uppercase ${
-                currentUser.role === 'admin'
-                  ? 'bg-red-500/20 text-red-400 border-red-500/40 ring-1 ring-red-500/20'
-                  : 'bg-slate-800 text-slate-400 border-slate-700'
-              }`}>
-                {currentUser.role}
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="text-xs bg-slate-950/60 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center gap-1.5 font-mono select-none">
+                <span className="text-slate-300 font-semibold">👤 {currentUser.username}</span>
+                <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border uppercase ${
+                  currentUser.role === 'admin'
+                    ? 'bg-red-500/20 text-red-400 border-red-500/40 ring-1 ring-red-500/20'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}>
+                  {currentUser.role}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await fetch('/api/logout', { method: 'POST' });
+                  } catch (e) {}
+                  window.location.href = '/login';
+                }}
+                className="text-xs bg-slate-950/60 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-800/80 hover:border-red-500/40 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 transition-all cursor-pointer select-none font-semibold active:scale-95"
+                title="登出系統"
+              >
+                <LogOut className="w-3.5 h-3.5 text-slate-400 hover:text-red-400" />
+                登出
+              </button>
             </div>
           )}
 

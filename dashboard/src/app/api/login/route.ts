@@ -32,14 +32,12 @@ export async function POST(request: Request) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
-        maxAge: 60 * 60 * 24 * 30, // 30 天
       });
       cookieStore.set("user_role", role, {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
-        maxAge: 60 * 60 * 24 * 30,
       });
 
       return NextResponse.json({ success: true, role, username });
