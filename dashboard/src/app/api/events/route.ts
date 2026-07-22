@@ -34,8 +34,21 @@ export async function GET() {
         throw error;
       }
 
+      // 自動修正包含 [白數] 或 白數 的歷史事件標題為 [自定義]
+      const sanitizedData = (data || []).map((ev: any) => {
+        if (ev.title && (ev.title.includes('[白數]') || ev.title.includes('白數'))) {
+          const updatedTitle = ev.title.replace(/\[白數\]/g, '[自定義]').replace(/白數/g, '自定義');
+          // 異步修復雲端庫存數據
+          (async () => {
+            try { await client.from('events').update({ title: updatedTitle }).eq('id', ev.id); } catch (e) {}
+          })();
+          return { ...ev, title: updatedTitle };
+        }
+        return ev;
+      });
+
       // 取得所有事件的 unique event_time 以一次性查詢感測值，避免 N+1 查詢問題
-      const uniqueTimes = Array.from(new Set((data || []).map((ev: any) => ev.event_time).filter(Boolean)));
+      const uniqueTimes = Array.from(new Set(sanitizedData.map((ev: any) => ev.event_time).filter(Boolean)));
       let allObs: any[] = [];
       if (uniqueTimes.length > 0) {
         const { data: obsData, error: obsErr } = await client

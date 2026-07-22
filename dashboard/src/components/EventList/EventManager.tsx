@@ -200,7 +200,8 @@ export const EventManager: React.FC<EventManagerProps> = ({
           });
         }
 
-        const eventTitle = `${fileName.replace('.shp', '')} 測試事件 (門檻: PM₂.₅ 54)`;
+        const cleanName = fileName.replace(/\.[^/.]+$/, "").replace(/^\[.*\]\s*/, "");
+        const eventTitle = `[自定義] ${cleanName} (門檻: PM₂.₅ 54)`;
         const eventTimeStr = '2026-07-13 11:10:00'; // 固定在有完整氣象背景觀測的時間點，以利擴散播放
         
         await onAddEvent({
@@ -225,11 +226,14 @@ export const EventManager: React.FC<EventManagerProps> = ({
     e.target.value = '';
   };
 
-  // 根據事件關聯的測站或 bounds 經緯度座標推算所屬產業園區，若無則回傳空
+  // 根據事件標題或關聯測站呈現事件名稱
   const getEventTitle = (event: Event) => {
-    let zone = '';
+    if (event.title) {
+      const sanitizedTitle = event.title.replace(/\[白數\]/g, '[自定義]').replace(/白數/g, '自定義');
+      return sanitizedTitle;
+    }
 
-    // 1. 優先從 event.sensors 中查找第一個在園區內的
+    let zone = '';
     if (event.sensors && event.sensors.length > 0 && sensorZoneMap) {
       for (const s of event.sensors) {
         const z = sensorZoneMap[s.id];
@@ -240,39 +244,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
       }
     }
 
-    // 2. 其次從 bounds.center 座標反查最近的 sensor，並看該 sensor 是否在園區內
-    if (!zone) {
-      const center = event.bounds?.center;
-      if (center && points && points.length > 0 && sensorZoneMap) {
-        const lat = center.lat;
-        const lon = (center as any).lon !== undefined ? (center as any).lon : (center as any).lng;
-        if (lat !== undefined && lon !== undefined) {
-          let nearestSensor = null;
-          let minDistanceSq = Infinity;
-          for (const p of points) {
-            const dSq = Math.pow(p.lat - lat, 2) + Math.pow(p.lon - lon, 2);
-            if (dSq < minDistanceSq) {
-              minDistanceSq = dSq;
-              nearestSensor = p;
-            }
-          }
-          if (nearestSensor) {
-            const z = sensorZoneMap[nearestSensor.id];
-            if (z) zone = z;
-          }
-        }
-      }
-    }
-
-    // 3. 備援：如果 title 裡面有寫死產業園區 (例如使用者手動輸入 "關連工業區-微感事件" 或 "關連工業區-事件管理")
-    if (!zone && event.title) {
-      const match = event.title.match(/(.*產業園區|.*工業區)-(微感事件|事件管理)/);
-      if (match && match[1]) {
-        zone = match[1];
-      }
-    }
-
-    return zone ? `${zone}-微感事件` : '微感事件';
+    return zone ? `${zone}-微感事件` : '自定義事件';
   };
 
   // 表單狀態
@@ -293,7 +265,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
   };
 
   const handleOpenAddForm = () => {
-    setTitle('');
+    setTitle('[自定義] 微感事件');
     setDescription('');
     setStatus('待確認');
     // 如果當前有選中的測站，預設把它放入關聯清單
