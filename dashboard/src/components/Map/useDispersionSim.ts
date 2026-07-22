@@ -301,7 +301,7 @@ export function useDispersionSim({
     simStartTimeRef.current = null;
     simHoldStartRef.current = null;
 
-    const SIM_REAL_S = 20; // 運行速度放慢為原先的 0.5 倍
+    const SIM_REAL_S = 33.3; // 運行播放速度降至 0.3 倍 (4小時擴散流程歷時 33.3 秒)
 
     const drawFrame = (tHours: number) => {
       dCtx.clearRect(0, 0, dispCanvas.width, dispCanvas.height);
