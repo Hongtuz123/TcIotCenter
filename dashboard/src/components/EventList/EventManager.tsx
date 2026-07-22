@@ -629,9 +629,9 @@ export const EventManager: React.FC<EventManagerProps> = ({
                     <div className="mt-0.5 mx-1 rounded-xl border border-orange-500/20 bg-slate-950/80 p-3 flex flex-col gap-2.5">
                       
                       {/* 超標資訊 */}
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1.5">
                         <span className="text-[9px] font-black text-orange-400 uppercase tracking-wider">超標資訊</span>
-                        <div className="flex flex-wrap gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs">
                           {stationsCount != null && (
                             <span className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-slate-300 font-semibold">
                               🏭 <span className="text-orange-400">{stationsCount}</span> 站超標
@@ -642,32 +642,23 @@ export const EventManager: React.FC<EventManagerProps> = ({
                               📍 距離 <span className="text-orange-400">{radiusKm}</span> km
                             </span>
                           )}
+                          {hasPm25 && (
+                            <span className="bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold px-2 py-1 rounded-lg">
+                              PM₂.₅
+                            </span>
+                          )}
+                          {hasTemp && (
+                            <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-1 rounded-lg">
+                              溫度
+                            </span>
+                          )}
+                          {hasVoc && (
+                            <span className="bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-bold px-2 py-1 rounded-lg">
+                              VOC
+                            </span>
+                          )}
                         </div>
                       </div>
-
-                      {/* 超標測值指標 */}
-                      {(hasPm25 || hasTemp || hasVoc) && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[9px] font-black text-orange-400 uppercase tracking-wider">超標測值</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {hasPm25 && (
-                              <span className="bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                PM₂.₅
-                              </span>
-                            )}
-                            {hasTemp && (
-                              <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                溫度
-                              </span>
-                            )}
-                            {hasVoc && (
-                              <span className="bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                VOC
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
 
 
 
