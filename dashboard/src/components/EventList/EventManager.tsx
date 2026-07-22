@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import shp from 'shpjs';
 import { Event, Sensor } from '@/types';
-import { AlertCircle, FileText, Trash2, X, PlusCircle, Link, Wind } from 'lucide-react';
+import { AlertCircle, FileText, Trash2, X, PlusCircle, Link, Wind, HelpCircle } from 'lucide-react';
 
 interface EventManagerProps {
   selectedSensor: Sensor | null;
@@ -54,38 +55,95 @@ export const EventManager: React.FC<EventManagerProps> = ({
     if (!files || files.length === 0) return;
     const file = files[0];
     const fileName = file.name;
-    
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const arrayBuffer = event.target?.result as ArrayBuffer;
-        if (!arrayBuffer) return;
-        
+    const lowerName = fileName.toLowerCase();
+
+    try {
+      let pointsList: { x: number; y: number }[] = [];
+
+      // 1. 如果是 .zip 檔（使用 shpjs 自動解包解析 Shapefile + DBF + PRJ）
+      if (lowerName.endsWith('.zip')) {
+        const buffer = await file.arrayBuffer();
+        const geojson: any = await shp(buffer);
+        const features = Array.isArray(geojson)
+          ? geojson.flatMap((g) => g.features || [])
+          : geojson.features || [];
+
+        const extractCoords = (coords: any) => {
+          if (!Array.isArray(coords)) return;
+          if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+            pointsList.push({ x: coords[0], y: coords[1] });
+          } else {
+            for (const c of coords) extractCoords(c);
+          }
+        };
+
+        for (const feat of features) {
+          if (feat.geometry && feat.geometry.coordinates) {
+            extractCoords(feat.geometry.coordinates);
+          }
+        }
+      }
+      // 2. 如果是 .kml 檔案
+      else if (lowerName.endsWith('.kml')) {
+        const text = await file.text();
+        const coordMatches = text.match(/<coordinates>([\s\S]*?)<\/coordinates>/gi);
+        if (coordMatches) {
+          for (const match of coordMatches) {
+            const rawCoords = match.replace(/<\/?coordinates>/gi, '').trim();
+            const pairs = rawCoords.split(/\s+/);
+            for (const pair of pairs) {
+              const parts = pair.split(',');
+              if (parts.length >= 2) {
+                const lon = parseFloat(parts[0]);
+                const lat = parseFloat(parts[1]);
+                if (!isNaN(lon) && !isNaN(lat)) {
+                  pointsList.push({ x: lon, y: lat });
+                }
+              }
+            }
+          }
+        }
+      }
+      // 3. 如果是 .geojson 或 .json 檔案
+      else if (lowerName.endsWith('.geojson') || lowerName.endsWith('.json')) {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const features = Array.isArray(parsed.features) ? parsed.features : [parsed];
+        const extractCoords = (coords: any) => {
+          if (!Array.isArray(coords)) return;
+          if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+            pointsList.push({ x: coords[0], y: coords[1] });
+          } else {
+            for (const c of coords) extractCoords(c);
+          }
+        };
+        for (const feat of features) {
+          if (feat.geometry?.coordinates) extractCoords(feat.geometry.coordinates);
+        }
+      }
+      // 4. 原生 .shp 檔
+      else {
+        const arrayBuffer = await file.arrayBuffer();
         const view = new DataView(arrayBuffer);
         const fileCode = view.getInt32(0, false);
         if (fileCode !== 9994) {
-          alert("無效的 Shapefile 檔案格式 (.shp)");
+          alert('無效的檔案格式，請上傳包含了 .shp/.dbf/.prj 的 .zip 壓縮包或 .kml 檔案。');
           return;
         }
-        
-        const pointsList: { x: number; y: number }[] = [];
+
         let offset = 100;
         const fileLengthBytes = view.getInt32(24, false) * 2;
-        
         while (offset < fileLengthBytes) {
           if (offset + 8 > arrayBuffer.byteLength) break;
           const contentLengthBytes = view.getInt32(offset + 4, false) * 2;
           if (offset + 8 + contentLengthBytes > arrayBuffer.byteLength) break;
-          
           const recordContentOffset = offset + 8;
           const shapeType = view.getInt32(recordContentOffset, true);
-          
-          if (shapeType === 5) { // Polygon
+          if (shapeType === 5) {
             const numParts = view.getInt32(recordContentOffset + 36, true);
             const numPoints = view.getInt32(recordContentOffset + 40, true);
             const partsOffset = recordContentOffset + 44;
             const pointsOffset = partsOffset + numParts * 4;
-            
             for (let i = 0; i < numPoints; i++) {
               const ptOffset = pointsOffset + i * 16;
               if (ptOffset + 16 > arrayBuffer.byteLength) break;
@@ -93,137 +151,123 @@ export const EventManager: React.FC<EventManagerProps> = ({
               const y = view.getFloat64(ptOffset + 8, true);
               pointsList.push({ x, y });
             }
-          } else if (shapeType === 1) { // Point
+          } else if (shapeType === 1) {
             const x = view.getFloat64(recordContentOffset + 4, true);
             const y = view.getFloat64(recordContentOffset + 12, true);
             pointsList.push({ x, y });
           }
-          
           offset += 8 + contentLengthBytes;
         }
-        
-        if (pointsList.length === 0) {
-          alert("無法從 shp 檔案中解析出幾何點位，目前僅支援 Point (1) 或 Polygon (5) 類型。");
-          return;
-        }
-        
-        // 座標轉換為 WGS84
-        const wgsPoints = pointsList.map((pt) => {
-          if (pt.x > 1000) {
-            return twd97ToWgs84(pt.x, pt.y);
-          } else {
-            return { lon: pt.x, lat: pt.y };
-          }
-        });
-        
-        // 計算中心點與半徑
-        const sumLon = wgsPoints.reduce((sum, pt) => sum + pt.lon, 0);
-        const sumLat = wgsPoints.reduce((sum, pt) => sum + pt.lat, 0);
-        const centerLon = sumLon / wgsPoints.length;
-        const centerLat = sumLat / wgsPoints.length;
-        
-        let maxDistKm = 0;
-        for (const pt of wgsPoints) {
-          const dist = getDistanceKm(centerLat, centerLon, pt.lat, pt.lon);
-          if (dist > maxDistKm) maxDistKm = dist;
-        }
-        
-        // 1. 尋找與 Shapefile 幾何中心 8.0 公里以內、且當時 PM2.5 最高的測站作為污染源頭；若無則取最近測站
-        let sourceSensor: any = null;
-        let maxPm25 = -1;
-        let nearestSensor: any = null;
-        let minDistance = Infinity;
+      }
 
-        for (const s of points) {
-          const dist = getDistanceKm(centerLat, centerLon, s.lat, s.lon);
-          if (dist < minDistance) {
-            minDistance = dist;
-            nearestSensor = s;
-          }
-          if (dist <= 8.0) {
-            const pmVal = (s as any).pm2_5 ?? 0;
-            if (pmVal > maxPm25) {
-              maxPm25 = pmVal;
-              sourceSensor = s;
-            }
+      if (pointsList.length === 0) {
+        alert('無法從上傳檔案中解析出空間幾何點位，請確認檔案格式是否正確。');
+        return;
+      }
+
+      // 座標轉 WGS84
+      const wgsPoints = pointsList.map((pt) => {
+        if (pt.x > 1000) {
+          return twd97ToWgs84(pt.x, pt.y);
+        } else {
+          return { lon: pt.x, lat: pt.y };
+        }
+      });
+
+      // 計算中心點與距離
+      const sumLon = wgsPoints.reduce((sum, pt) => sum + pt.lon, 0);
+      const sumLat = wgsPoints.reduce((sum, pt) => sum + pt.lat, 0);
+      const centerLon = sumLon / wgsPoints.length;
+      const centerLat = sumLat / wgsPoints.length;
+
+      let sourceSensor: any = null;
+      let maxPm25 = -1;
+      let nearestSensor: any = null;
+      let minDistance = Infinity;
+
+      for (const s of points) {
+        const dist = getDistanceKm(centerLat, centerLon, s.lat, s.lon);
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearestSensor = s;
+        }
+        if (dist <= 8.0) {
+          const pmVal = (s as any).pm2_5 ?? 0;
+          if (pmVal > maxPm25) {
+            maxPm25 = pmVal;
+            sourceSensor = s;
           }
         }
-        if (!sourceSensor) {
-          sourceSensor = nearestSensor;
-        }
+      }
+      if (!sourceSensor) sourceSensor = nearestSensor;
 
-        // 2. 將新的事件中心 bounds.center 設為污染源頭測站座標
-        const finalCenterLat = sourceSensor ? sourceSensor.lat : centerLat;
-        const finalCenterLon = sourceSensor ? sourceSensor.lon : centerLon;
+      const finalCenterLat = sourceSensor ? sourceSensor.lat : centerLat;
+      const finalCenterLon = sourceSensor ? sourceSensor.lon : centerLon;
 
-        // 3. 計算污染源頭測站到多邊形所有頂點的最大距離，做為涵蓋半徑
-        let maxDistFromSource = 0;
-        for (const pt of wgsPoints) {
-          const dist = getDistanceKm(finalCenterLat, finalCenterLon, pt.lat, pt.lon);
-          if (dist > maxDistFromSource) maxDistFromSource = dist;
-        }
-        // 警示半徑：包覆多邊形，最低 1.5 公里，最高 6.0 公里
-        const radiusKm = Math.max(1.5, Math.min(6.0, maxDistFromSource));
+      let maxDistFromSource = 0;
+      for (const pt of wgsPoints) {
+        const dist = getDistanceKm(finalCenterLat, finalCenterLon, pt.lat, pt.lon);
+        if (dist > maxDistFromSource) maxDistFromSource = dist;
+      }
+      const radiusKm = Math.max(1.5, Math.min(6.0, maxDistFromSource));
 
-        // 4. 以污染源頭測站為圓心，以 radiusKm 為半徑，過濾並綁定 eventSensors
-        let eventSensors: any[] = [];
-        for (const s of points) {
-          const dist = getDistanceKm(finalCenterLat, finalCenterLon, s.lat, s.lon);
-          if (dist <= radiusKm) {
-            eventSensors.push({
-              id: s.id,
-              name: s.name,
-              lat: s.lat,
-              lon: s.lon,
-              county: s.county || '臺中市',
-              status: s.status || '正常',
-              pm2_5: (s as any).pm2_5 !== undefined ? (s as any).pm2_5 : 11.1,
-              temperature: (s as any).temperature !== undefined ? (s as any).temperature : 28.5,
-              humidity: (s as any).humidity !== undefined ? (s as any).humidity : 75.0,
-              voc: (s as any).voc !== undefined ? (s as any).voc : null
-            });
-          }
-        }
-
-        if (eventSensors.length === 0 && sourceSensor) {
+      let eventSensors: any[] = [];
+      for (const s of points) {
+        const dist = getDistanceKm(finalCenterLat, finalCenterLon, s.lat, s.lon);
+        if (dist <= radiusKm) {
           eventSensors.push({
-            id: sourceSensor.id,
-            name: sourceSensor.name,
-            lat: sourceSensor.lat,
-            lon: sourceSensor.lon,
-            county: sourceSensor.county || '臺中市',
-            status: sourceSensor.status || '正常',
-            pm2_5: (sourceSensor as any).pm2_5 !== undefined ? (sourceSensor as any).pm2_5 : 11.1,
-            temperature: (sourceSensor as any).temperature !== undefined ? (sourceSensor as any).temperature : 28.5,
-            humidity: (sourceSensor as any).humidity !== undefined ? (sourceSensor as any).humidity : 75.0,
-            voc: (sourceSensor as any).voc !== undefined ? (sourceSensor as any).voc : null
+            id: s.id,
+            name: s.name,
+            lat: s.lat,
+            lon: s.lon,
+            county: s.county || '臺中市',
+            status: s.status || '正常',
+            pm2_5: (s as any).pm2_5 !== undefined ? (s as any).pm2_5 : 11.1,
+            temperature: (s as any).temperature !== undefined ? (s as any).temperature : 28.5,
+            humidity: (s as any).humidity !== undefined ? (s as any).humidity : 75.0,
+            voc: (s as any).voc !== undefined ? (s as any).voc : null
           });
         }
-
-        const cleanName = fileName.replace(/\.[^/.]+$/, "").replace(/^\[.*\]\s*/, "");
-        const eventTitle = `[自定義] ${cleanName} (門檻: PM₂.₅ 54)`;
-        const eventTimeStr = '2026-07-13 11:10:00'; // 固定在有完整氣象背景觀測的時間點，以利擴散播放
-        
-        await onAddEvent({
-          title: eventTitle,
-          description: `由前端上傳 Shapefile (${fileName}) 解析新增之測試事件`,
-          status: '待確認',
-          event_time: eventTimeStr,
-          bounds: {
-            center: { lat: finalCenterLat, lon: finalCenterLon },
-            radiusKm: radiusKm
-          },
-          sensors: eventSensors
-        });
-        
-        alert(`成功解析 ${fileName}！\n中心位置: ${centerLon.toFixed(6)}, ${centerLat.toFixed(6)}\n已新增事件至列表，可點擊「擴散」進行模擬。`);
-      } catch (err: any) {
-        console.error("SHP upload/parse error:", err);
-        alert(`SHP 檔案解析失敗: ${err.message}`);
       }
-    };
-    reader.readAsArrayBuffer(file);
-    e.target.value = '';
+
+      if (eventSensors.length === 0 && sourceSensor) {
+        eventSensors.push({
+          id: sourceSensor.id,
+          name: sourceSensor.name,
+          lat: sourceSensor.lat,
+          lon: sourceSensor.lon,
+          county: sourceSensor.county || '臺中市',
+          status: sourceSensor.status || '正常',
+          pm2_5: (sourceSensor as any).pm2_5 !== undefined ? (sourceSensor as any).pm2_5 : 11.1,
+          temperature: (sourceSensor as any).temperature !== undefined ? (sourceSensor as any).temperature : 28.5,
+          humidity: (sourceSensor as any).humidity !== undefined ? (sourceSensor as any).humidity : 75.0,
+          voc: (sourceSensor as any).voc !== undefined ? (sourceSensor as any).voc : null
+        });
+      }
+
+      const cleanName = fileName.replace(/\.[^/.]+$/, "").replace(/^\[.*\]\s*/, "");
+      const eventTitle = `[自定義] ${cleanName} (門檻: PM₂.₅ 54)`;
+      const eventTimeStr = '2026-07-13 11:10:00';
+
+      await onAddEvent({
+        title: eventTitle,
+        description: `由前端上傳圖層檔案 (${fileName}) 解析新增之自定義事件`,
+        status: '待確認',
+        event_time: eventTimeStr,
+        bounds: {
+          center: { lat: finalCenterLat, lon: finalCenterLon },
+          radiusKm: radiusKm
+        },
+        sensors: eventSensors
+      });
+
+      alert(`成功解析 ${fileName}！\n中心位置: ${centerLon.toFixed(6)}, ${centerLat.toFixed(6)}\n已建立「${eventTitle}」，可點擊「擴散」進行模擬。`);
+    } catch (err: any) {
+      console.error("圖層解析失敗:", err);
+      alert(`圖層檔案解析失敗: ${err.message || '請確認是否為標準 ZIP(含shp/dbf/prj) 或 KML 檔案'}`);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   // 根據事件標題或關聯測站呈現事件名稱
@@ -335,22 +379,41 @@ export const EventManager: React.FC<EventManagerProps> = ({
           <AlertCircle className="text-orange-500 w-5 h-5" />
           <h2 className="text-lg font-bold text-slate-100">事件管理</h2>
         </div>
-        <div>
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => {
               const fileInput = document.getElementById('shp-file-input');
               if (fileInput) fileInput.click();
             }}
-            className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-all active:scale-95 cursor-pointer select-none shrink-0"
+            className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-all active:scale-95 cursor-pointer select-none shrink-0 shadow-md"
           >
             <PlusCircle className="w-3 h-3" />
             事件新增
           </button>
+
+          {/* 游標移過去提醒提示小 icon */}
+          <div className="relative group flex items-center">
+            <HelpCircle className="w-4 h-4 text-slate-400 hover:text-orange-400 cursor-pointer transition-colors" />
+            {/* 浮動 Tooltip 提示框 */}
+            <div className="absolute right-0 top-6 hidden group-hover:flex flex-col gap-1.5 w-64 bg-slate-950/95 border border-orange-500/40 rounded-xl p-3 text-[11px] text-slate-300 shadow-2xl z-50 pointer-events-none backdrop-blur-md">
+              <div className="font-bold text-orange-400 flex items-center gap-1">
+                <span>💡</span> 圖層檔案上傳說明
+              </div>
+              <p className="leading-relaxed text-slate-300">
+                請上傳 <strong className="text-white">SHP (請包成 .zip 檔)</strong> 或 <strong className="text-white">KML / GeoJSON</strong> 格式圖層檔案。
+              </p>
+              <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-[10px] text-slate-400 flex flex-col gap-1">
+                <span className="text-orange-300 font-bold">📦 SHP 打包提醒：</span>
+                <span>ZIP 壓縮包內需包含同名的 <code className="text-orange-200">.shp</code>, <code className="text-orange-200">.dbf</code> 與 <code className="text-orange-200">.prj</code> 檔案。</span>
+              </div>
+            </div>
+          </div>
+
           <input
             id="shp-file-input"
             type="file"
-            accept=".shp"
+            accept=".zip,.shp,.kml,.geojson,.json"
             onChange={handleShpUpload}
             className="hidden"
           />
