@@ -2110,19 +2110,37 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         else if (srcPm25 >= 35.4) pmColor = '#f97316';
         else if (srcPm25 >= 15.5) pmColor = '#eab308';
 
-        // 取得事件範圍內的所有測站 (一律以污染源頭測站為中心進行過濾，以確保圓圈與範圍一致)
+        // 取得該事件形成門檻/達標的感測站 (優先採計該事件記錄之達標/門檻感測站，避免包含範圍內低濃度的正常背景測站)
         const eventSensors = (() => {
+          // 1. 若事件本身有定義對應的門檻/達標感測站清單，則優先使用
+          if (dispersionEvent.sensors && dispersionEvent.sensors.length > 0) {
+            const eventSensorIds = new Set(dispersionEvent.sensors.map((s: any) => s.id));
+            const matchedPoints = points.filter(p => eventSensorIds.has(p.id));
+            if (matchedPoints.length > 0) {
+              return matchedPoints;
+            }
+          }
+
+          // 2. 若無預存清單，則在源頭半徑範圍內篩選達到門檻 (isAnomaly 或 >= pm25Threshold) 的感測站
           const lat = srcSensor ? srcSensor.lat : dispersionEvent.bounds?.center.lat;
           const lng = srcSensor ? srcSensor.lon : ((dispersionEvent.bounds?.center as any).lng ?? (dispersionEvent.bounds?.center as any).lon);
           const radius = dispersionEvent.bounds?.radiusKm || 1.5;
           if (lat === undefined || lng === undefined) return [];
           
-          return points.filter(p => {
+          const thresh = pm25Threshold ?? 54.0;
+          const matchedInRadius = points.filter(p => {
             const dLon = (p.lon - lng) * 111.32 * Math.cos(lat * Math.PI / 180);
             const dLat = (p.lat - lat) * 110.57;
             const dist = Math.sqrt(dLon * dLon + dLat * dLat);
-            return dist <= radius;
+            const isExceeded = p.isAnomaly || (p.pm2_5 !== null && p.pm2_5 !== undefined && p.pm2_5 >= thresh);
+            return dist <= radius && isExceeded;
           });
+
+          // 3. 若無任何超標站，則至少包含源頭測站本身
+          if (matchedInRadius.length === 0 && srcSensor) {
+            return [srcSensor as any];
+          }
+          return matchedInRadius;
         })();
 
         const srcSensorId = srcSensor?.id;
@@ -2249,7 +2267,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             </div>
 
             <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2">
-              <div className="text-[10px] text-slate-400 font-bold mb-0.5">影響範圍內測站 ({eventSensors.length} 站)</div>
+              <div className="text-[10px] text-slate-400 font-bold mb-0.5">達標感測站 ({eventSensors.length} 站)</div>
               {(() => {
                 const getPmColor = (val: number) => {
                   if (val >= 250.4) return '#7f1d1d'; // 褐紅
