@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 南臺灣五縣市 IoT 微型感測器批次下載器
-- 區域：高雄市、臺南市、嘉義市、嘉義縣、屏東縣
-- 時間區間：2025-06-27 ~ 2026-08-31 (環境部伺服器歷史資料提供起訖)
+- 區域：高雄市、台南市、嘉義市、嘉義縣、屏東縣
+- 時間區間：2026-01-01 ~ 2026-08-31 (共 243 天)
 - 輸出路徑：C:\\GoogleAntigravity\\2026IoTcenter\\saic
-- 特色：斷點續傳、多執行緒、按縣市分資料夾儲存
+- 特色：斷點續傳、多執行緒 24 Workers、依縣市獨立資料夾歸檔
 """
 
 import os
@@ -33,16 +33,17 @@ HEADERS = {"ck": CK_CODE, "User-Agent": "Mozilla/5.0"}
 MAX_WORKERS = 24
 RETRY_COUNT = 2
 
-# 縣市專案清單
+# 縣市專案清單 (依專屬資料夾歸類)
 PROJECTS = {
     "Kaohsiung": {"name": "高雄市", "id": 24},
-    "Tainan": {"name": "臺南市", "id": 23},
+    "Tainan": {"name": "台南市", "id": 23},
     "ChiayiCity": {"name": "嘉義市", "id": 8},
     "ChiayiCounty": {"name": "嘉義縣", "id": 6},
     "Pingtung": {"name": "屏東縣", "id": 4}
 }
 
-DEFAULT_START = "2025-06-27"
+# 更新為指定的 2026 年度區間
+DEFAULT_START = "2026-01-01"
 DEFAULT_END = "2026-08-31"
 
 os.makedirs(OUTPUT_ROOT, exist_ok=True)
