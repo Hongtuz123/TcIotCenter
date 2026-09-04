@@ -116,26 +116,28 @@
 <div class="mermaid">
 flowchart TD
     subgraph S1["1. 污染源與情境輸入"]
-        E[超標事件主檔 Event] -->|取得源頭座標與初始濃度| SRC[Source Point: lat, lon, PM2.5/VOC]
-        T[事件發生時間 event_time] -->|判定晝夜條件| TOD[晝夜判別: 07:00~18:00 為日間]
+        E["超標事件主檔 Event"] -->|"取得源頭座標與初始濃度"| SRC["Source Point: lat, lon, PM2.5/VOC"]
+        T["事件發生時間 event_time"] -->|"判定晝夜條件"| TOD["晝夜判別 (07:00~18:00 為日間)"]
     end
 
     subgraph S2["2. 局地微氣象推估"]
-        WV[鄰近微感測器風向量] -->|反距離加權插值 IDW| WIND[合成源頭風速 U 與風向 θ]
-        WIND & TOD -->|結合風速與日照| PG[Pasquill-Gifford 穩定度 A~F]
+        WV["鄰近微感測器風向量"] -->|"反距離加權插值 IDW"| WIND["合成源頭風速 U 與風向 θ"]
+        WIND --> PG["Pasquill-Gifford 穩定度 A~F"]
+        TOD --> PG
     end
 
     subgraph S3["3. 物理擴散與地形交互"]
-        PG -->|Briggs 鄉村公式| SIG[計算橫向擴散寬度 σy 與順風擴散 σx]
-        WIND -->|順風平流 + 局地尺度折減 0.085| TRV[計算傳輸位移 travelDist]
-        TRV -->|8-Step 射線檢測| ELEV{前進路徑高程差 Δh > 35m ?}
-        ELEV -->|是 (撞擊大肚山/太平山區)| BLK[截斷位移至 85% + 迎風面積累 2.0x + 橫向壓縮 0.65x]
-        ELEV -->|否 (平原開闊順流)| NORM[正常順風延展]
+        PG -->|"Briggs 鄉村公式"| SIG["計算橫向擴散寬度 σy 與順風擴散 σx"]
+        WIND -->|"順風平流 + 局地尺度折減 0.085"| TRV["計算傳輸位移 travelDist"]
+        TRV -->|"8-Step 射線檢測"| ELEV{"前進路徑高程差是否大於 35m ?"}
+        ELEV -->|"是 (撞擊大肚山/太平山區)"| BLK["截斷位移至 85% + 迎風面積累 2.0x + 橫向壓縮 0.65x"]
+        ELEV -->|"否 (平原開闊順流)"| NORM["正常順風延展"]
     end
 
     subgraph S4["4. 動態圖形合成渲染"]
-        BLK & NORM --> PUFF[計算 24 層時序煙團: 濃度指數衰減 e^-0.35t]
-        PUFF --> RENDER[Canvas 2D 矩陣旋轉縮放與 RGBA 色階渲染]
+        BLK --> PUFF["計算 24 層時序煙團: 濃度指數衰減 e^-0.35t"]
+        NORM --> PUFF
+        PUFF --> RENDER["Canvas 2D 矩陣旋轉縮放與 RGBA 色階渲染"]
     end
 </div>
 </div>
