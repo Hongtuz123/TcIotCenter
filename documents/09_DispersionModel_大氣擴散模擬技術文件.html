@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>09 大氣擴散模擬技術文件 — 微感監測中心</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{--primary:#f97316;--blue:#38bdf8;--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#cbd5e1;--heading:#f1f5f9;--green:#4ade80;--yellow:#facc15;--red:#f87171}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 32px}
+  .doc-header{border-bottom:2px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  .doc-header h1{font-size:2rem;font-weight:800;color:var(--primary);margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:16px;font-size:.875rem;color:#64748b}
+  .meta span strong{color:var(--blue)}
+  h2{font-size:1.35rem;font-weight:700;color:var(--blue);border-left:4px solid var(--primary);padding-left:12px;margin:40px 0 16px}
+  h3{font-size:1.1rem;font-weight:600;color:var(--heading);margin:24px 0 10px}
+  p{margin-bottom:12px}
+  ul,ol{padding-left:24px;margin-bottom:12px}
+  li{margin-bottom:6px}
+  .tbl-wrap{overflow-x:auto;margin:16px 0 24px}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th{background:#0f172a;color:var(--primary);padding:10px 14px;text-align:left;font-weight:700;border:1px solid var(--border)}
+  td{padding:10px 14px;border:1px solid var(--border);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+  .mermaid-wrap{background:#0f172a;border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow-x:auto}
+  .mermaid{text-align:center}
+  .callout{border-radius:10px;padding:16px 20px;margin:20px 0}
+  .callout-info{background:rgba(56,189,248,.07);border-left:4px solid var(--blue)}
+  .callout-warn{background:rgba(250,204,21,.07);border-left:4px solid var(--yellow)}
+  .callout-title{font-weight:700;margin-bottom:6px;color:var(--heading)}
+  .math-box{background:#0f172a;border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:8px;padding:16px 20px;margin:16px 0;font-family:Consolas,'Courier New',monospace;color:#e2e8f0;font-size:.95rem;overflow-x:auto}
+  .math-title{font-size:.85rem;font-weight:700;color:var(--primary);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+  .ref-box{background:rgba(15,23,42,.6);border:1px dashed var(--border);border-radius:8px;padding:12px 16px;margin:12px 0 24px;font-size:.85rem;color:#94a3b8}
+  .ref-box strong{color:var(--blue)}
+  code{background:#0f172a;color:#f472b6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.88em}
+  pre{background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:18px;overflow-x:auto;font-family:Consolas,monospace;font-size:.87em;line-height:1.6;margin:12px 0 20px;color:#e2e8f0}
+  footer{margin-top:64px;border-top:1px solid var(--border);padding-top:20px;text-align:center;font-size:.82rem;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-header">
+  <h1>09 大氣擴散模擬技術文件</h1>
+  <div class="meta">
+    <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
+    <span><strong>模組代碼</strong>：useDispersionSim.ts</span>
+    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>作者</strong>：PST-Tim / AI System Architect</span>
+    <span><strong>日期</strong>：2026-09</span>
+    <span><strong>目標讀者</strong>：環境工程師、模式模擬研究員、前端工程師</span>
+  </div>
+</div>
+
+<!-- ── 1. 模組總覽與定位 ── -->
+<h2>1. 模組總覽與設計目標</h2>
+<p>本系統針對大甲幼獅工業區及臺中市各工業熱區之突發性空氣污染與露天燃燒事件，於前端 GIS 地圖中實現輕量級、即時運算之<strong>動態高斯煙團大氣擴散模擬引擎（Dynamic Gaussian Puff Engine）</strong>。該模組不依賴重型後端流體力學（CFD）伺服器，直接於使用者瀏覽器端以 60 FPS 渲染 4 小時之污染物順風傳輸、三維地形阻擋截斷與沉降稀釋歷程。</p>
+
+<div class="callout callout-info">
+  <div class="callout-title">核心設計理念</div>
+  <p>以<strong>微感測器局地尺度（Micro-scale / Urban Canopy）</strong>為核心，融合微氣象站風場觀測、美國 EPA Briggs 煙羽擴散經驗公式、Pasquill-Gifford 大氣穩定度判別準則，並即時耦合 Mapbox 3D 數值高程模型（DEM），精確展現迎風坡滯流堆積與山脊地形截斷效應。</p>
+</div>
+
+<!-- ── 2. 工具架構與技術堆疊 ── -->
+<h2>2. 使用工具與技術堆疊 (Tools & Tech Stack)</h2>
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>層級</th>
+      <th>採用工具 / 函式庫</th>
+      <th>版本 / 規範</th>
+      <th>於擴散模組之具體職責</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>渲染引擎</strong></td>
+      <td>HTML5 Canvas 2D + Mapbox GL JS Custom Layer</td>
+      <td>v3.2+</td>
+      <td>利用硬體加速 Canvas 即時繪製 24 層動態煙團粒子，透過橢圓幾何轉換與旋轉矩陣實現煙流延展。</td>
+    </tr>
+    <tr>
+      <td><strong>動畫排程</strong></td>
+      <td><code>requestAnimationFrame</code></td>
+      <td>Web API</td>
+      <td>控制 4 小時擴散歷程於 33.3 秒內平滑播放（0.3 倍速微速觀測），確保幀率穩定於 60 FPS。</td>
+    </tr>
+    <tr>
+      <td><strong>狀態管理</strong></td>
+      <td>React Custom Hook (<code>useDispersionSim.ts</code>)</td>
+      <td>React 18/19</td>
+      <td>監聽事件切換、播放/暫停觸發器，管理時間累積暫存（<code>accumulatedTimeRef</code>）與風向量快取。</td>
+    </tr>
+    <tr>
+      <td><strong>空間運算</strong></td>
+      <td>反距離加權插值 (IDW) + 8-step Ray-Casting</td>
+      <td>演算法實作</td>
+      <td>從事件周邊 1,401 支微感測器即時插值出源頭風向風速，並於傳輸路徑實施前向射線碰撞檢測。</td>
+    </tr>
+    <tr>
+      <td><strong>地形資料</strong></td>
+      <td>Mapbox Terrain-RGB DEM + 臺中盆地斷面模型</td>
+      <td>10m 解析度</td>
+      <td>透過 <code>map.queryTerrainElevation()</code> 查詢地表海拔，斷網或瓦片未加載時自動降級至數學斷面。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ── 3. 資料來源與資料流架構 ── -->
+<h2>3. 模式資料來源與運算管線 (Data Flow Pipeline)</h2>
+<div class="mermaid-wrap">
+<div class="mermaid">
+flowchart TD
+    subgraph S1["1. 污染源與情境輸入"]
+        E[超標事件主檔 Event] -->|取得源頭座標與初始濃度| SRC[Source Point: lat, lon, PM2.5/VOC]
+        T[事件發生時間 event_time] -->|判定晝夜條件| TOD[晝夜判別: 07:00~18:00 為日間]
+    end
+
+    subgraph S2["2. 局地微氣象推估"]
+        WV[鄰近微感測器風向量] -->|反距離加權插值 IDW| WIND[合成源頭風速 U 與風向 θ]
+        WIND & TOD -->|結合風速與日照| PG[Pasquill-Gifford 穩定度 A~F]
+    end
+
+    subgraph S3["3. 物理擴散與地形交互"]
+        PG -->|Briggs 鄉村公式| SIG[計算橫向擴散寬度 σy 與順風擴散 σx]
+        WIND -->|順風平流 + 局地尺度折減 0.085| TRV[計算傳輸位移 travelDist]
+        TRV -->|8-Step 射線檢測| ELEV{前進路徑高程差 Δh > 35m ?}
+        ELEV -->|是 (撞擊大肚山/太平山區)| BLK[截斷位移至 85% + 迎風面積累 2.0x + 橫向壓縮 0.65x]
+        ELEV -->|否 (平原開闊順流)| NORM[正常順風延展]
+    end
+
+    subgraph S4["4. 動態圖形合成渲染"]
+        BLK & NORM --> PUFF[計算 24 層時序煙團: 濃度指數衰減 e^-0.35t]
+        PUFF --> RENDER[Canvas 2D 矩陣旋轉縮放與 RGBA 色階渲染]
+    end
+</div>
+</div>
+
+<!-- ── 4. 核心物理與數學模型公式 ── -->
+<h2>4. 核心數學公式與理論依據 (Formulation & Standards)</h2>
+
+<h3>4.1 順風平流傳輸位移（Downwind Plume Advection）</h3>
+<p>煙團隨時間沿平均風向移動，位移距離公式如下：</p>
+<div class="math-box">
+  <div class="math-title">Formula 1: 平流傳輸位移</div>
+  travelDist(t) = U_wind × t_layer × LOCAL_SCALE<br><br>
+  其中：<br>
+  • U_wind：源頭處合成風速 (m/s)<br>
+  • t_layer：該煙團自排出後之漂流時長 (秒，t ∈ [0, 14400] 即 4 小時歷程)<br>
+  • LOCAL_SCALE = 0.085：近地層局地摩擦阻力折減係數
+</div>
+<div class="callout callout-warn">
+  <div class="callout-title">局地尺度折減（0.085）之科學依據</div>
+  微型感測器架設於離地 3~6 公尺路燈或電線桿，屬於大氣邊界層中受地表建築、植被阻擋最劇烈之<strong>城市冠層（Urban Canopy Layer）</strong>。高空氣象站測得之風速在此高度會因對數風速剖面（Logarithmic Wind Profile）與粗糙長度（Roughness Length $z_0$）產生顯著衰減。引入 0.085 局地折減，使 4 小時模擬之實質有效影響半徑落在 <strong>4.5 ～ 5.0 公里</strong>，完全貼合環保稽查人員之實際溯源與熱區稽查範圍。
+</div>
+<div class="ref-box">
+  📚 <strong>理論與法規文獻依據：</strong><br>
+  1. Stull, R. B. (1988). <em>An Introduction to Boundary Layer Meteorology</em>. Kluwer Academic Publishers. (Chapter 9: Similarity Theory & Surface Canopy Drag).<br>
+  2. 美國國家環境保護局 (U.S. EPA). (2004). <em>AERMOD Model Formulation Document</em>. EPA-454/B-03-004. Section 4.1: Plume Transport and Trajectory.
+</div>
+
+<h3>4.2 大氣穩定度判定（Pasquill-Gifford Stability Classification）</h3>
+<p>依據事件發生時間之熱力對流條件（日間強烈日照 vs 夜間地表輻射冷卻）與風速動力擾動，自動判定大氣擴散能力等級：</p>
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>時段條件</th>
+      <th>地面風速範圍 (U)</th>
+      <th>大氣穩定度等級</th>
+      <th>大氣特徵與擴散行為</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="4"><strong>日間 (07:00 ~ 18:00)</strong><br>日照對流加熱</td>
+      <td>U &lt; 2 m/s</td>
+      <td><strong>Class A</strong>（極度不穩定）</td>
+      <td>強烈熱對流，煙羽劇烈上下翻騰，水平稀釋極快。</td>
+    </tr>
+    <tr>
+      <td>2 &le; U &lt; 3 m/s</td>
+      <td><strong>Class B</strong>（中度不穩定）</td>
+      <td>明顯熱對流與橫向擺動，擴散寬度中等偏廣。</td>
+    </tr>
+    <tr>
+      <td>3 &le; U &lt; 5 m/s</td>
+      <td><strong>Class C</strong>（微幅不穩定）</td>
+      <td>熱對流與風切機械擾動並存。</td>
+    </tr>
+    <tr>
+      <td>U &ge; 5 m/s</td>
+      <td><strong>Class D</strong>（中性 Neutral）</td>
+      <td>強風機械剪切主導，垂直溫度梯度接近乾絕熱減率。</td>
+    </tr>
+    <tr>
+      <td rowspan="3"><strong>夜間 (18:00 ~ 07:00)</strong><br>地表輻射逆溫</td>
+      <td>U &lt; 2 m/s</td>
+      <td><strong>Class F</strong>（極度穩定）</td>
+      <td>地表接地逆溫層牢固，垂直對流受抑，煙羽形成<strong>帶狀細長高濃度煙流（Fanning Plume）</strong>。</td>
+    </tr>
+    <tr>
+      <td>2 &le; U &lt; 3 m/s</td>
+      <td><strong>Class E</strong>（微幅穩定）</td>
+      <td>夜間微風弱穩定，污染物向下風處呈細長錐狀蔓延。</td>
+    </tr>
+    <tr>
+      <td>U &ge; 3 m/s</td>
+      <td><strong>Class D</strong>（中性 Neutral）</td>
+      <td>夜間風速較大破壞逆溫層，擴散特性轉為中性。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<div class="ref-box">
+  📚 <strong>理論與法規文獻依據：</strong><br>
+  1. Pasquill, F. (1961). "The estimation of the dispersion of windborne material." <em>The Meteorological Magazine</em>, 90(1063), 33-49.<br>
+  2. Turner, D. B. (1970). <em>Workbook of Atmospheric Dispersion Estimates</em>. U.S. EPA, Office of Air Programs, AP-26.<br>
+  3. 中華民國環境部 (2020). 《空氣品質模式評估技術規範》附錄二：氣象資料分析與穩定度判別準則。
+</div>
+
+<h3>4.3 橫向擴散參數（Briggs Rural Dispersion Coefficient）</h3>
+<p>橫向擴散標準差 $\sigma_y$ 決定煙羽隨傳輸距離展開之寬度，系統採用經廣泛驗證之 Briggs 鄉村開闊地形半經驗公式：</p>
+<div class="math-box">
+  <div class="math-title">Formula 2: Briggs 橫向擴散標準差</div>
+  σ_y(x) = (α × x) / √(1 + 0.0001 × x)<br>
+  σ_x(x) = 1.4 × σ_y(x)   (順風向擴散因風切延伸拉長 1.4 倍)<br><br>
+  穩定度對應係數 α：<br>
+  • A 類: α = 0.22  |  B 類: α = 0.16  |  C 類: α = 0.11<br>
+  • D 類: α = 0.08  |  E 類: α = 0.06  |  F 類: α = 0.04
+</div>
+<div class="ref-box">
+  📚 <strong>理論與法規文獻依據：</strong><br>
+  1. Briggs, G. A. (1973). <em>Diffusion Estimation for Small Emissions</em>. ATDL Report No. 79, Atmospheric Turbulence and Diffusion Laboratory, NOAA.<br>
+  2. Gifford, F. A. (1976). "Turbulent diffusion-typing schemes: A review." <em>Nuclear Safety</em>, 17(1), 68-86.
+</div>
+
+<h3>4.4 三維地形阻擋、爬坡擠壓與沉降衰減</h3>
+<p>臺中盆地西臨大肚山台地（海拔約 300m）、東側緊鄰大坑及雪山山脈山腳（海拔 500m 以上）。系統透過射線檢測實時耦合地形：</p>
+
+<div class="math-box">
+  <div class="math-title">Formula 3: 地形阻擋與滯流堆積修正</div>
+  1. 8-Step 射線碰撞檢測：<br>
+     沿傳輸向量等距採樣 8 個檢測點，計算相對高程差 Δh = h_check - h_source<br>
+     若 Δh > 35m：傳輸距離截斷於 checkDist × 0.85 (阻擋截斷)<br><br>
+  2. 迎風面滯流堆積係數 (Stagnation Factor)：<br>
+     accumulationFactor = 1.0 + min(Δh / 50, 1.0)   (濃度最高提升至 2.0 倍)<br><br>
+  3. 氣流爬坡側向壓縮 (Lateral Compression)：<br>
+     compressFactor = max(0.65, 1.0 - (Δh - 20) / 150)   (煙羽橫向受擠壓變窄最多 35%)<br><br>
+  4. 時間衰減與乾沉降 (Deposition & Diffusion Decay)：<br>
+     timeDecay = exp(-0.35 × t_layer)
+</div>
+<div class="ref-box">
+  📚 <strong>理論與法規文獻依據：</strong><br>
+  1. Perry, S. G. (1992). "CTDMPLUS: A dispersion model for sources in complex terrain." <em>Journal of Applied Meteorology and Climatology</em>, 31(7), 633-645.<br>
+  2. Snyder, W. H., et al. (1985). "The structure of strongly stratified flow over hills: dividing-streamline concept." <em>Journal of Fluid Mechanics</em>, 152, 249-288. (臨界分流高度與山前滯流理論).<br>
+  3. Hunt, J. C. R., & Snyder, W. H. (1980). "Experiments on stably and neutrally stratified flow over a model three-dimensional hill." <em>Journal of Fluid Mechanics</em>, 96(4), 671-704.
+</div>
+
+<!-- ── 5. 程式碼模組對照清單 ── -->
+<h2>5. 核心程式碼函式對照表</h2>
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>函式名稱 / 變數</th>
+      <th>程式碼檔案與行數</th>
+      <th>對應學理功能</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>getStabilityClass()</code></td>
+      <td><code>useDispersionSim.ts:108-122</code></td>
+      <td>根據風速與日照時段輸出 Pasquill-Gifford A~F 穩定度等級。</td>
+    </tr>
+    <tr>
+      <td><code>getBriggsSigmaY()</code></td>
+      <td><code>useDispersionSim.ts:125-140</code></td>
+      <td>根據穩定度等級計算 Briggs 鄉村橫向擴散係數 $\sigma_y$。</td>
+    </tr>
+    <tr>
+      <td><code>getElevation()</code></td>
+      <td><code>useDispersionSim.ts:67-105</code></td>
+      <td>查詢 Mapbox 3D DEM 高程，內建大肚山與東側山區數學幾何備援模型。</td>
+    </tr>
+    <tr>
+      <td><code>getBlockedTravelDist()</code></td>
+      <td><code>useDispersionSim.ts:315-330</code></td>
+      <td>前向 8 步射線碰撞檢測，判定煙羽撞山阻絕截斷位置。</td>
+    </tr>
+    <tr>
+      <td><code>LOCAL_SCALE (0.085)</code></td>
+      <td><code>useDispersionSim.ts:346</code></td>
+      <td>局地近地層地表粗糙度折減係數，錨定 4 小時擴散半徑在 5 公里內。</td>
+    </tr>
+    <tr>
+      <td><code>accumulationFactor</code></td>
+      <td><code>useDispersionSim.ts:365-368</code></td>
+      <td>迎風面氣流受阻滯流濃度堆積放大係數（最大 2.0 倍）。</td>
+    </tr>
+    <tr>
+      <td><code>timeDecay</code></td>
+      <td><code>useDispersionSim.ts:386</code></td>
+      <td>隨時間指數衰減之大氣稀釋與乾沉降損失因子（$e^{-0.35 t}$）。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<footer>
+  微感監測中心 (TC IoT Center) — 技術架構與模式模擬工程文件庫 © 2026
+</footer>
+
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+  });
+</script>
+</body>
+</html>
