@@ -31,12 +31,13 @@ CK_CODE = "7a1d3f72-315f-492a-8ee5-409da5e358ce"
 COMMON_API = "https://iot.moenv.gov.tw/common_api/iot"
 HEADERS = {"ck": CK_CODE, "User-Agent": "Mozilla/5.0"}
 
-# 本次處理目標縣市 (台南市暫緩)
+# 目標縣市 (南區五縣市)
 TARGET_COUNTIES = {
     "嘉義市": {"id": 8, "dir_name": "嘉義市"},
     "嘉義縣": {"id": 6, "dir_name": "嘉義縣"},
-    "屏東縣": {"id": 4, "dir_name": "屏東縣"},
-    "高雄市": {"id": 24, "dir_name": "高雄市"}
+    "台南市": {"id": 23, "dir_name": "台南市"},
+    "高雄市": {"id": 24, "dir_name": "高雄市"},
+    "屏東縣": {"id": 4, "dir_name": "屏東縣"}
 }
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -291,32 +292,48 @@ def export_county_excel(county, df_county, sensors_list):
 # ── 主執行入口 ────────────────────────────────────────────────────────
 def main():
     print("=" * 65)
-    print("南臺灣四縣市：1km 內有學校產業園區微感數據批次整併與產出")
-    print("範圍：嘉義市、嘉義縣、屏東縣、高雄市 (台南市暫緩)")
+    print("南臺灣五縣市：1km 內有學校產業園區微感數據批次整併與產出")
+    print("範圍：嘉義市、嘉義縣、台南市、高雄市、屏東縣")
     print(f"輸出目標：{OUTPUT_DIR}")
     print("=" * 65)
 
     county_sensors = match_sensors_in_parks()
 
-    all_counties_dfs = []
+    newly_processed_dfs = []
 
     for county, sensors in county_sensors.items():
+        excel_path = os.path.join(OUTPUT_DIR, f"{county}_1km有學校產業園區_每小時微感數據_2026.xlsx")
+        if os.path.exists(excel_path):
+            print(f"⏩ 【{county}】專屬 Excel 已存在 ({os.path.basename(excel_path)})，跳過重複運算。")
+            continue
+
+        print(f"\n🚀 開始處理【{county}】數據...")
         df_county = process_single_county(county, sensors)
         if df_county is not None:
-            all_counties_dfs.append(df_county)
+            newly_processed_dfs.append(df_county)
             export_county_excel(county, df_county, sensors)
 
-    # 產出全量自用分析 Parquet
-    if all_counties_dfs:
-        print("\n>>> 正在合併產製四縣市全量自用分析 Parquet...")
-        df_total = pl.concat(all_counties_dfs, how="diagonal_relaxed")
-        pq_path = os.path.join(OUTPUT_DIR, "south_4counties_park_school_1km_hourly_2026.parquet")
-        df_total.write_parquet(pq_path, compression="zstd")
-        sz_mb = os.path.getsize(pq_path) / (1024 * 1024)
-        print(f"🎉 四縣市全量 Parquet 產出完畢！總列數: {len(df_total):,} 列, 大小: {sz_mb:.2f} MB")
-        print(f"Parquet 路徑: {pq_path}")
+    # 合併產出五縣市全量自用分析 Parquet
+    pq_4_path = os.path.join(OUTPUT_DIR, "south_4counties_park_school_1km_hourly_2026.parquet")
+    pq_5_path = os.path.join(OUTPUT_DIR, "south_5counties_park_school_1km_hourly_2026.parquet")
+
+    dfs_to_combine = []
+    if os.path.exists(pq_4_path):
+        print(f"\n>>> 載入既有四縣市 Parquet: {os.path.basename(pq_4_path)}...")
+        dfs_to_combine.append(pl.read_parquet(pq_4_path))
+
+    dfs_to_combine.extend(newly_processed_dfs)
+
+    if dfs_to_combine:
+        print("\n>>> 正在產製南區五縣市全量自用分析 Parquet...")
+        df_total = pl.concat(dfs_to_combine, how="diagonal_relaxed")
+        df_total.write_parquet(pq_5_path, compression="zstd")
+        sz_mb = os.path.getsize(pq_5_path) / (1024 * 1024)
+        print(f"🎉 五縣市全量 Parquet 產出完畢！總列數: {len(df_total):,} 列, 大小: {sz_mb:.2f} MB")
+        print(f"Parquet 路徑: {pq_5_path}")
 
     print("\n🎊 本階段所有工作已全數圓滿完成！")
 
 if __name__ == "__main__":
     main()
+
