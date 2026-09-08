@@ -139,7 +139,10 @@ def process_single_county(county, sensors_list):
             lazy = (
                 pl.scan_csv(fpath)
                 .select(["localTime", "deviceId", "sensorId", "value"])
-                .filter(pl.col("deviceId").is_in(target_ids))
+                .filter(
+                    pl.col("deviceId").is_in(target_ids) &
+                    pl.col("localTime").str.contains(r"^\d{4}-\d{2}-\d{2} \d{2}:")
+                )
                 .with_columns(
                     (pl.col("localTime").str.slice(0, 13) + ":00").alias("hour")
                 )
