@@ -6,7 +6,7 @@ export function proxy(request: NextRequest) {
 
   // 取得驗證狀態
   const authSession = request.cookies.get("auth_session")?.value;
-  const validUsers = (process.env.SYS_VALID_USERS || "tim,wenhe,frank,jason,oscar,levi,ren,allison").split(",");
+  const validUsers = (process.env.SYS_VALID_USERS || "tim,wenhe,frank,jason,oscar,levi,ren,allison,chanel,sage,stace,albert").split(",");
   const isAuthenticated = !!authSession && validUsers.some(u => authSession === `session_verified_${u}`);
 
   const isAuthPage = pathname === "/login";

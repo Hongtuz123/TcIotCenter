@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
 
-    const validUsers = (process.env.SYS_VALID_USERS || "tim,wenhe,frank,jason,oscar,levi,ren,allison").split(",");
+    const validUsers = (process.env.SYS_VALID_USERS || "tim,wenhe,frank,jason,oscar,levi,ren,allison,chanel,sage,stace,albert").split(",");
     const systemPassword = process.env.SYS_PASSWORD || "pstcom";
 
     // 帳號驗證
