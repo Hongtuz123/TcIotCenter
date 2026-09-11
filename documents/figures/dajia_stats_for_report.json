@@ -901,5 +901,321 @@
       "reason": "全程讀值恆定 8.0 ppb (標準差為 0.0)，屬死線異常設備"
     }
   ],
-  "date_range": "2025-06-27 00:00 至 2026-09-01 23:00 (共 432 天全時序)"
+  "date_range": "2025-06-27 00:00 至 2026-09-01 23:00 (共 432 天全時序)",
+  "temporal_analysis": {
+    "monthly": [
+      {
+        "month": "2025-06",
+        "mean_voc": 541.15,
+        "p95_voc": 3281.2,
+        "gt500_hours": 403,
+        "valid_hours": 2733,
+        "gt500_rate": 14.75
+      },
+      {
+        "month": "2025-07",
+        "mean_voc": 514.86,
+        "p95_voc": 2508.19,
+        "gt500_hours": 3646,
+        "valid_hours": 21489,
+        "gt500_rate": 16.97
+      },
+      {
+        "month": "2025-08",
+        "mean_voc": 513.88,
+        "p95_voc": 2854.23,
+        "gt500_hours": 3395,
+        "valid_hours": 21020,
+        "gt500_rate": 16.15
+      },
+      {
+        "month": "2025-09",
+        "mean_voc": 523.67,
+        "p95_voc": 3210.08,
+        "gt500_hours": 2812,
+        "valid_hours": 19267,
+        "gt500_rate": 14.59
+      },
+      {
+        "month": "2025-10",
+        "mean_voc": 367.89,
+        "p95_voc": 1890.21,
+        "gt500_hours": 2325,
+        "valid_hours": 20141,
+        "gt500_rate": 11.54
+      },
+      {
+        "month": "2025-11",
+        "mean_voc": 288.94,
+        "p95_voc": 1320.11,
+        "gt500_hours": 1974,
+        "valid_hours": 18526,
+        "gt500_rate": 10.66
+      },
+      {
+        "month": "2025-12",
+        "mean_voc": 316.25,
+        "p95_voc": 1354.36,
+        "gt500_hours": 2369,
+        "valid_hours": 19086,
+        "gt500_rate": 12.41
+      },
+      {
+        "month": "2026-01",
+        "mean_voc": 314.24,
+        "p95_voc": 1299.37,
+        "gt500_hours": 2108,
+        "valid_hours": 19078,
+        "gt500_rate": 11.05
+      },
+      {
+        "month": "2026-02",
+        "mean_voc": 269.67,
+        "p95_voc": 1226.41,
+        "gt500_hours": 1887,
+        "valid_hours": 17064,
+        "gt500_rate": 11.06
+      },
+      {
+        "month": "2026-03",
+        "mean_voc": 275.76,
+        "p95_voc": 1233.94,
+        "gt500_hours": 2077,
+        "valid_hours": 19091,
+        "gt500_rate": 10.88
+      },
+      {
+        "month": "2026-04",
+        "mean_voc": 308.77,
+        "p95_voc": 1430.85,
+        "gt500_hours": 1807,
+        "valid_hours": 18369,
+        "gt500_rate": 9.84
+      },
+      {
+        "month": "2026-05",
+        "mean_voc": 363.11,
+        "p95_voc": 1862.38,
+        "gt500_hours": 2174,
+        "valid_hours": 18595,
+        "gt500_rate": 11.69
+      },
+      {
+        "month": "2026-06",
+        "mean_voc": 316.79,
+        "p95_voc": 1313.03,
+        "gt500_hours": 1700,
+        "valid_hours": 17666,
+        "gt500_rate": 9.62
+      },
+      {
+        "month": "2026-07",
+        "mean_voc": 340.5,
+        "p95_voc": 1758.44,
+        "gt500_hours": 2072,
+        "valid_hours": 18086,
+        "gt500_rate": 11.46
+      },
+      {
+        "month": "2026-08",
+        "mean_voc": 306.24,
+        "p95_voc": 1350.51,
+        "gt500_hours": 1979,
+        "valid_hours": 18016,
+        "gt500_rate": 10.98
+      },
+      {
+        "month": "2026-09",
+        "mean_voc": 289.27,
+        "p95_voc": 953.4,
+        "gt500_hours": 52,
+        "valid_hours": 582,
+        "gt500_rate": 8.93
+      }
+    ],
+    "top_months": [
+      "2025-06",
+      "2025-07",
+      "2025-08",
+      "2025-09",
+      "2025-10"
+    ],
+    "weekday_top_months": [
+      {
+        "weekday_num": 1,
+        "mean_voc": 452.27,
+        "p95_voc": 2393.9,
+        "gt500_hours": 1724,
+        "valid_hours": 12063,
+        "gt500_rate": 14.29
+      },
+      {
+        "weekday_num": 2,
+        "mean_voc": 450.84,
+        "p95_voc": 2256.14,
+        "gt500_hours": 1647,
+        "valid_hours": 12036,
+        "gt500_rate": 13.68
+      },
+      {
+        "weekday_num": 3,
+        "mean_voc": 493.89,
+        "p95_voc": 2780.77,
+        "gt500_hours": 1851,
+        "valid_hours": 12043,
+        "gt500_rate": 15.37
+      },
+      {
+        "weekday_num": 4,
+        "mean_voc": 507.94,
+        "p95_voc": 2787.6,
+        "gt500_hours": 1861,
+        "valid_hours": 11997,
+        "gt500_rate": 15.51
+      },
+      {
+        "weekday_num": 5,
+        "mean_voc": 514.66,
+        "p95_voc": 2925.22,
+        "gt500_hours": 1935,
+        "valid_hours": 12433,
+        "gt500_rate": 15.56
+      },
+      {
+        "weekday_num": 6,
+        "mean_voc": 492.91,
+        "p95_voc": 2783.75,
+        "gt500_hours": 1829,
+        "valid_hours": 12010,
+        "gt500_rate": 15.23
+      },
+      {
+        "weekday_num": 7,
+        "mean_voc": 464.16,
+        "p95_voc": 2456.47,
+        "gt500_hours": 1734,
+        "valid_hours": 12068,
+        "gt500_rate": 14.37
+      }
+    ],
+    "weekday_all": [
+      {
+        "weekday_num": 1,
+        "mean_voc": 357.43,
+        "gt500_hours": 4745,
+        "valid_hours": 38660,
+        "gt500_rate": 12.27
+      },
+      {
+        "weekday_num": 2,
+        "mean_voc": 371.34,
+        "gt500_hours": 4663,
+        "valid_hours": 38524,
+        "gt500_rate": 12.1
+      },
+      {
+        "weekday_num": 3,
+        "mean_voc": 381.14,
+        "gt500_hours": 4728,
+        "valid_hours": 37912,
+        "gt500_rate": 12.47
+      },
+      {
+        "weekday_num": 4,
+        "mean_voc": 359.88,
+        "gt500_hours": 4601,
+        "valid_hours": 38002,
+        "gt500_rate": 12.11
+      },
+      {
+        "weekday_num": 5,
+        "mean_voc": 387.72,
+        "gt500_hours": 4841,
+        "valid_hours": 38426,
+        "gt500_rate": 12.6
+      },
+      {
+        "weekday_num": 6,
+        "mean_voc": 345.65,
+        "gt500_hours": 4623,
+        "valid_hours": 38615,
+        "gt500_rate": 11.97
+      },
+      {
+        "weekday_num": 7,
+        "mean_voc": 348.14,
+        "gt500_hours": 4579,
+        "valid_hours": 38670,
+        "gt500_rate": 11.84
+      }
+    ],
+    "time_blocks": [
+      {
+        "time_block": "00:00-04:00 (深夜)",
+        "mean_voc": 519.19,
+        "median_voc": 28.88,
+        "p95_voc": 2840.03,
+        "gt200_hours": 11460,
+        "gt500_hours": 7442,
+        "gt1000_hours": 5255,
+        "valid_hours": 44465,
+        "gt500_rate": 16.74
+      },
+      {
+        "time_block": "04:00-08:00 (清晨拂曉)",
+        "mean_voc": 486.6,
+        "median_voc": 23.89,
+        "p95_voc": 2611.33,
+        "gt200_hours": 11038,
+        "gt500_hours": 7041,
+        "gt1000_hours": 4882,
+        "valid_hours": 44338,
+        "gt500_rate": 15.88
+      },
+      {
+        "time_block": "08:00-12:00 (上午)",
+        "mean_voc": 222.38,
+        "median_voc": 8.17,
+        "p95_voc": 760.66,
+        "gt200_hours": 4924,
+        "gt500_hours": 2860,
+        "gt1000_hours": 1927,
+        "valid_hours": 45163,
+        "gt500_rate": 6.33
+      },
+      {
+        "time_block": "12:00-16:00 (下午)",
+        "mean_voc": 183.85,
+        "median_voc": 12.73,
+        "p95_voc": 754.67,
+        "gt200_hours": 5607,
+        "gt500_hours": 3046,
+        "gt1000_hours": 1838,
+        "valid_hours": 45131,
+        "gt500_rate": 6.75
+      },
+      {
+        "time_block": "16:00-20:00 (傍晚)",
+        "mean_voc": 338.48,
+        "median_voc": 33.83,
+        "p95_voc": 1659.44,
+        "gt200_hours": 9367,
+        "gt500_hours": 5685,
+        "gt1000_hours": 3557,
+        "valid_hours": 44978,
+        "gt500_rate": 12.64
+      },
+      {
+        "time_block": "20:00-24:00 (夜間)",
+        "mean_voc": 441.1,
+        "median_voc": 33.97,
+        "p95_voc": 2185.39,
+        "gt200_hours": 10787,
+        "gt500_hours": 6706,
+        "gt1000_hours": 4479,
+        "valid_hours": 44734,
+        "gt500_rate": 14.99
+      }
+    ]
+  }
 }
