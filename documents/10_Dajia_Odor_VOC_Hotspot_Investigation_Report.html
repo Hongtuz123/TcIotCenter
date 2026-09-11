@@ -328,7 +328,7 @@
   <div class="doc-header">
     <div>
       <span class="badge-confidential">內部公務研判文件 · 機密性普通</span>
-      <span class="badge-qc">數據品管 (QC) 完整認證</span>
+      <span class="badge-qc">數據檢核 (QC) 完整驗證</span>
     </div>
     <h1>大甲幼獅工業區微型感測器<span>異味污染物 (VOC)</span> 熱點溯源與科技稽查決策評估報告</h1>
     <p class="subtitle">基於 31 台有效微型感測器 273,400 筆每小時連續觀測數據（計算單位統一採用每小時平均值 Hourly Mean）之空間核密度 (KDE) 與異常時序規律深度研判</p>
@@ -358,7 +358,7 @@
     <div class="kpi-card">
       <div class="kpi-title">範圍內有效微感 vs 全臺中總量</div>
       <div class="kpi-val highlight-blue">31 <span style="font-size:1rem;font-weight:normal;color:#94a3b8">/ 範圍 35 (全臺中 1,381 台)</span></div>
-      <div class="kpi-sub">已品管剔除 4 台失效設備 (零值≥80%或死線)</div>
+      <div class="kpi-sub">已篩選剔除 4 台失效設備 (零值≥80%或死線)</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-title">全區異味最高測站 (常態長效熱點)</div>
@@ -379,14 +379,14 @@
 
   <!-- ── 第一章：執行背景與問題陳述 ── -->
   <h2>一、背景分析與核心挑戰</h2>
-  <p>大甲幼獅工業區位於臺中市大甲區東北隅，為海線重要之金屬加工、表面處理、機械製造、塑膠射出及化工聚落。長期以來，周邊社區（日南里、幸福里、西岐里）屢屢陳情夜間及清晨傳出刺鼻酸臭、塑膠燃燒味與油漆溶劑異味，<strong>於近期民意與民間環保團體票選評比中，更被指名為臺中市「異味陳情最高熱區」之一</strong>。</p>
+  <p>大甲幼獅工業區位於臺中市大甲區東北隅，為海線重要之金屬加工、表面處理、機械製造、塑膠射出及化工聚落。長期以來，周邊社區（日南里、幸福里、西岐里）屢屢反映夜間及清晨傳出刺鼻酸臭、塑膠燃燒味與油漆溶劑異味，<strong>於近期民意與民間環保團體票選評比中，更被指名為臺中市「異味異味通報最高熱區」之一</strong>。</p>
   
   <p style="background: rgba(56,189,248,0.06); border-left: 3px solid var(--blue); padding: 10px 16px; border-radius: 6px; font-size: 0.92rem;">
     ⏱️ <strong>計算單位特別聲明</strong>：為克服物聯網微型感測器每 1～2 分鐘即時頻率之微小瞬時微擾，本報告所有統計、排行、空間核密度 (KDE) 及時序特徵分析，<strong>統一採用標準「每小時平均值 (Hourly Mean)」作為核心計算單位</strong>，全期累積 273,400 筆標準觀測時數，嚴格要求單設備單日觀測筆數 ≤ 24 筆。
   </p>
 
   <div class="callout callout-warn" style="margin-top: 20px;">
-    <div class="callout-title">⚠️ 環保局傳統稽查痛點：為何民眾天天陳情，進廠卻抓不到？</div>
+    <div class="callout-title">⚠️ 環保局傳統稽查痛點：為何民眾頻繁反映有異味，進廠卻抓不到？</div>
     <ol style="margin-left: 20px;">
       <li><strong>PM2.5 與異味脫節</strong>：傳統大氣測站多以 PM2.5 / PM10 作為指標，然而<strong>異味污染多由揮發性有機物 (VOCs) 與還原性硫化物引起</strong>，在低微粒濃度時依然氣味刺鼻，造成「空氣指標良好，居民卻聞到惡臭」的矛盾假象。</li>
       <li><strong>規避日間查緝的清晨偷排</strong>：違規業者常利用夜間 02:00～06:00 稽查人力空檔進行製程廢氣直排或防制設備停機，利用清晨大氣擴散差在短時間內排空。</li>
@@ -439,7 +439,7 @@
           <th style="position: sticky; top: 0; z-index: 2;">所在位置 / 路段</th>
           <th style="position: sticky; top: 0; z-index: 2;">經度 (°E)</th>
           <th style="position: sticky; top: 0; z-index: 2;">緯度 (°N)</th>
-          <th style="position: sticky; top: 0; z-index: 2;">VOC 品管均值 (ppb)</th>
+          <th style="position: sticky; top: 0; z-index: 2;">VOC 檢核均值 (ppb)</th>
           <th style="position: sticky; top: 0; z-index: 2;">PM2.5 均值 (μg/m³)</th>
           <th style="position: sticky; top: 0; z-index: 2;">有效時數 / 屬性備註</th>
           <th style="position: sticky; top: 0; z-index: 2;">地圖定位</th>
@@ -453,7 +453,7 @@
 
   <!-- ── 第三章：空間核密度分析 (KDE Maps) ── -->
   <h2>三、空間核密度分析 (KDE Maps)：PM2.5 與 VOC 空間分佈對比</h2>
-  <p>經品管過濾後，導入<strong>空間高斯核密度估計（Weighted Gaussian KDE）</strong>演算法，針對大甲幼獅 30 台長期有效微型感測器進行一整年觀測權重平滑運算。以下兩張高解析度核密度圖，直觀揭示了「顆粒物」與「異味揮發物」本質上的巨大差異：</p>
+  <p>經資料檢核過濾後，導入<strong>空間高斯核密度估計（Weighted Gaussian KDE）</strong>演算法，針對大甲幼獅 30 台長期有效微型感測器進行一整年觀測權重平滑運算。以下兩張高解析度核密度圖，直觀揭示了「顆粒物」與「異味揮發物」本質上的巨大差異：</p>
 
   <div class="kde-comparison">
     <!-- 圖 1: PM2.5 KDE -->
@@ -461,7 +461,7 @@
       <img src="figures/dajia_kde_pm25.png" alt="大甲幼獅工業區 PM2.5 空間核密度圖">
       <div class="kde-info">
         <span class="kde-tag pm25">常規微粒指標</span>
-        <h4>圖 1：以 PM2.5 為主之空間濃度核密度圖 (品管後)</h4>
+        <h4>圖 1：以 PM2.5 為主之空間濃度核密度圖 (檢核後)</h4>
         <p><strong>特徵解讀</strong>：全區 PM2.5 濃度梯度介於 6.6 ～ 26.6 μg/m³ 之間，呈現<strong>大範圍廣域平緩漸變</strong>特徵，微偏工業區東南至南側。這反映了 PM2.5 主要受區域背景大氣擴散與季風傳輸主導，無法有效鎖定工業區內個別工廠的非法偷排行為。</p>
       </div>
     </div>
@@ -471,7 +471,7 @@
       <img src="figures/dajia_kde_voc.png" alt="大甲幼獅工業區 VOC 異味空間核密度圖">
       <div class="kde-info">
         <span class="kde-tag voc">異味關鍵核心指標</span>
-        <h4>圖 2：以 VOC (異味污染物) 為主之空間核密度圖 (品管後)</h4>
+        <h4>圖 2：以 VOC (異味污染物) 為主之空間核密度圖 (檢核後)</h4>
         <p><strong>特徵解讀</strong>：VOC 空間呈現<strong>「極端局部島狀聚集」</strong>！全區背景值多低於 250 ppb，但在<strong>東南側邊界 (TC1043)</strong>、<strong>黎明路幸福里 (TC0697)</strong> 與<strong>西北順帆路 (TC1278)</strong> 出現極度陡峭的深色高濃度「紅爆熱點」（達 1,000~1,540 ppb），具備極高點源排放指紋！</p>
       </div>
     </div>
@@ -479,7 +479,7 @@
 
   <div class="callout callout-danger">
     <div class="callout-title">🚨 空間核密度關鍵發現：東南側生活圈交界「異味重嫌確立」</div>
-    <p>比對圖 1 與圖 2 可清楚看出：<strong>TC1043 (東南隅中山路二段) 與 TC0697 (黎明路) 是全區長時序 VOC 濃度熱區的最核心震央</strong>。該熱區直接緊貼日南國小與住宅密集圈，精準印證了民意票選與異味陳情案件高度集中於該處的真實原因！</p>
+    <p>比對圖 1 與圖 2 可清楚看出：<strong>TC1043 (東南隅中山路二段) 與 TC0697 (黎明路) 是全區長時序 VOC 濃度熱區的最核心震央</strong>。該熱區直接緊貼日南國小與住宅密集圈，精準印證了民意票選與異味異味通報案件高度集中於該處的真實原因！</p>
   </div>
 
   <!-- ── 第四章：全時序異常頻率多維深度分析 (月均值 -> 曜日 -> 4小時時段三層收斂) ── -->
@@ -506,7 +506,7 @@
     <div class="callout-title">🔍 第一層分析結論：夏季至初秋（6月 ～ 9月）為全年度異味污染最高峰</div>
     <ul style="margin-left: 20px;">
       <li><strong>高溫揮發劇烈</strong>：每年 <strong>6月 ～ 9月</strong> 全區 VOC 月均濃度達到最高峰（<strong>513.8 ～ 541.2 ppb</strong>），且重度污染事件率高達 <strong>14.6% ～ 17.0%</strong>，顯著高於冬季與春季（270 ～ 316 ppb，事件率約 9% ～ 11%）。</li>
-      <li><strong>氣象與海陸風影響</strong>：夏季海風於午後深入陸地，傍晚轉為微弱陸風時常形成局部渦旋，致使有機溶劑與製程廢氣蓄積於大甲盆地邊界，此時期居民陳情最為強烈。</li>
+      <li><strong>氣象與海陸風影響</strong>：夏季海風於午後深入陸地，傍晚轉為微弱陸風時常形成局部渦旋，致使有機溶劑與製程廢氣蓄積於大甲盆地邊界，此時期居民異味感受最為強烈。</li>
     </ul>
   </div>
 
@@ -566,7 +566,7 @@
 
   <!-- ── 第五章：全區微感測器 VOC 常態排比與警示時數統計 ── -->
   <h2>五、全區微感測器 VOC 常態排比與高濃度警示時數統計</h2>
-  <p>本模組對品管後 273,400 筆每小時數據進行精準統計分析。下表列出全區具備長效代表性之前 10 名微型感測器詳細參數（<strong>數值與底層 Parquet 100% 嚴格吻合</strong>）：</p>
+  <p>本模組對檢核後 273,400 筆每小時數據進行精準統計分析。下表列出全區具備長效代表性之前 10 名微型感測器詳細參數（<strong>數值與底層 Parquet 100% 嚴格吻合</strong>）：</p>
 
   <div class="tbl-wrap">
     <table>
@@ -576,7 +576,7 @@
           <th>測站編號</th>
           <th>設備 ID</th>
           <th>裝設路段 / 位置</th>
-          <th>品管平均 VOC (ppb)</th>
+          <th>檢核平均 VOC (ppb)</th>
           <th>P95 峰值 (ppb)</th>
           <th>警示時數 (>200ppb)</th>
           <th>重度事件時數 (>500ppb)</th>
@@ -709,11 +709,11 @@
     </table>
   </div>
 
-  <!-- 智慧圖表 1: VOC 排行長條圖 -->
+  <!-- 分析圖表 1: VOC 排行長條圖 -->
   <div class="chart-section">
     <div class="chart-header">
       <div>
-        <div class="chart-title">📊 智慧圖表一：全區品管合格微感測器 VOC 年均值排比圖 (ppb · 每小時平均)</div>
+        <div class="chart-title">📊 分析圖表一：全區檢核合格微感測器 VOC 年均值排比圖 (ppb · 每小時平均)</div>
         <div class="chart-desc">長條顏色代表嚴重程度 (紅色：>1,000 ppb 極高疑慮；橙色：>500 ppb 中高疑慮；藍色：背景值)</div>
       </div>
     </div>
@@ -726,11 +726,11 @@
   <h2>六、重點測站 24 小時連續時序曲線：直擊清晨與夜間異常突波</h2>
   <p>分析各重點測站於 24 小時（00:00 至 23:00）的濃度週期曲線，印證夜間蓄積與清晨偷排特徵：</p>
 
-  <!-- 智慧圖表 2: 24 小時時序曲線圖 -->
+  <!-- 分析圖表 2: 24 小時時序曲線圖 -->
   <div class="chart-section">
     <div class="chart-header">
       <div>
-        <div class="chart-title">📈 智慧圖表二：重點嫌疑測站 24 小時平均 VOC 濃度週期曲線 (ppb)</div>
+        <div class="chart-title">📈 分析圖表二：重點嫌疑測站 24 小時平均 VOC 濃度週期曲線 (ppb)</div>
         <div class="chart-desc">點擊下方圖例可切換測站。清楚可見夜間至清晨 04:30 ~ 08:00 呈現劇烈高濃度曲線！</div>
       </div>
     </div>
@@ -748,10 +748,10 @@
     </ul>
   </div>
 
-  <!-- 智慧圖表 3 & 4 網格 -->
+  <!-- 分析圖表 3 & 4 網格 -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(480px, 1fr));gap:20px;margin-bottom:36px;">
     <div class="chart-section" style="margin:0">
-      <div class="chart-title">🍩 智慧圖表三：Top 5 測站高濃度時數結構 (>200, >500, >1000 ppb)</div>
+      <div class="chart-title">🍩 分析圖表三：Top 5 測站高濃度時數結構 (>200, >500, >1000 ppb)</div>
       <div class="chart-desc" style="margin-bottom:12px">呈現重度異味事件頻率與持久度</div>
       <div class="chart-box">
         <canvas id="chartThresholdStacked"></canvas>
@@ -759,7 +759,7 @@
     </div>
 
     <div class="chart-section" style="margin:0">
-      <div class="chart-title">🎯 智慧圖表四：PM2.5 vs VOC 污染類型矩陣分佈</div>
+      <div class="chart-title">🎯 分析圖表四：PM2.5 vs VOC 污染類型矩陣分佈</div>
       <div class="chart-desc" style="margin-bottom:12px">破除「PM2.5 低就無污染」之盲點</div>
       <div class="chart-box">
         <canvas id="chartScatterMatrix"></canvas>
@@ -832,7 +832,7 @@
 
   <!-- ── 第八章：結論與後續跟進 ── -->
   <h2>八、結論與後續跟進：大數據三大維度訊號對比與執法資源最優配置</h2>
-  <p>大甲幼獅工業區「異味票選最高」之民意並非空穴來風，而是有扎實之物聯網微感測數據為證。本評估報告以<strong>「每小時平均值 (Hourly Mean)」為基底</strong>，在排除故障設備、嚴格剔除儀器溢位異常值之科學品管基礎下，透過長時序多維度交叉剖析，獲致大數據三大維度訊號強弱對比之關鍵結論：</p>
+  <p>大甲幼獅工業區「異味票選最高」之民意並非空穴來風，而是有扎實之物聯網微感測數據為證。本評估報告以<strong>「每小時平均值 (Hourly Mean)」為基底</strong>，在排除故障設備、嚴格剔除儀器溢位異常值之科學檢核基礎下，透過長時序多維度交叉剖析，獲致大數據三大維度訊號強弱對比之關鍵結論：</p>
   
   <!-- 三大維度訊號強弱對比矩陣 -->
   <div class="tbl-wrap" style="margin: 16px 0 24px;">
@@ -856,7 +856,7 @@
           <td><strong style="color:var(--primary);">月份維度 (Month of Year)</strong></td>
           <td><span style="color:var(--primary);font-weight:bold;">⚡ 強信號 (2.0 倍)</span></td>
           <td>夏季 6～9 月均值 <strong>540 ppb</strong> 是冬季 (270 ppb) 的 <strong>整整 2.0 倍</strong> (事件率達 17%)</td>
-          <td><strong>專案資源集中於夏季高溫期</strong>，高溫揮發劇烈且海陸風逆溫蓄積最嚴重，陳情高峰期重兵布防。</td>
+          <td><strong>專案資源集中於夏季高溫期</strong>，高溫揮發劇烈且海陸風逆溫蓄積最嚴重，異味高峰期重兵布防。</td>
         </tr>
         <tr>
           <td><strong style="color:var(--blue);">星期維度 (Day of Week)</strong></td>
@@ -873,15 +873,15 @@
     <li><strong>歷史偷排重點跟監</strong>：針對 <strong>幼四路 33號 (TC0905)</strong> 曾記錄到清晨瞬間破萬 ppb 之短波暴衝特性，建議稽查大隊將其列入重點名冊，不定期架設自動觸發採樣設備進行守株待兔式執法。</li>
   </ul>
 
-  <!-- ── 第九章（附錄）：嚴格資料品管 (Data Quality Control, QC) 規則與定義說明 ── -->
-  <h2>九、附錄：嚴格資料品管 (Data Quality Control, QC) 規則與定義說明</h2>
+  <!-- ── 第九章（附錄）：嚴格資料檢核 (Data QC) 規則與定義說明 ── -->
+  <h2>九、附錄：嚴格資料檢核 (Data QC) 規則與定義說明</h2>
   <div class="callout callout-qc" style="border-left: 4px solid var(--green); background: rgba(52,211,153,0.06); padding: 22px; border-radius: 12px; margin: 20px 0 36px;">
     <div class="callout-title" style="font-size: 1.1rem; color: var(--green); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
       🛡️ 數據清理原則、設備剔除清冊與篩選門檻定義說明
     </div>
     <ul style="margin-left: 20px; line-height: 1.8; color: #cbd5e1; font-size: 0.95rem;">
       <li><strong>計算單位標準化</strong>：原始資料為每 1～2 分鐘 1 筆之瞬時監測值，全時序累積超過 1,500 萬筆。為消除瞬時擾動並符合宏觀趨勢分析，本報告全數轉換聚合為 <strong>每小時平均值 (Hourly Mean)</strong>，共產出 273,400 列標準時數資料。</li>
-      <li><strong>設備層級品管剔除清冊（Excluded Sensors · 共 4 台）</strong>：經全時序完整性稽核，以下 4 台設備因嚴重硬體故障或未連線，<strong>已全數予以排除</strong>，不納入統計排名與空間內插計算：
+      <li><strong>設備層級篩選剔除清冊（Excluded Sensors · 共 4 台）</strong>：經全時序完整性稽核，以下 4 台設備因嚴重硬體故障或未連線，<strong>已全數予以排除</strong>，不納入統計排名與空間內插計算：
         <ol style="margin-left: 20px; margin-top: 4px; color: #94a3b8;">
           <li><code>TC0179</code> (ID: 11816167581)：100.0% 讀值恆為 0.0，且僅在線 6 天（146 小時），屬未連線無效設備。</li>
           <li><code>TC0915</code> (ID: 12201470934)：100.0% 讀值恆為 0.0（超過 80% 門檻），VOC 感測元件未接或硬體損壞。</li>
@@ -903,7 +903,7 @@
   </div>
 
   <footer>
-    臺中市政府微型感測器大數據分析平台 · 智慧環境科技執法決策系統<br>
+    臺中市政府微型感測器大數據分析平台 · 環境科技執法決策系統<br>
     數據基底：大甲幼獅工業區 500m 微型感測器每小時歷史數據 (2025.06.27 - 2026.09.01 · 共432天全時序 · 每小時平均值計算) · 檔案版本 v3.0
   </footer>
 
@@ -1004,7 +1004,7 @@ function initDajiaMap(data, hotspots) {
         </h4>
         <div style="font-size:12px; line-height:1.6;">
           <b>設備ID:</b> ${s.deviceId}<br>
-          <b>品管 VOC 均值:</b> <span style="color:${color}; font-weight:bold;">${s.voc_mean.toLocaleString()} ppb</span><br>
+          <b>檢核 VOC 均值:</b> <span style="color:${color}; font-weight:bold;">${s.voc_mean.toLocaleString()} ppb</span><br>
           <b>PM2.5 均值:</b> ${s.pm25_mean} μg/m³<br>
           <b>P95 峰值:</b> ${s.voc_p95.toLocaleString()} ppb<br>
           <b>有效時數:</b> ${s.valid_voc_hours} 小時<br>
@@ -1255,7 +1255,7 @@ function renderCharts(data) {
     data: {
       labels: labelsVoc,
       datasets: [{
-        label: '品管 VOC 年均濃度 (ppb · 小時平均)',
+        label: '檢核 VOC 年均濃度 (ppb · 小時平均)',
         data: valuesVoc,
         backgroundColor: bgColorsVoc,
         borderRadius: 6
@@ -1269,7 +1269,7 @@ function renderCharts(data) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (ctx) => ` 品管年均: ${ctx.raw.toLocaleString()} ppb (小時均值)`
+            label: (ctx) => ` 檢核年均: ${ctx.raw.toLocaleString()} ppb (小時均值)`
           }
         }
       },
@@ -1409,12 +1409,12 @@ function renderCharts(data) {
         x: {
           ticks: { color: '#cbd5e1' },
           grid: { color: '#24344d' },
-          title: { display: true, text: 'PM2.5 品管均值 (μg/m³)', color: '#94a3b8' }
+          title: { display: true, text: 'PM2.5 檢核均值 (μg/m³)', color: '#94a3b8' }
         },
         y: {
           ticks: { color: '#cbd5e1' },
           grid: { color: '#24344d' },
-          title: { display: true, text: 'VOC 品管均值 (ppb)', color: '#94a3b8' }
+          title: { display: true, text: 'VOC 檢核均值 (ppb)', color: '#94a3b8' }
         }
       },
       plugins: {
