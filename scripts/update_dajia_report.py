@@ -395,20 +395,23 @@ new_html = f"""<!DOCTYPE html>
   <!-- ── 報告公文標頭 ── -->
   <div class="doc-header">
     <div>
-      <span class="badge-confidential">內部公務研判文件 · 機密性普通</span>
-      <span class="badge-qc">數據檢核 (QC) 完整驗證</span>
+      <span class="badge-qc" style="margin-left: 0;">數據檢核 (QC) 完整驗證</span>
     </div>
     <h1>大甲幼獅工業區微型感測器<span>異味污染物 (VOC)</span> 熱點溯源與科技稽查決策評估報告</h1>
     <p class="subtitle">基於 31 台有效微型感測器 273,400 筆每小時連續觀測數據（計算單位統一採用每小時平均值 Hourly Mean）之空間核密度 (KDE) 與異常時序規律深度研判</p>
     
     <div class="meta-grid">
       <div class="meta-item">
-        <strong>委託 / 受文機關</strong>
-        臺中市政府環境保護局 (空噪科 / 稽查大隊)
+        <strong>委託機關</strong>
+        臺中市政府環境保護局
       </div>
       <div class="meta-item">
         <strong>研究分析單位</strong>
-        微感監測大數據分析中心 (TC IoT Center)
+        振興發科技有限公司
+      </div>
+      <div class="meta-item">
+        <strong>資料來源</strong>
+        自架微感 + 環境物聯網提供之 IOT 測值數據
       </div>
       <div class="meta-item">
         <strong>精確觀測時段與天數</strong>
@@ -852,8 +855,8 @@ new_html = f"""<!DOCTYPE html>
   </div>
 
   <footer>
-    臺中市政府微型感測器大數據分析平台 · 環境科技執法決策系統<br>
-    數據基底：大甲幼獅工業區 500m 微型感測器每小時歷史數據 (2025.06.27 - 2026.09.01 · 共432天全時序 · 每小時平均值計算) · 檔案版本 v3.0
+    委託機關：臺中市政府環境保護局 ｜ 研究分析單位：振興發科技有限公司<br>
+    資料來源：自架微感 + 環境物聯網提供之 IOT 測值數據 (2025.06.27 - 2026.09.01 · 共432天全時序 · 每小時平均值計算) · 檔案版本 v3.1
   </footer>
 
 </div>
