@@ -404,9 +404,9 @@ new_html = f"""<!DOCTYPE html>
       <div class="kpi-sub">年均 1,540.4 ppb / 警示(>200ppb)達 3,505 小時</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-title">稽查黃金曜日 (全週最高峰)</div>
-      <div class="kpi-val highlight-orange">週三 ～ 週五</div>
-      <div class="kpi-sub">週五均值 514.7 ppb / P95 達 2,925 ppb 為全週之冠</div>
+      <div class="kpi-title">執法排班關鍵 (破除週末迷思)</div>
+      <div class="kpi-val highlight-orange">平假日連續排污</div>
+      <div class="kpi-sub">星期維度無信號 (全週差異 < 7%)，任何一天皆可突擊</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-title">建議突擊稽查黃金時段</div>
@@ -532,14 +532,14 @@ new_html = f"""<!DOCTYPE html>
   </div>
 
   <!-- 第二層：曜日分析 -->
-  <h3>4.2 第二層收斂：高污染月份星期特徵分析（鎖定週幾去稽查最好）</h3>
-  <p>針對污染最嚴重之月份（6月至10月），分析星期一至星期日（Day of Week）的濃度強度與重度事件發生頻率：</p>
+  <h3>4.2 第二層收斂：星期特徵分析 —— 破除「週末停工」迷思，全區呈現常態連續排污</h3>
+  <p>為確認工業區是否有「特定單日趕工」或「週末停工休假」的週期排程，本模組分析星期一至星期日（Day of Week）的濃度強度與重度事件發生頻率：</p>
 
   <div class="chart-section">
     <div class="chart-header">
       <div>
-        <div class="chart-title">📆 高濃度月份星期幾 (週一至週日) 污染特徵分佈圖</div>
-        <div class="chart-desc">比較各曜日平均 VOC (ppb) 與重度事件率 (%)，找出工廠運作與排放週期</div>
+        <div class="chart-title">📆 星期幾 (週一至週日) 污染分佈圖（各曜日均值差異 < 7%，平假日均勻嚴重）</div>
+        <div class="chart-desc">柱狀為各曜日平均 VOC (ppb)；紫色虛線為 P95 峰值；黃色折線為重度事件率 (%)</div>
       </div>
     </div>
     <div class="chart-box">
@@ -548,10 +548,11 @@ new_html = f"""<!DOCTYPE html>
   </div>
 
   <div class="callout callout-info">
-    <div class="callout-title">🎯 第二層分析結論：鎖定「週三至週五」（特別是週五）出動稽查效益最高！</div>
-    <ul style="margin-left: 20px;">
-      <li><strong>週五為全週污染之冠</strong>：週五之平均 VOC 濃度達到全週最高之 <strong>514.7 ppb</strong>，P95 峰值高達 <strong>2,925.2 ppb</strong>，重度事件率高達 <strong>15.56%</strong>；週四 (507.9 ppb) 與週三 (493.9 ppb) 緊追其後。</li>
-      <li><strong>製程作業排程解讀</strong>：工業區工廠普遍有「週末前趕工出貨、週五進行機具溶劑浸洗脫脂」的週期排程習慣，因此<strong>週三至週五為製程有機溶劑使用與偷排最高峰</strong>；週一與週二相對平穩。</li>
+    <div class="callout-title">🎯 第二層分析重要結論：星期維度「無顯著信號」，打破「週末工廠停工空氣較好」的傳統迷思！</div>
+    <ul style="margin-left: 20px; line-height: 1.8;">
+      <li><strong>平假日無差別排放（差異僅 6.9%）</strong>：統計顯示工作日（週一至週五）平均 VOC 為 <strong>371.9 ppb</strong>，週末（週六週日）平均 VOC 仍高達 <strong>347.8 ppb</strong>，兩者差距僅 <strong>24.1 ppb（波動率僅 6.9%）</strong>；全週每日重度事件率（>500 ppb）均勻落在 <strong>11.8% ～ 12.6%</strong>，統計檢定幾無週期性波動。</li>
+      <li><strong>核心震央 TC1043 週末照常高壓排放</strong>：即使觀察東南側最高熱區 TC1043，週六平均 VOC 依然高達 <strong>1,599.5 ppb</strong>，重度事件率達 <strong>35.7%</strong>（與平日週二～週五完全相同）！</li>
+      <li><strong>執法作戰指導意義</strong>：這證實大甲幼獅的違規業者多屬 <strong>24 小時連續式製程（Continuous Process，如連續合成反應、表面塗裝、塑膠射出）</strong>，或將空污防制設備夜間停機視為常態，<strong>工廠週末根本沒有停工停排！</strong>因此，稽查大隊<strong>「平假日任何一天出動皆可，排班無須受限於週間或週末」</strong>。</li>
     </ul>
   </div>
 
@@ -711,11 +712,11 @@ new_html = f"""<!DOCTYPE html>
 
   <div class="action-grid">
     <div class="action-box" style="border-top: 4px solid var(--primary)">
-      <div class="action-step">行動策略一 · 時段鎖定</div>
-      <div class="action-title">精準出動：週三至週五 清晨 04:30～06:30</div>
+      <div class="action-step">行動策略一 · 出動時機鎖定</div>
+      <div class="action-title">平假日無差別出擊：死守清晨 04:30～06:30</div>
       <ul>
-        <li><strong>最佳出動日期</strong>：鎖定 <strong>週三、週四、週五（週五最佳）</strong>。</li>
-        <li><strong>最佳出動時段</strong>：清晨 <strong>04:30 ～ 06:30</strong>（逆溫蓄積、偷排極峰）。</li>
+        <li><strong>執法日期安排</strong>：<strong>平假日皆可出擊（不拘泥於特定星期）</strong>，打破週末停工迷思，週末出動更具出其不意之突襲威懾效果。</li>
+        <li><strong>黃金執法時段</strong>：鎖定清晨 <strong>04:30 ～ 06:30</strong>（逆溫蓄積、偷排極峰，重度事件率高達白天的 2.6 倍）。</li>
         <li><strong>執法策略</strong>：避開日間常規巡查時段，採取無預警拂曉出擊，封鎖幼四路、幼五路及中山路二段主要聯外路口。</li>
       </ul>
     </div>
@@ -741,13 +742,46 @@ new_html = f"""<!DOCTYPE html>
   </div>
 
   <!-- ── 第九章：結論與後續跟進 ── -->
-  <h2>九、結論與後續跟進</h2>
-  <p>大甲幼獅工業區「異味票選最高」之民意並非空穴來風，而是有扎實之物聯網微感測數據為證。本評估報告以<strong>「每小時平均值 (Hourly Mean)」為基底</strong>，在排除故障設備、嚴格剔除儀器溢位異常值之科學品管基礎下，透過「月均值 ➔ 曜日 ➔ 4小時時段」三層異常頻率深度收斂，獲致極具執法實戰價值之結論：</p>
+  <h2>九、結論與後續跟進：大數據三大維度訊號對比與執法資源最優配置</h2>
+  <p>大甲幼獅工業區「異味票選最高」之民意並非空穴來風，而是有扎實之物聯網微感測數據為證。本評估報告以<strong>「每小時平均值 (Hourly Mean)」為基底</strong>，在排除故障設備、嚴格剔除儀器溢位異常值之科學品管基礎下，透過長時序多維度交叉剖析，獲致大數據三大維度訊號強弱對比之關鍵結論：</p>
+  
+  <!-- 三大維度訊號強弱對比矩陣 -->
+  <div class="tbl-wrap" style="margin: 16px 0 24px;">
+    <table>
+      <thead>
+        <tr>
+          <th>分析維度</th>
+          <th>訊號強度等級</th>
+          <th>數據對比特徵 (倍數差距)</th>
+          <th>環保局科技執法策略建議</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--red);">時段維度 (Hour of Day)</strong></td>
+          <td><span style="color:#ef4444;font-weight:bold;">🔥 極強信號 (2.8 倍)</span></td>
+          <td>清晨與深夜均值 <strong>520 ppb</strong> 是日間午後 (183 ppb) 的 <strong>整整 2.8 倍</strong> (重度率 16.7% vs 6.8%)</td>
+          <td><strong>出動時段絕對死守清晨 04:30～06:30</strong>，避開日間巡查，趁逆溫蓄積時段進廠直擊。</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--primary);">月份維度 (Month of Year)</strong></td>
+          <td><span style="color:var(--primary);font-weight:bold;">⚡ 強信號 (2.0 倍)</span></td>
+          <td>夏季 6～9 月均值 <strong>540 ppb</strong> 是冬季 (270 ppb) 的 <strong>整整 2.0 倍</strong> (事件率達 17%)</td>
+          <td><strong>專案專案資源集中於夏季高溫期</strong>，高溫揮發劇烈且海陸風逆溫蓄積最嚴重，陳情高峰期重兵布防。</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--blue);">星期維度 (Day of Week)</strong></td>
+          <td><span style="color:#94a3b8;font-weight:bold;">⚪ 無信號 (僅 1.08 倍)</span></td>
+          <td>週五 (387 ppb) 與週一 (357 ppb) <strong>僅差 1.08 倍</strong> (工作日 vs 週末差異僅 6.9%，TC1043 週六照常飆破 1,600 ppb)</td>
+          <td><strong>打破「週末工廠停工休假」的傳統迷思！</strong>工廠屬連續式製程常態排污，平假日皆需嚴密布防，週末突襲效果尤佳。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
   <ul style="margin-left: 20px; line-height: 1.8; margin-bottom: 16px;">
-    <li><strong>月份首選</strong>：每年 <strong>6 月 ～ 9 月</strong>（高溫、揮發劇烈、事件率高達 17%）。</li>
-    <li><strong>曜日首選</strong>：每週 <strong>週三至週五（特別是週五）</strong>，全週濃度與峰值最高。</li>
-    <li><strong>時段首選</strong>：清晨 <strong>04:30 ～ 06:30</strong>，大氣逆溫蓄積、偷排濃度極峰，日夜差達 2.6 倍以上。</li>
-    <li><strong>熱區焦點</strong>：東南側中山路二段 (TC1043)、黎明路 (TC0697) 與順帆路 (TC1278)，並需對幼四路 (TC0905) 歷史偷排點啟動突擊清查。</li>
+    <li><strong>空間熱區焦點收斂</strong>：全區 31 台微感中，<strong>東南側中山路二段 (TC1043)</strong> 與 <strong>黎明路 (TC0697)</strong> 確立為常態最重嫌震央，直接緊貼日南住宅生活圈；<strong>順帆路 (TC1278)</strong> 則為下風處主要擴散邊界。</li>
+    <li><strong>歷史偷排重點跟監</strong>：針對 <strong>幼四路 33號 (TC0905)</strong> 曾記錄到清晨瞬間破萬 ppb 之短波暴衝特性，建議稽查大隊將其列入重點名冊，不定期架設自動觸發採樣設備進行守株待兔式執法。</li>
   </ul>
 
   <!-- ── 第十章（附錄）：嚴格資料品管 (Data Quality Control, QC) 規則與定義說明 ── -->
@@ -968,9 +1002,9 @@ function renderCharts(data) {{
         labels: weekdayNames,
         datasets: [
           {{
-            label: '高濃度月份平均 VOC (ppb)',
+            label: '各曜日平均 VOC (ppb · 全週差異 < 7%)',
             data: wMeans,
-            backgroundColor: wMeans.map(v => v >= 500 ? '#ef4444' : (v >= 480 ? '#f97316' : '#38bdf8')),
+            backgroundColor: '#38bdf8',
             borderRadius: 6,
             yAxisID: 'y'
           }},
