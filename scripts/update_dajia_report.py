@@ -379,13 +379,55 @@ new_html = f"""<!DOCTYPE html>
     box-shadow: 0 0 12px rgba(249,115,22,0.4);
   }}
 
-  footer {{
-    margin-top: 64px;
-    border-top: 1px solid var(--border);
-    padding: 28px 0;
-    text-align: center;
-    font-size: 0.85rem;
-    color: #64748b;
+  /* ── 專家級 PDF 列印專用樣式 ── */
+  @media print {{
+    *, *::before, *::after {{
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }}
+    @page {{
+      size: A4 portrait;
+      margin: 12mm 10mm 12mm 10mm;
+    }}
+    html, body {{
+      background-color: #0b0f19 !important;
+      color: #e2e8f0 !important;
+      -webkit-font-smoothing: antialiased;
+    }}
+    .wrap {{
+      max-width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }}
+    .map-toolbar,
+    .btn-hotspot,
+    .btn-locate,
+    button {{
+      display: none !important;
+    }}
+    .kpi-grid,
+    .kpi-card,
+    .chart-section,
+    .hotspot-card,
+    .callout,
+    .table-wrap,
+    table,
+    tr,
+    h2,
+    h3 {{
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }}
+    h2 {{
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+    }}
+    #dajiaMap {{
+      height: 480px !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }}
   }}
 </style>
 </head>
