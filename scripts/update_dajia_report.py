@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 更新 10_Dajia_Odor_VOC_Hotspot_Investigation_Report.html
-1. 開頭交代計算單位為每小時平均值 (Hourly Mean)
-2. 空間核密度圖後，新增第四章「全時序異常頻率多維深度分析 (月均值 -> 曜日 -> 4小時時段)」
-3. 原資料品管說明移至文末第十章，更名為「嚴格資料品管 (Data Quality Control, QC) 規則與定義說明」，不含「法規」字眼
-4. 包含 3 個新增的高質感 Chart.js 圖表：月均趨勢圖、星期幾長條圖、4小時時段雷達/長條圖
+1. 刪除原第八章「科技執法與進廠稽查 SOP 指引」
+2. 在 Leaflet 地圖繪製三大可疑熱區劃設多邊形 (Hotspot Polygons)
+3. 在第七章「三大可疑熱區與現場稽查路段定位」加入地圖劃設區域連動按鈕 (點擊自動高亮並聚焦)
+4. 更新章節編號順延 (八、結論，九、附錄品管)
 """
 import os
 import json
@@ -13,12 +13,16 @@ BASE_DIR = r"C:\GoogleAntigravity\2026IoTcenter"
 HTML_PATH = os.path.join(BASE_DIR, "documents", "10_Dajia_Odor_VOC_Hotspot_Investigation_Report.html")
 STATS_JSON_PATH = os.path.join(BASE_DIR, "documents", "figures", "dajia_stats_for_report.json")
 BOUNDARY_JSON_PATH = os.path.join(BASE_DIR, "documents", "figures", "dajia_boundary_leaflet.json")
+HOTSPOTS_JSON_PATH = os.path.join(BASE_DIR, "documents", "figures", "dajia_hotspots_zones.json")
 
 with open(STATS_JSON_PATH, "r", encoding="utf-8") as f:
     stats_data = json.load(f)
 
 with open(BOUNDARY_JSON_PATH, "r", encoding="utf-8") as f:
     boundary_latlngs = json.load(f)
+
+with open(HOTSPOTS_JSON_PATH, "r", encoding="utf-8") as f:
+    hotzones_data = json.load(f)
 
 ranking = stats_data["sensors_ranking"]
 long_term_ranking = [s for s in ranking if not s.get("is_short_term", False)]
@@ -323,10 +327,10 @@ new_html = f"""<!DOCTYPE html>
   .val-danger {{ color: #f87171; font-weight: 700; }}
   .val-warn {{ color: #fb923c; font-weight: 600; }}
 
-  /* 行動指南步驟列表 */
+  /* 熱區劃設行動指南卡片 */
   .action-grid {{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
     gap: 20px;
     margin: 24px 0 36px;
   }}
@@ -336,6 +340,11 @@ new_html = f"""<!DOCTYPE html>
     border-radius: 12px;
     padding: 24px;
     position: relative;
+    transition: all .25s ease;
+  }}
+  .action-box:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   }}
   .action-step {{
     font-size: 0.75rem;
@@ -348,6 +357,27 @@ new_html = f"""<!DOCTYPE html>
   .action-title {{ font-size: 1.15rem; font-weight: 700; color: var(--heading); margin-bottom: 10px; }}
   .action-box ul {{ padding-left: 20px; font-size: 0.92rem; color: #94a3b8; }}
   .action-box li {{ margin-bottom: 6px; }}
+
+  .btn-hotspot {{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(249,115,22,0.15);
+    border: 1px solid var(--primary);
+    color: var(--primary-light);
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-top: 14px;
+    transition: all .2s ease;
+  }}
+  .btn-hotspot:hover {{
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(249,115,22,0.4);
+  }}
 
   footer {{
     margin-top: 64px;
@@ -432,21 +462,38 @@ new_html = f"""<!DOCTYPE html>
     </ol>
   </div>
 
-  <!-- ── 第二章：微感測器空間分佈地圖與監測清冊 ── -->
-  <h2>二、大甲幼獅 31 台品管合格微感測器分佈地圖與監測清冊</h2>
-  <p>大甲幼獅工業區 500m 緩衝區範圍內共佈建 35 台微感測器，經嚴格品管後鎖定 <strong>31 台具備有效分析價值之感測器</strong>。點擊地圖圓點標記可查看詳細指標，亦可點擊下方清冊項目連動地圖定位：</p>
+  <!-- ── 第二章：微感測器空間分佈地圖與三大熱區劃設 ── -->
+  <h2>二、大甲幼獅 31 台微感測器空間分佈與三大稽查熱區劃設</h2>
+  <p>為利稽查人員於現場直觀研判，本系統於地圖上直接劃設<strong>「三大可疑熱區警戒面域」</strong>（包含東南側生活圈熱區、核心製程熱區、西北界址熱區）。點擊下方清冊或點擊熱區按鈕，地圖將自動縮放聚焦至該警戒區域：</p>
 
   <div class="chart-section" style="padding: 16px; margin-bottom: 24px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 8px;">
-      <div style="font-weight: 700; color: var(--heading);">🗺️ 空間分佈地圖 (含大甲幼獅 500m 緩衝區邊界 · 31台有效測站)</div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 8px; flex-wrap: wrap; gap: 8px;">
+      <div style="font-weight: 700; color: var(--heading);">🗺️ 空間分佈地圖 (含 500m 緩衝邊界 · 31台有效測站 · 三大劃設警戒熱區)</div>
       <div style="font-size: 0.85rem; color: #94a3b8;">
-        <span style="color:#ef4444; font-weight:bold;">●</span> VOC > 1,000 ppb &nbsp;|&nbsp;
-        <span style="color:#f97316; font-weight:bold;">●</span> 500 ~ 1,000 ppb &nbsp;|&nbsp;
-        <span style="color:#38bdf8; font-weight:bold;">●</span> < 500 ppb &nbsp;|&nbsp;
-        <span style="color:#f97316; font-weight:bold;">---</span> 500m Buffer 邊界
+        <span style="color:#ef4444; font-weight:bold;">■</span> 熱區一(東南) &nbsp;|&nbsp;
+        <span style="color:#f97316; font-weight:bold;">■</span> 熱區二(核心) &nbsp;|&nbsp;
+        <span style="color:#facc15; font-weight:bold;">■</span> 熱區三(西北) &nbsp;|&nbsp;
+        <span style="color:#f97316; font-weight:bold;">---</span> 500m 邊界
       </div>
     </div>
-    <div id="dajiaMap" style="height: 480px; width: 100%; border-radius: 10px; border: 1px solid var(--border); z-index: 1;"></div>
+    
+    <!-- 熱區快速切換按鈕列 -->
+    <div style="display: flex; gap: 10px; margin-bottom: 12px; padding: 0 4px; flex-wrap: wrap;">
+      <button onclick="focusHotspotZone('zone1')" style="background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #fca5a5; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+        📍 聚焦【熱區一：東南日南/幸福里】
+      </button>
+      <button onclick="focusHotspotZone('zone2')" style="background: rgba(249,115,22,0.15); border: 1px solid #f97316; color: #fdba74; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+        📍 聚焦【熱區二：幼四/幼五路核心區】
+      </button>
+      <button onclick="focusHotspotZone('zone3')" style="background: rgba(250,204,21,0.15); border: 1px solid #facc15; color: #fef08a; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+        📍 聚焦【熱區三：順帆/長壽路界址】
+      </button>
+      <button onclick="resetMapView()" style="background: rgba(56,189,248,0.15); border: 1px solid #38bdf8; color: #7dd3fc; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+        🔄 重設全區視角
+      </button>
+    </div>
+
+    <div id="dajiaMap" style="height: 500px; width: 100%; border-radius: 10px; border: 1px solid var(--border); z-index: 1;"></div>
   </div>
 
   <!-- 31 支微感清冊 -->
@@ -575,10 +622,10 @@ new_html = f"""<!DOCTYPE html>
   <div class="callout callout-danger">
     <div class="callout-title">🚨 第三層分析結論：清晨拂曉「04:00 ～ 08:00 (黃金核心 04:30～06:30)」為必中時段！</div>
     <ul style="margin-left: 20px;">
-      <li><strong>全區日夜反差極端</strong>：
+      <li><strong>全區日夜反差極端 (2.8 倍)</strong>：
         <strong>00:00～04:00 (深夜)</strong> 均值高達 <strong>519.2 ppb</strong>（重度率 16.7%）；
         <strong>04:00～08:00 (清晨拂曉)</strong> 均值達 <strong>486.6 ppb</strong>（重度率 15.9%）；
-        反觀 <strong>12:00～16:00 (下午)</strong> 均值僅 <strong>183.9 ppb</strong>（重度率 6.8%）。夜間至清晨重度污染頻率是白天的 <strong>2.6 倍</strong>！</li>
+        反觀 <strong>12:00～16:00 (下午)</strong> 均值僅 <strong>183.9 ppb</strong>（重度率 6.8%）。夜間至清晨重度污染頻率是白天的 <strong>2.6 ～ 2.8 倍</strong>！</li>
       <li><strong>東南常態震央 TC1043 的震撼表現</strong>：
         TC1043 在 <strong>04:00～08:00 清晨均值高達 1,948.2 ppb（P95 破 10,351 ppb，重度事件率高達 43.1%）</strong>；夜間 20:00～24:00 均值高達 2,036.7 ppb（重度率 46.5%）！白天下跌至 658 ppb。</li>
       <li><strong>執法黃金窗口</strong>：結合大氣逆溫層物理機制，<strong>清晨 04:30～06:30</strong> 是混合層高度最低、工廠以為稽查人員熟睡而直排的高峰，為進廠直擊之黃金窗口！</li>
@@ -669,80 +716,71 @@ new_html = f"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- ── 第七章：三大異味熱區深度剖析 ── -->
-  <h2>七、三大可疑熱區與現場稽查路段定位</h2>
+  <!-- ── 第七章：三大可疑熱區與現場稽查路段定位 (含地圖劃設區域連動) ── -->
+  <h2>七、三大可疑熱區劃設與現場稽查路段定位</h2>
+  <p>依據物聯網微感測大數據分析，系統已於第二章地圖上精確劃設出<strong>三大可疑熱區多邊形警戒面域</strong>。稽查人員可點擊各熱區卡片中的定位按鈕，系統將自動於地圖高亮該熱區多邊形並平滑縮放至該街廓：</p>
 
   <div class="action-grid">
-    <div class="action-box">
-      <div class="action-step">熱區一 · 優先等級：最高 (常態長效熱區)</div>
+    <!-- 熱區 1 -->
+    <div class="action-box" style="border-top: 4px solid #ef4444;">
+      <div class="action-step" style="color: #ef4444;">熱區一 · 優先等級：最高 (常態長效熱區)</div>
       <div class="action-title">東南側生活圈交界熱區</div>
       <ul>
-        <li><strong>核心測站</strong>：<code>TC1043</code> (中山路二段743號)、<code>TC0697</code> (黎明路)、<code>TC0676</code> (中山路二段912巷)。</li>
-        <li><strong>地緣特徵</strong>：緊鄰日南車站商圈、日南國小與幸福里住宅圈，常年盛行東北季風時處於工業區下風出口。</li>
-        <li><strong>污染特性</strong>：TC1043 品管後年均達 1,540 ppb，高濃度警示時數達 3,505 小時；TC0697 重度事件達 3,229 小時，直接造成居民強烈陳情。</li>
-        <li><strong>鎖定行業</strong>：塗料製造、金屬烤漆、溶劑回收、塑膠射出廠。</li>
+        <li><strong>劃設面域坐標</strong>：中心點 (24.3963°N, 120.6558°E)，涵蓋日南國小南側至中山路二段兩側。</li>
+        <li><strong>核心微感測器</strong>：<code>TC1043</code> (中山路二段743號)、<code>TC0697</code> (黎明路)、<code>TC0676</code> (中山路二段912巷)、<code>TC0875</code>、<code>TC0913</code>。</li>
+        <li><strong>現場稽查重點路段</strong>：
+          <br>• <strong>中山路二段（日南車站商圈至 743號路段）</strong>
+          <br>• <strong>黎明路（幸福里住宅密集區）</strong>
+          <br>• <strong>中山路二段 912巷</strong></li>
+        <li><strong>鎖定行業別</strong>：塗料製造、金屬表面烤漆、有機溶劑脫脂、塑膠射出廠。</li>
+        <li><strong>污染特徵</strong>：TC1043 年均達 1,540 ppb（全區第一），高濃度警示時數達 3,505 小時，重度超標率達 35%~43%，直接衝擊數千居民生活圈。</li>
       </ul>
+      <button class="btn-hotspot" onclick="focusHotspotZone('zone1')">
+        🗺️ 於地圖高亮定位【熱區一】
+      </button>
     </div>
 
-    <div class="action-box">
-      <div class="action-step">熱區 2 · 優先等級：最高 (清晨偷排嫌疑)</div>
+    <!-- 熱區 2 -->
+    <div class="action-box" style="border-top: 4px solid #f97316;">
+      <div class="action-step" style="color: #f97316;">熱區二 · 優先等級：最高 (清晨偷排嫌疑)</div>
       <div class="action-title">幼四路／幼五路核心製程區</div>
       <ul>
-        <li><strong>核心測站</strong>：<code>TC0940</code> (幼五路3號 · 長期均值 631.8 ppb)、<code>TC0905</code> (幼四路33號 · 歷史短波暴衝)。</li>
-        <li><strong>地緣特徵</strong>：位於工業區幾何中心，屬於標準的一、二類重工廠密集街廓。</li>
-        <li><strong>污染特性</strong>：TC0905 曾於清晨 4~7 點暴衝至 14,000+ ppb；TC0940 重度事件達 1,648 小時。</li>
-        <li><strong>鎖定行業</strong>：化學原材料儲槽、樹脂合成、橡膠硫化、非鐵金屬鑄造與瀝青拌合廠。</li>
+        <li><strong>劃設面域坐標</strong>：中心點 (24.4042°N, 120.6513°E)，位於工業區正中心幾何核心。</li>
+        <li><strong>核心微感測器</strong>：<code>TC0940</code> (幼五路3號)、<code>TC0905</code> (幼四路33號 · 歷史暴衝)、<code>TC0891</code>、<code>TC0941</code>、<code>TC0746</code>。</li>
+        <li><strong>現場稽查重點路段</strong>：
+          <br>• <strong>幼四路（全線重工廠街廓）</strong>
+          <br>• <strong>幼五路（與工三路交叉口周邊）</strong>
+          <br>• <strong>幼三路東段</strong></li>
+        <li><strong>鎖定行業別</strong>：化學原材料儲槽、樹脂合成、橡膠硫化、非鐵金屬鑄造與瀝青拌合廠。</li>
+        <li><strong>污染特徵</strong>：TC0905 曾於清晨 04:00～07:00 記錄到 14,442 ppb 劇烈突波；TC0940 重度事件時數達 1,648 小時，典型利用清晨逆溫直排。</li>
       </ul>
+      <button class="btn-hotspot" onclick="focusHotspotZone('zone2')">
+        🗺️ 於地圖高亮定位【熱區二】
+      </button>
     </div>
 
-    <div class="action-box">
-      <div class="action-step">熱區 3 · 優先等級：中高</div>
+    <!-- 熱區 3 -->
+    <div class="action-box" style="border-top: 4px solid #facc15;">
+      <div class="action-step" style="color: #facc15;">熱區三 · 優先等級：中高 (西北邊界受體)</div>
       <div class="action-title">西北側順帆路／長壽路界址</div>
       <ul>
-        <li><strong>核心測站</strong>：<code>TC1278</code> (順帆路18號)、<code>TC8097</code> (長壽東西六路)。</li>
-        <li><strong>地緣特徵</strong>：工業區西北界，背靠西岐與銅安里。</li>
-        <li><strong>污染特性</strong>：TC1278 品管後均值達 956.3 ppb，夜間清晨達 1,500 ppb；TC8097 重度警示達 1,360 小時。</li>
-        <li><strong>鎖定行業</strong>：機械表面切削油霧、有機溶劑脫脂清洗、小型無照鐵皮工廠。</li>
+        <li><strong>劃設面域坐標</strong>：中心點 (24.4096°N, 120.6423°E)，背靠西岐里與銅安里邊界。</li>
+        <li><strong>核心微感測器</strong>：<code>TC1278</code> (順帆路18號)、<code>TC8097</code> (長壽東西六路)、<code>TC1148</code>、<code>TC0935</code>、<code>TC0206</code>。</li>
+        <li><strong>現場稽查重點路段</strong>：
+          <br>• <strong>順帆路（18號至銅安里交界）</strong>
+          <br>• <strong>長壽東西六路</strong>
+          <br>• <strong>長壽路北端鐵皮工廠聚落</strong></li>
+        <li><strong>鎖定行業別</strong>：機械表面切削油霧、有機溶劑脫脂清洗、無照鐵皮違章加工廠。</li>
+        <li><strong>污染特徵</strong>：TC1278 清晨常態均值達 1,500 ppb，P95 峰值達 7,208 ppb；TC8097 警示時數達 1,630 小時。</li>
       </ul>
+      <button class="btn-hotspot" onclick="focusHotspotZone('zone3')">
+        🗺️ 於地圖高亮定位【熱區三】
+      </button>
     </div>
   </div>
 
-  <!-- ── 第八章：環保局科技執法行動建議 ── -->
-  <h2>八、環保局專屬「科技執法與進廠稽查」SOP 指引</h2>
-
-  <div class="action-grid">
-    <div class="action-box" style="border-top: 4px solid var(--primary)">
-      <div class="action-step">行動策略一 · 出動時機鎖定</div>
-      <div class="action-title">平假日無差別出擊：死守清晨 04:30～06:30</div>
-      <ul>
-        <li><strong>執法日期安排</strong>：<strong>平假日皆可出擊（不拘泥於特定星期）</strong>，打破週末停工迷思，週末出動更具出其不意之突襲威懾效果。</li>
-        <li><strong>黃金執法時段</strong>：鎖定清晨 <strong>04:30 ～ 06:30</strong>（逆溫蓄積、偷排極峰，重度事件率高達白天的 2.6 倍）。</li>
-        <li><strong>執法策略</strong>：避開日間常規巡查時段，採取無預警拂曉出擊，封鎖幼四路、幼五路及中山路二段主要聯外路口。</li>
-      </ul>
-    </div>
-
-    <div class="action-box" style="border-top: 4px solid var(--blue)">
-      <div class="action-step">行動策略二 · 科技裝備</div>
-      <div class="action-title">配置精密科技執法設備</div>
-      <ul>
-        <li><strong>紅外線光學氣體熱像儀 (FLIR / OGI)</strong>：針對頂樓煙囪、廢氣洗滌塔及密閉廠房縫隙進行無感攝影，使肉眼不可見的揮發性有機氣體無所遁形。</li>
-        <li><strong>攜帶型光離子偵測器 (PID)</strong>：即時量測廠界及製程周界 VOC 濃度，直接作為開單佐證。</li>
-        <li><strong>自動觸發採樣袋 (Tedlar Bag)</strong>：於 TC1043 旁架設，連動微感測器門檻（濃度 > 1,500 ppb 自動採樣），送驗三點比較式臭氣袋法 (NIEA A201.15A)。</li>
-      </ul>
-    </div>
-
-    <div class="action-box" style="border-top: 4px solid var(--green)">
-      <div class="action-step">行動策略三 · 製程清查</div>
-      <div class="action-title">深度稽查重點清查要項</div>
-      <ul>
-        <li><strong>空污防制設備操作紀錄</strong>：調閱活性碳吸附塔、洗滌塔或蓄熱式焚化爐 (RTO) 之電表、壓差計及活性碳更換發票。</li>
-        <li><strong>原物料溶劑平衡計算</strong>：核算有機溶劑（如甲苯、二甲苯、丁酮、乙酸乙酯）之進貨量與成品、廢溶劑申報量是否吻合，查核是否有暗管偷排。</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- ── 第九章：結論與後續跟進 ── -->
-  <h2>九、結論與後續跟進：大數據三大維度訊號對比與執法資源最優配置</h2>
+  <!-- ── 第八章：結論與後續跟進 ── -->
+  <h2>八、結論與後續跟進：大數據三大維度訊號對比與執法資源最優配置</h2>
   <p>大甲幼獅工業區「異味票選最高」之民意並非空穴來風，而是有扎實之物聯網微感測數據為證。本評估報告以<strong>「每小時平均值 (Hourly Mean)」為基底</strong>，在排除故障設備、嚴格剔除儀器溢位異常值之科學品管基礎下，透過長時序多維度交叉剖析，獲致大數據三大維度訊號強弱對比之關鍵結論：</p>
   
   <!-- 三大維度訊號強弱對比矩陣 -->
@@ -767,7 +805,7 @@ new_html = f"""<!DOCTYPE html>
           <td><strong style="color:var(--primary);">月份維度 (Month of Year)</strong></td>
           <td><span style="color:var(--primary);font-weight:bold;">⚡ 強信號 (2.0 倍)</span></td>
           <td>夏季 6～9 月均值 <strong>540 ppb</strong> 是冬季 (270 ppb) 的 <strong>整整 2.0 倍</strong> (事件率達 17%)</td>
-          <td><strong>專案專案資源集中於夏季高溫期</strong>，高溫揮發劇烈且海陸風逆溫蓄積最嚴重，陳情高峰期重兵布防。</td>
+          <td><strong>專案資源集中於夏季高溫期</strong>，高溫揮發劇烈且海陸風逆溫蓄積最嚴重，陳情高峰期重兵布防。</td>
         </tr>
         <tr>
           <td><strong style="color:var(--blue);">星期維度 (Day of Week)</strong></td>
@@ -784,8 +822,8 @@ new_html = f"""<!DOCTYPE html>
     <li><strong>歷史偷排重點跟監</strong>：針對 <strong>幼四路 33號 (TC0905)</strong> 曾記錄到清晨瞬間破萬 ppb 之短波暴衝特性，建議稽查大隊將其列入重點名冊，不定期架設自動觸發採樣設備進行守株待兔式執法。</li>
   </ul>
 
-  <!-- ── 第十章（附錄）：嚴格資料品管 (Data Quality Control, QC) 規則與定義說明 ── -->
-  <h2>十、附錄：嚴格資料品管 (Data Quality Control, QC) 規則與定義說明</h2>
+  <!-- ── 第九章（附錄）：嚴格資料品管 (Data Quality Control, QC) 規則與定義說明 ── -->
+  <h2>九、附錄：嚴格資料品管 (Data Quality Control, QC) 規則與定義說明</h2>
   <div class="callout callout-qc" style="border-left: 4px solid var(--green); background: rgba(52,211,153,0.06); padding: 22px; border-radius: 12px; margin: 20px 0 36px;">
     <div class="callout-title" style="font-size: 1.1rem; color: var(--green); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
       🛡️ 數據清理原則、設備剔除清冊與篩選門檻定義說明
@@ -815,7 +853,7 @@ new_html = f"""<!DOCTYPE html>
 
   <footer>
     臺中市政府微型感測器大數據分析平台 · 智慧環境科技執法決策系統<br>
-    數據基底：大甲幼獅工業區 500m 微型感測器每小時歷史數據 (2025.06.27 - 2026.09.01 · 共432天全時序 · 每小時平均值計算) · 檔案版本 v2.5
+    數據基底：大甲幼獅工業區 500m 微型感測器每小時歷史數據 (2025.06.27 - 2026.09.01 · 共432天全時序 · 每小時平均值計算) · 檔案版本 v3.0
   </footer>
 
 </div>
@@ -823,18 +861,19 @@ new_html = f"""<!DOCTYPE html>
 <!-- ── Chart.js 數據驅動腳本 ── -->
 <script>
 const REPORT_DATA = {json.dumps(stats_data, ensure_ascii=False)};
+const BOUNDARY_LATLNGS = {json.dumps(boundary_latlngs)};
+const HOTSPOTS_DATA = {json.dumps(hotzones_data, ensure_ascii=False)};
 
 document.addEventListener("DOMContentLoaded", function() {{
   renderCharts(REPORT_DATA);
-  initDajiaMap(REPORT_DATA);
+  initDajiaMap(REPORT_DATA, HOTSPOTS_DATA);
 }});
-
-const BOUNDARY_LATLNGS = {json.dumps(boundary_latlngs)};
 
 let mapInstance = null;
 let markersMap = {{}};
+let hotspotLayers = {{}};
 
-function initDajiaMap(data) {{
+function initDajiaMap(data, hotspots) {{
   if (!document.getElementById('dajiaMap')) return;
 
   mapInstance = L.map('dajiaMap').setView([24.402, 120.648], 14);
@@ -845,17 +884,49 @@ function initDajiaMap(data) {{
     maxZoom: 19
   }}).addTo(mapInstance);
 
+  // 1. 繪製 500m 緩衝區邊界
   if (BOUNDARY_LATLNGS && BOUNDARY_LATLNGS.length > 0) {{
     const poly = L.polygon(BOUNDARY_LATLNGS, {{
       color: '#f97316',
-      weight: 2.5,
-      dashArray: '6, 6',
+      weight: 2,
+      dashArray: '5, 5',
       fillColor: '#f97316',
-      fillOpacity: 0.08
+      fillOpacity: 0.05
     }}).addTo(mapInstance);
     poly.bindTooltip("大甲幼獅工業區 500m 緩衝區邊界", {{ sticky: true }});
   }}
 
+  // 2. 繪製三大可疑熱區劃設多邊形 (Hotspots Polygons)
+  if (hotspots) {{
+    Object.keys(hotspots).forEach(zid => {{
+      const z = hotspots[zid];
+      const zonePoly = L.polygon(z.polygon, {{
+        color: z.color,
+        weight: 2.5,
+        fillColor: z.color,
+        fillOpacity: 0.18,
+        dashArray: zid === 'zone1' ? null : '4, 4'
+      }}).addTo(mapInstance);
+
+      const zonePopup = `
+        <div style="color:#0f172a; font-family:sans-serif; min-width:220px;">
+          <h4 style="margin:0 0 6px; color:${{z.color}}; border-bottom:2px solid ${{z.color}}; padding-bottom:4px;">
+            ${{z.name}}
+          </h4>
+          <div style="font-size:12px; line-height:1.6;">
+            <b>稽查優先級:</b> <span style="color:${{z.color}}; font-weight:bold;">${{z.priority}}</span><br>
+            <b>涵蓋測站:</b> ${{z.sensors.join(', ')}}<br>
+            <b>特徵簡述:</b> ${{z.desc}}
+          </div>
+        </div>
+      `;
+      zonePoly.bindPopup(zonePopup);
+      zonePoly.bindTooltip(z.name, {{ sticky: true }});
+      hotspotLayers[zid] = zonePoly;
+    }});
+  }}
+
+  // 3. 繪製微感測器 Marker
   const tbody = document.getElementById('sensorsTableBody');
   if (tbody) tbody.innerHTML = '';
 
@@ -872,7 +943,7 @@ function initDajiaMap(data) {{
       color: '#ffffff',
       weight: 1.5,
       opacity: 1,
-      fillOpacity: 0.9
+      fillOpacity: 0.95
     }}).addTo(mapInstance);
 
     const popupHtml = `
@@ -916,6 +987,19 @@ function initDajiaMap(data) {{
       tbody.appendChild(tr);
     }}
   }});
+}}
+
+function focusHotspotZone(zoneId) {{
+  if (!mapInstance || !hotspotLayers[zoneId]) return;
+  const layer = hotspotLayers[zoneId];
+  mapInstance.fitBounds(layer.getBounds(), {{ padding: [40, 40], animate: true }});
+  layer.openPopup();
+  document.getElementById('dajiaMap').scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+}}
+
+function resetMapView() {{
+  if (!mapInstance) return;
+  mapInstance.setView([24.402, 120.648], 14, {{ animate: true }});
 }}
 
 function focusSensor(deviceId, lat, lon) {{
@@ -1301,4 +1385,4 @@ function renderCharts(data) {{
 with open(HTML_PATH, "w", encoding="utf-8") as f:
     f.write(new_html)
 
-print("✅ 大甲幼獅報告 HTML 全新改版完成！新增三層時序異常分析、品管章節移至文末、開頭標明小時均值。")
+print("✅ 大甲幼獅報告 HTML 更新完畢！已刪除原第八章 SOP，地圖已劃設三大熱區並具備卡片雙向連動。")
