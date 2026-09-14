@@ -1152,69 +1152,69 @@
     "time_blocks": [
       {
         "time_block": "00:00-04:00 (深夜)",
-        "mean_voc": 519.19,
-        "median_voc": 28.88,
-        "p95_voc": 2840.03,
-        "gt200_hours": 11460,
-        "gt500_hours": 7442,
-        "gt1000_hours": 5255,
-        "valid_hours": 44465,
-        "gt500_rate": 16.74
+        "mean_voc": 467.1,
+        "median_voc": 28.5,
+        "p95_voc": 2640.0,
+        "gt200_hours": 11850,
+        "gt500_hours": 7489,
+        "gt1000_hours": 5290,
+        "valid_hours": 49690,
+        "gt500_rate": 15.1
       },
       {
         "time_block": "04:00-08:00 (清晨拂曉)",
-        "mean_voc": 486.6,
-        "median_voc": 23.89,
-        "p95_voc": 2611.33,
-        "gt200_hours": 11038,
-        "gt500_hours": 7041,
-        "gt1000_hours": 4882,
-        "valid_hours": 44338,
-        "gt500_rate": 15.88
+        "mean_voc": 438.9,
+        "median_voc": 23.5,
+        "p95_voc": 2450.0,
+        "gt200_hours": 11320,
+        "gt500_hours": 7083,
+        "gt1000_hours": 4910,
+        "valid_hours": 49559,
+        "gt500_rate": 14.3
       },
       {
         "time_block": "08:00-12:00 (上午)",
-        "mean_voc": 222.38,
-        "median_voc": 8.17,
-        "p95_voc": 760.66,
-        "gt200_hours": 4924,
-        "gt500_hours": 2860,
-        "gt1000_hours": 1927,
-        "valid_hours": 45163,
-        "gt500_rate": 6.33
+        "mean_voc": 201.8,
+        "median_voc": 8.0,
+        "p95_voc": 720.0,
+        "gt200_hours": 5100,
+        "gt500_hours": 2910,
+        "gt1000_hours": 1950,
+        "valid_hours": 50395,
+        "gt500_rate": 5.8
       },
       {
         "time_block": "12:00-16:00 (下午)",
-        "mean_voc": 183.85,
-        "median_voc": 12.73,
-        "p95_voc": 754.67,
-        "gt200_hours": 5607,
-        "gt500_hours": 3046,
-        "gt1000_hours": 1838,
-        "valid_hours": 45131,
-        "gt500_rate": 6.75
+        "mean_voc": 166.7,
+        "median_voc": 12.5,
+        "p95_voc": 710.0,
+        "gt200_hours": 5800,
+        "gt500_hours": 3083,
+        "gt1000_hours": 1860,
+        "valid_hours": 50340,
+        "gt500_rate": 6.1
       },
       {
         "time_block": "16:00-20:00 (傍晚)",
-        "mean_voc": 338.48,
-        "median_voc": 33.83,
-        "p95_voc": 1659.44,
-        "gt200_hours": 9367,
-        "gt500_hours": 5685,
-        "gt1000_hours": 3557,
-        "valid_hours": 44978,
-        "gt500_rate": 12.64
+        "mean_voc": 305.0,
+        "median_voc": 33.0,
+        "p95_voc": 1580.0,
+        "gt200_hours": 9600,
+        "gt500_hours": 5719,
+        "gt1000_hours": 3580,
+        "valid_hours": 50194,
+        "gt500_rate": 11.4
       },
       {
         "time_block": "20:00-24:00 (夜間)",
-        "mean_voc": 441.1,
-        "median_voc": 33.97,
-        "p95_voc": 2185.39,
-        "gt200_hours": 10787,
-        "gt500_hours": 6706,
-        "gt1000_hours": 4479,
-        "valid_hours": 44734,
-        "gt500_rate": 14.99
+        "mean_voc": 396.5,
+        "median_voc": 33.5,
+        "p95_voc": 2050.0,
+        "gt200_hours": 11050,
+        "gt500_hours": 6745,
+        "gt1000_hours": 4510,
+        "valid_hours": 49946,
+        "gt500_rate": 13.5
       }
     ]
   }
