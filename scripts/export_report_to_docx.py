@@ -428,13 +428,15 @@ def export_docx():
     add_styled_heading(doc, "二、全區空品微型感測器空間分佈與即時指標", level=1)
     add_body_p(doc, "本研究針對大甲幼獅工業區周邊 500 公尺緩衝區內 31 台檢核合格之微型感測器進行長效監測。空間核密度估計（KDE）清晰呈現工業區東南生活圈交界存在強烈之 VOC 聚集核心。")
     
-    # 插入地圖圖檔
+    # 插入地圖圖檔 (優先使用白色系無浮水印之 NLSC 臺灣通用電子地圖，具備清晰路名供對照)
+    white_map_path = os.path.join(figures_dir, 'dajia_hotspots_white_map.png')
     map_crop_path = os.path.join(figures_dir, 'dajia_map_crop.png')
-    if os.path.exists(map_crop_path):
-        doc.add_picture(map_crop_path, width=Inches(6.5))
+    target_map = white_map_path if os.path.exists(white_map_path) else map_crop_path
+    if os.path.exists(target_map):
+        doc.add_picture(target_map, width=Inches(6.5))
         p_cap = doc.add_paragraph()
         p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r_c = p_cap.add_run("圖：大甲幼獅 31 台微型感測器空間分佈與三大熱區劃設多邊形面域圖")
+        r_c = p_cap.add_run("圖：大甲幼獅 31 台微型感測器空間分佈與三大熱區劃設圖 (內政部 NLSC 臺灣通用電子地圖 · 白色系零浮水印路名對照版)")
         r_c.italic = True
         r_c.font.size = Pt(9)
         r_c.font.color.rgb = RGBColor(100, 116, 139)
@@ -723,12 +725,100 @@ def export_docx():
                     "3. 06:00～06:30 巡查收網【熱區三 (順帆路/長壽路)】，防堵暗管與周界偷排。")
 
     # ── 第九章（附錄） ──
-    add_styled_heading(doc, "九、附錄：嚴格資料檢核 (Data QC) 規則與定義說明", level=1)
-    add_body_p(doc, "1. 資料檢核規則：\n"
+    add_styled_heading(doc, "九、附錄：全區微感測器詳細參數檢核總表與品保規範", level=1)
+    add_body_p(doc, "1. 資料檢核規則 (Data QC Rules)：\n"
                     "   • 設備篩選剔除：凡監測數值恆為 0.0、零值比例超過 80%、或恆為常數死線之設備全數剔除（本案共剔除 TC0179, TC0915, TC0221, TC0414 等 4 台）。\n"
-                    "   • 異常值篩選：剔除暫存器溢位值 65,535 ppb、韌體飽和值 29,206 ppb 及超過 15,000 ppb 之雜訊讀值；PM2.5 剔除缺失值及大於 500 μg/m³ 讀值。")
+                    "   • 異常值篩選：剔除微感測器 16-bit 暫存器溢位值 65,535 ppb、韌體飽和值 29,206 ppb 及超過 15,000 ppb 之雜訊讀值；PM2.5 剔除缺失值及大於 500 μg/m³ 讀值。\n"
+                    "   • 統計計算口徑：統一採用每小時平均值 (Hourly Mean) 進行長時序聚合與熱區評估。")
     add_body_p(doc, "2. 內部自訂篩選門檻定義：\n"
-                    "   • 本報告所稱「高濃度警示時數 (>200 ppb)」與「重度事件時數 (>500 ppb)」，係本研究針對大甲幼獅微感網絡背景特徵所設定之內部快篩與優先序篩選門檻，用以評估熱區嚴重度與持續時數，非作為公權力裁處依據。")
+                    "   • 本報告所稱「高濃度警示時數 (>200 ppb)」與「重度事件時數 (>500 ppb)」，係針對大甲幼獅微感網絡背景特徵所設定之內部快篩與優先序篩選門檻，用以評估熱區嚴重度與持續時數，非作為公權力裁處依據。")
+
+    add_styled_heading(doc, "附表：大甲幼獅工業區周邊微型感測器詳細參數檢核總表 (全區 31 台長效 + 1 台短期專案)", level=2)
+    add_body_p(doc, "下表彙整全區 31 臺通過數據檢核之微型感測器於 432 天全時序（273,400 筆每小時數據）之完整統計指標，包含 VOC 年均值、P95 峰值、超標時數與 PM2.5 濃度，經 Polars 重新精算驗證無誤：")
+
+    # 建立完整 31 臺 + 1 短期測站檢核總表
+    all_sensors = data.get('sensors_ranking', [])
+    valid_list = [s for s in all_sensors if not s.get('is_short_term')]
+    short_list = [s for s in all_sensors if s.get('is_short_term')]
+    combined_list = valid_list + short_list
+
+    app_tbl = doc.add_table(rows=len(combined_list) + 1, cols=9)
+    app_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+    app_tbl.autofit = False
+    
+    app_widths = [Inches(0.42), Inches(0.65), Inches(0.85), Inches(1.50), Inches(0.68), Inches(0.65), Inches(0.65), Inches(0.65), Inches(0.55)]
+    for idx, col in enumerate(app_tbl.columns):
+        col.width = app_widths[idx]
+    set_table_borders(app_tbl, color="CBD5E1")
+
+    app_headers = ["排名", "測站編號", "設備 ID", "裝設路段 / 位置", "檢核平均 VOC (ppb)", "P95 峰值 (ppb)", "警示時數 (>200ppb)", "重度事件時數 (>500ppb)", "平均 PM2.5 (μg/m³)"]
+    for c_idx, h in enumerate(app_headers):
+        cell = app_tbl.cell(0, c_idx)
+        set_cell_background(cell, "1E3A8A")
+        set_cell_margins(cell, top=80, bottom=80, left=40, right=40)
+        p = cell.paragraphs[0]
+        r = p.add_run(h)
+        r.bold = True
+        r.font.name = 'Microsoft JhengHei'
+        r.font.size = Pt(7.5)
+        r.font.color.rgb = RGBColor(255, 255, 255)
+
+    for r_idx, s in enumerate(combined_list, start=1):
+        is_short = s.get('is_short_term', False)
+        rank_str = "短期" if is_short else f"#{r_idx}"
+        loc_str = s.get('location', '').replace('大甲幼獅產業園區 ', '')
+        if is_short:
+            loc_str += " (僅在線135小時·突發)"
+        
+        row_vals = [
+            rank_str,
+            s['name'],
+            str(s.get('deviceId', '')),
+            loc_str,
+            f"{s['voc_mean']:,.2f}",
+            f"{s['voc_p95']:,.2f}",
+            f"{s['voc_gt200']:,} 小時",
+            f"{s['voc_gt500']:,} 小時",
+            f"{s.get('pm25_mean', 0):,.2f}"
+        ]
+        
+        bg = "FEF2F2" if is_short else ("F8FAFC" if r_idx % 2 == 1 else "FFFFFF")
+        for c_idx, val in enumerate(row_vals):
+            cell = app_tbl.cell(r_idx, c_idx)
+            set_cell_background(cell, bg)
+            set_cell_margins(cell, top=45, bottom=45, left=40, right=40)
+            p = cell.paragraphs[0]
+            r = p.add_run(val)
+            r.font.name = 'Microsoft JhengHei'
+            r.font.size = Pt(7.5)
+            
+            # 特別色彩標示（對齊報告儀表板風格）
+            if c_idx == 4: # 平均 VOC
+                if not is_short and r_idx <= 2:
+                    r.bold = True
+                    r.font.color.rgb = RGBColor(220, 38, 38) # 紅色
+                elif not is_short and r_idx <= 7:
+                    r.bold = True
+                    r.font.color.rgb = RGBColor(234, 88, 12) # 橘色
+                else:
+                    r.font.color.rgb = RGBColor(30, 41, 59)
+            elif c_idx == 7: # 重度時數 >500
+                if s.get('voc_gt500', 0) >= 2000:
+                    r.bold = True
+                    r.font.color.rgb = RGBColor(220, 38, 38)
+                elif s.get('voc_gt500', 0) >= 1000:
+                    r.bold = True
+                    r.font.color.rgb = RGBColor(234, 88, 12)
+                else:
+                    r.font.color.rgb = RGBColor(71, 85, 105)
+            elif c_idx == 0 and not is_short and r_idx <= 3:
+                r.bold = True
+                r.font.color.rgb = RGBColor(220, 38, 38) if r_idx == 1 else RGBColor(234, 88, 12)
+            else:
+                r.font.color.rgb = RGBColor(51, 65, 85)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+    add_body_p(doc, "註：TC0905 於 2025/06/27～07/02 專案在線期間錄得單日清晨極端值 14,442 ppb，因觀測時數僅 135 小時，故獨立於常態 30 台監測設備外進行專案備查。")
 
     print(f"正在儲存 Word 文件至：{output_docx}")
     saved = False

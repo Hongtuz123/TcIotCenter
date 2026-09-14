@@ -1058,11 +1058,21 @@ function initDajiaMap(data, hotspots) {
 
   mapInstance = L.map('dajiaMap').setView([24.402, 120.648], 14);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
+  // 使用無浮水印且路名繁體中文清晰之白色系標準圖磚 (OpenStreetMap)
+  const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 貢獻者',
     maxZoom: 19
   }).addTo(mapInstance);
+
+  const nlscLayer = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+    attribution: '&copy; 內政部國土測繪中心 (NLSC)',
+    maxZoom: 19
+  });
+
+  L.control.layers({
+    "OpenStreetMap (白色路名底圖)": osmLayer,
+    "臺灣通用電子地圖 (NLSC 官方白底)": nlscLayer
+  }, null, { position: 'topright' }).addTo(mapInstance);
 
   // 1. 繪製 500m 緩衝區邊界
   if (BOUNDARY_LATLNGS && BOUNDARY_LATLNGS.length > 0) {
