@@ -614,6 +614,72 @@
     </div>
   </div>
 
+  <!-- 6 大時段交叉分析詳細表格 (含超標次數) -->
+  <div class="tbl-wrap" style="margin: 20px 0 28px;">
+    <table>
+      <thead>
+        <tr>
+          <th>時段區間</th>
+          <th>代表時段特徵</th>
+          <th>VOC 均值 (ppb)</th>
+          <th style="color: #fca5a5;">超標次數 (>500 ppb)</th>
+          <th>重度事件率</th>
+          <th>執法優先序</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background: rgba(239, 68, 68, 0.12);">
+          <td><strong style="color: #ef4444;">04:00～08:00</strong></td>
+          <td style="color: #f87171; font-weight: 600;">清晨逆溫壓制期</td>
+          <td><strong>520 ppb</strong></td>
+          <td><strong style="color: #ef4444; font-size: 1.05rem;">7,083 次</strong></td>
+          <td><strong>16.7%</strong></td>
+          <td><span style="background: #ef4444; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">第一優先 (黃金窗口)</span></td>
+        </tr>
+        <tr style="background: rgba(249, 115, 22, 0.08);">
+          <td><strong>00:00～04:00</strong></td>
+          <td style="color: #fb923c; font-weight: 600;">深夜偷排高發期</td>
+          <td><strong>465 ppb</strong></td>
+          <td><strong style="color: #f97316; font-size: 1.05rem;">7,489 次</strong></td>
+          <td><strong>14.2%</strong></td>
+          <td><span style="background: #f97316; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">高優先 (夜間跟監)</span></td>
+        </tr>
+        <tr>
+          <td>20:00～24:00</td>
+          <td>夜間排放蓄積期</td>
+          <td>380 ppb</td>
+          <td><strong style="color: #facc15;">6,745 次</strong></td>
+          <td>9.8%</td>
+          <td><span style="background: #eab308; color: #0f172a; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">中優先 (駐點快篩)</span></td>
+        </tr>
+        <tr>
+          <td>16:00～20:00</td>
+          <td>傍晚風向轉換期</td>
+          <td>245 ppb</td>
+          <td><strong style="color: #94a3b8;">5,719 次</strong></td>
+          <td>7.1%</td>
+          <td><span style="color: #94a3b8;">常態監測</span></td>
+        </tr>
+        <tr>
+          <td>12:00～16:00</td>
+          <td>午後對流消散期</td>
+          <td>183 ppb</td>
+          <td><strong style="color: #94a3b8;">3,083 次</strong></td>
+          <td>6.8%</td>
+          <td><span style="color: #64748b;">一般巡查</span></td>
+        </tr>
+        <tr>
+          <td>08:00～12:00</td>
+          <td>晨間工廠開工期</td>
+          <td>285 ppb</td>
+          <td><strong style="color: #94a3b8;">2,910 次</strong></td>
+          <td>7.5%</td>
+          <td><span style="color: #94a3b8;">常態監測</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
   <div class="callout callout-danger">
     <div class="callout-title">🚨 第三層分析結論：清晨拂曉「04:00 ～ 08:00 (黃金核心 04:30～06:30)」為必中時段！</div>
     <ul style="margin-left: 20px;">

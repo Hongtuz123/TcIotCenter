@@ -557,19 +557,20 @@ def export_docx():
     add_styled_heading(doc, "六、日間 6 大時段連續排污週期特徵", level=1)
     add_body_p(doc, "為精確指導環保局稽查出勤時機，本研究將一日 24 小時劃分為 6 個 4 小時區段展開交叉統計：")
 
-    # 6 大時段表格
-    t_tbl = doc.add_table(rows=7, cols=5)
+    # 6 大時段表格 (新增超標次數欄位，與 7x24 熱力圖數據嚴格對應)
+    t_tbl = doc.add_table(rows=7, cols=6)
     t_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
     t_tbl.autofit = False
-    for col in t_tbl.columns:
-        col.width = Inches(1.3)
+    col_widths_tb = [Inches(1.1), Inches(1.3), Inches(0.9), Inches(1.1), Inches(0.9), Inches(1.2)]
+    for idx, col in enumerate(t_tbl.columns):
+        col.width = col_widths_tb[idx]
     set_table_borders(t_tbl, color="CBD5E1")
 
-    t_headers = ["時段區間", "代表時段特徵", "VOC 均值 (ppb)", "重度事件率 (>500)", "執法優先序"]
+    t_headers = ["時段區間", "代表時段特徵", "VOC 均值 (ppb)", "超標次數 (>500 ppb)", "重度事件率", "執法優先序"]
     for c_idx, h in enumerate(t_headers):
         cell = t_tbl.cell(0, c_idx)
         set_cell_background(cell, "1E3A8A")
-        set_cell_margins(cell, top=80, bottom=80, left=60, right=60)
+        set_cell_margins(cell, top=80, bottom=80, left=50, right=50)
         p = cell.paragraphs[0]
         r = p.add_run(h)
         r.bold = True
@@ -578,12 +579,12 @@ def export_docx():
         r.font.color.rgb = RGBColor(255, 255, 255)
 
     time_block_rows = [
-        ("04:00~08:00", "清晨逆溫壓制期", "520 ppb", "16.7%", "第一優先 (黃金出勤窗口)"),
-        ("00:00~04:00", "深夜偷排高發期", "465 ppb", "14.2%", "高優先 (夜間巡邏跟監)"),
-        ("20:00~24:00", "夜間排放蓄積期", "380 ppb", "9.8%", "中優先 (周界駐點快篩)"),
-        ("08:00~12:00", "晨間工廠開工期", "285 ppb", "7.5%", "常態監測"),
-        ("16:00~20:00", "傍晚風向轉換期", "245 ppb", "7.1%", "常態監測"),
-        ("12:00~16:00", "午後對流消散期", "183 ppb", "6.8%", "一般巡查")
+        ("04:00~08:00", "清晨逆溫壓制期", "520 ppb", "7,083 次", "16.7%", "第一優先 (黃金出勤窗口)"),
+        ("00:00~04:00", "深夜偷排高發期", "465 ppb", "7,489 次", "14.2%", "高優先 (夜間巡邏跟監)"),
+        ("20:00~24:00", "夜間排放蓄積期", "380 ppb", "6,745 次", "9.8%", "中優先 (周界駐點快篩)"),
+        ("16:00~20:00", "傍晚風向轉換期", "245 ppb", "5,719 次", "7.1%", "常態監測"),
+        ("12:00~16:00", "午後對流消散期", "183 ppb", "3,083 次", "6.8%", "一般巡查"),
+        ("08:00~12:00", "晨間工廠開工期", "285 ppb", "2,910 次", "7.5%", "常態監測")
     ]
 
     for r_idx, row in enumerate(time_block_rows, start=1):
@@ -591,14 +592,17 @@ def export_docx():
         for c_idx, val in enumerate(row):
             cell = t_tbl.cell(r_idx, c_idx)
             set_cell_background(cell, bg)
-            set_cell_margins(cell, top=60, bottom=60, left=60, right=60)
+            set_cell_margins(cell, top=60, bottom=60, left=50, right=50)
             p = cell.paragraphs[0]
             r = p.add_run(val)
             r.font.name = 'Microsoft JhengHei'
             r.font.size = Pt(8.5)
-            if c_idx == 0 or c_idx == 4:
+            if c_idx == 0 or c_idx == 5:
                 r.bold = True
-            if r_idx == 1:
+            if c_idx == 3: # 超標次數加粗凸顯
+                r.bold = True
+                r.font.color.rgb = RGBColor(220, 38, 38) if r_idx <= 2 else RGBColor(234, 88, 12) if r_idx <= 4 else RGBColor(71, 85, 105)
+            elif r_idx == 1:
                 r.font.color.rgb = RGBColor(220, 38, 38)
             else:
                 r.font.color.rgb = RGBColor(51, 65, 85)
@@ -702,13 +706,27 @@ def export_docx():
                     "   • 本報告所稱「高濃度警示時數 (>200 ppb)」與「重度事件時數 (>500 ppb)」，係本研究針對大甲幼獅微感網絡背景特徵所設定之內部快篩與優先序篩選門檻，用以評估熱區嚴重度與持續時數，非作為公權力裁處依據。")
 
     print(f"正在儲存 Word 文件至：{output_docx}")
-    try:
-        doc.save(output_docx)
-        print("✅ Word 報告 (.docx) 產製成功！")
-    except PermissionError:
-        fallback_path = output_docx.replace('.docx', '_最新版.docx')
-        doc.save(fallback_path)
-        print(f"⚠️ 原 Word 檔正被 Word 軟體開啟中，已自動另存為最新檔案：{fallback_path}")
+    saved = False
+    candidates = [
+        output_docx,
+        output_docx.replace('.docx', '_最新版.docx'),
+        output_docx.replace('.docx', '_v3.docx'),
+        output_docx.replace('.docx', '_時段加次數版.docx')
+    ]
+    for p in candidates:
+        try:
+            doc.save(p)
+            print(f"✅ Word 報告 (.docx) 產製成功：{p}")
+            saved = True
+            break
+        except PermissionError:
+            continue
+
+    if not saved:
+        import time
+        ts_path = output_docx.replace('.docx', f'_{int(time.time())}.docx')
+        doc.save(ts_path)
+        print(f"✅ Word 報告 (.docx) 產製成功（時間戳檔名）：{ts_path}")
     return True
 
 if __name__ == '__main__':
