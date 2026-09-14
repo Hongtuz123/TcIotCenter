@@ -639,9 +639,27 @@ new_html = f"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- 星期 ✕ 小時 7x24 超標熱力矩陣圖 (每格剛好 1 小時) -->
+  <div class="chart-section" style="margin-top: 24px;">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">🔥 星期與小時 (Weekday vs. Hour) 重度超標 (>500 ppb) 頻率熱力矩陣圖</div>
+        <div class="chart-desc">X 軸為每日發生小時 (00:00～23:00 · 每格剛好 1 小時) ；Y 軸為週一至週日；格子數字為全區合格測站累積超標次數</div>
+      </div>
+    </div>
+    <div style="text-align: center; margin-top: 10px;">
+      <img src="figures/dajia_weekday_hour_heatmap.png" alt="星期與小時超標頻率熱力矩陣圖" style="width: 100%; max-width: 1200px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.25);">
+      <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 8px; font-style: italic;">
+        圖：全區微感測器 VOC 重度超標 (>500 ppb) 星期與小時熱力圖（橫向清晨 00～06 時極強爆發 · 縱向全週天天均勻連續排污）
+      </div>
+    </div>
+  </div>
+
   <div class="callout callout-info">
     <div class="callout-title">🎯 第二層分析重要結論：星期維度「無顯著信號」，打破「週末工廠停工空氣較好」的傳統迷思！</div>
     <ul style="margin-left: 20px; line-height: 1.8;">
+      <li><strong>熱力矩陣橫向透視（X 軸小時）</strong>：從 00 時至 06 時，全週每天清晨每一格累積超標次數高達 <strong>250～306 次</strong>（呈深紅色火海）；中午 11～14 時驟降至 <strong>71～99 次</strong>（退為淺黃色），清晨超標頻率為午後的 <strong>3.5 倍</strong>。</li>
+      <li><strong>熱力矩陣縱向透視（Y 軸星期）</strong>：週一至週日每一列的紅色火斑結構完全一致！各星期累積超標總次數（週一 4,798 次 ～ 週日 4,611 次）<strong>全週差距僅 5.6%</strong>，直接以二維大數據證實全區污染「全週 7 天天天連續排污」，平假日出勤皆具高度效益。</li>
       <li><strong>平假日無差別排放（差異僅 6.9%）</strong>：統計顯示工作日（週一至週五）平均 VOC 為 <strong>371.9 ppb</strong>，週末（週六週日）平均 VOC 仍高達 <strong>347.8 ppb</strong>，兩者差距僅 <strong>24.1 ppb（波動率僅 6.9%）</strong>；全週每日重度事件率（>500 ppb）均勻落在 <strong>11.8% ～ 12.6%</strong>，統計檢定幾無週期性波動。</li>
       <li><strong>核心震央 TC1043 週末照常高壓排放</strong>：即使觀察東南側最高熱區 TC1043，週六平均 VOC 依然高達 <strong>1,599.5 ppb</strong>，重度事件率達 <strong>35.7%</strong>（與平日週二～週五完全相同）！</li>
       <li><strong>執法作戰指導意義</strong>：這證實大甲幼獅的違規業者多屬 <strong>24 小時連續式製程（Continuous Process，如連續合成反應、表面塗裝、塑膠射出）</strong>，或將空污防制設備夜間停機視為常態，<strong>工廠週末根本沒有停工停排！</strong>因此，稽查大隊<strong>「平假日任何一天出動皆可，排班無須受限於週間或週末」</strong>。</li>
