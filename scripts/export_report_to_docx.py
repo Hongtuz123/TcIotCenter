@@ -100,20 +100,33 @@ def generate_charts(data, output_dir):
     plt.savefig(chart2_path)
     plt.close()
 
-    # 圖表 3: 月份均值長條圖
+    # 圖表 3: 月份均值長條圖 (修正跨年顯示，清楚標註年份避免 2025 與 2026 年重疊)
     monthly = temp.get('monthly', [])
     if monthly:
-        fig, ax = plt.subplots(figsize=(9, 3.8), dpi=300)
-        m_keys = [item['month'] for item in monthly]
+        fig, ax = plt.subplots(figsize=(10, 4.2), dpi=300)
+        # 標籤顯示格式為 '25/06'、'26/06'，保留完整時序不重疊
+        m_labels = [f"{item['month'][2:4]}/{item['month'][5:7]}" for item in monthly]
         m_vals = [item['mean_voc'] for item in monthly]
         m_colors = ['#dc2626' if v >= 450 else '#ea580c' if v >= 350 else '#0284c7' for v in m_vals]
-        bars = ax.bar([k.split('-')[-1] + '月' for k in m_keys], m_vals, color=m_colors, width=0.55, edgecolor='#334155')
+        bars = ax.bar(m_labels, m_vals, color=m_colors, width=0.55, edgecolor='#334155', linewidth=0.8)
         for bar in bars:
             h = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2, h + 8, f"{int(h)}", ha='center', va='bottom', fontsize=8, fontweight='bold')
-        ax.set_title('全時序各月份平均 VOC 濃度趨勢 (夏季 6~9 月顯著高發)', fontsize=12, fontweight='bold', pad=12, color='#1e3a8a')
+            ax.text(bar.get_x() + bar.get_width() / 2, h + 8, f"{int(h)}", ha='center', va='bottom', fontsize=8, fontweight='bold', color='#0f172a')
+        
+        # 加上自訂圖例說明顏色意涵
+        from matplotlib.patches import Patch
+        legend_elements = [
+            Patch(facecolor='#dc2626', edgecolor='#334155', label='高濃度期 (>=450 ppb)'),
+            Patch(facecolor='#ea580c', edgecolor='#334155', label='中度警戒 (350~450 ppb)'),
+            Patch(facecolor='#0284c7', edgecolor='#334155', label='常態背景 (<350 ppb)')
+        ]
+        ax.legend(handles=legend_elements, loc='upper right', frameon=True, facecolor='#f8fafc', fontsize=8.5)
+        
+        ax.set_title('全時序各月份平均 VOC 濃度趨勢 (2025/06 ~ 2026/09 共16個月連續時序)', fontsize=12, fontweight='bold', pad=12, color='#1e3a8a')
+        ax.set_xlabel('觀測年月 (西元年/月份)', fontsize=10, fontweight='bold')
         ax.set_ylabel('VOC 均值 (ppb)', fontsize=10, fontweight='bold')
         ax.grid(axis='y', linestyle='--', alpha=0.5)
+        plt.xticks(rotation=0, fontsize=8.5)
         plt.tight_layout()
         chart3_path = os.path.join(output_dir, 'docx_chart3_monthly.png')
         plt.savefig(chart3_path)
@@ -675,8 +688,13 @@ def export_docx():
                     "   • 本報告所稱「高濃度警示時數 (>200 ppb)」與「重度事件時數 (>500 ppb)」，係本研究針對大甲幼獅微感網絡背景特徵所設定之內部快篩與優先序篩選門檻，用以評估熱區嚴重度與持續時數，非作為公權力裁處依據。")
 
     print(f"正在儲存 Word 文件至：{output_docx}")
-    doc.save(output_docx)
-    print("✅ Word 報告 (.docx) 產製成功！")
+    try:
+        doc.save(output_docx)
+        print("✅ Word 報告 (.docx) 產製成功！")
+    except PermissionError:
+        fallback_path = output_docx.replace('.docx', '_最新版.docx')
+        doc.save(fallback_path)
+        print(f"⚠️ 原 Word 檔正被 Word 軟體開啟中，已自動另存為最新檔案：{fallback_path}")
     return True
 
 if __name__ == '__main__':
