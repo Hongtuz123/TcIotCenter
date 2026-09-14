@@ -10,6 +10,7 @@ import sys
 import json
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -134,25 +135,49 @@ def generate_charts(data, output_dir):
     else:
         chart3_path = None
 
-    # 圖表 4: 6 大時段濃度與重度事件率
+    # 圖表 4: 6 大時段濃度、超標次數與重度事件率對照圖 (升級版)
     blocks = temp.get('time_blocks', [])
     if blocks:
-        fig, ax1 = plt.subplots(figsize=(9, 3.8), dpi=300)
-        block_names = [b['time_block'].split(' ')[0] for b in blocks]
+        import matplotlib.patheffects as pe
+        fig, ax1 = plt.subplots(figsize=(10.5, 4.8), dpi=300)
+        block_labels = [b['time_block'].replace(' (', '\n(') for b in blocks]
         block_means = [b['mean_voc'] for b in blocks]
         block_rates = [b.get('gt500_rate', 0) for b in blocks]
+        block_counts = [b.get('gt500_hours', 0) for b in blocks]
         
-        x = range(len(blocks))
-        bars = ax1.bar(x, block_means, color='#0284c7', width=0.45, label='VOC 均值 (ppb)', edgecolor='#334155')
-        ax1.set_ylabel('VOC 均值 (ppb)', color='#0284c7', fontsize=10, fontweight='bold')
+        x = np.arange(len(blocks))
+        bars = ax1.bar(x, block_means, color='#0284c7', width=0.48, label='VOC 均值 (ppb)', edgecolor='#334155', linewidth=0.8)
+        ax1.set_ylabel('VOC 均值 (ppb)', color='#0284c7', fontsize=10.5, fontweight='bold')
+        ax1.set_ylim(0, 680)
         ax1.set_xticks(x)
-        ax1.set_xticklabels(block_names, fontsize=9)
+        ax1.set_xticklabels(block_labels, fontsize=9.5, fontweight='bold', color='#1e293b')
         
+        # 在柱子頂部標註均值與超標次數 (白色高光描邊)
+        for i, bar in enumerate(bars):
+            h = bar.get_height()
+            cnt = block_counts[i]
+            ax1.text(bar.get_x() + bar.get_width() / 2, h + 15, f"{int(h)} ppb\n({cnt:,}次)", 
+                     ha='center', va='bottom', fontsize=8.8, fontweight='bold', color='#0f172a',
+                     path_effects=[pe.withStroke(linewidth=3, foreground="white")])
+            
         ax2 = ax1.twinx()
-        line = ax2.plot(x, block_rates, color='#dc2626', marker='s', linewidth=2.2, label='重度事件發生率 (%)')
-        ax2.set_ylabel('重度事件率 (%)', color='#dc2626', fontsize=10, fontweight='bold')
-        ax1.set_title('一日 6 大時段 VOC 濃度與重度超標發生率對照圖', fontsize=12, fontweight='bold', pad=12, color='#1e3a8a')
+        line = ax2.plot(x, block_rates, color='#dc2626', marker='s', markersize=6.5, linewidth=2.4, label='重度事件率 (>500 ppb)')
+        ax2.set_ylabel('重度事件率 (%)', color='#dc2626', fontsize=10.5, fontweight='bold')
+        ax2.set_ylim(0, 32)
+        
+        # 在折線點上方標註百分比 (白底紅框微膠囊標籤，完美錯開柱頂文字)
+        for xv, yv in zip(x, block_rates):
+            ax2.text(xv, yv + 1.1, f"{yv:.1f}%", ha='center', va='bottom', fontsize=8.5, fontweight='bold', color='#dc2626',
+                     bbox=dict(boxstyle='round,pad=0.22', facecolor='#ffffff', edgecolor='#dc2626', alpha=0.95, linewidth=0.8))
+            
+        ax1.set_title('大甲幼獅一日 6 大時段 VOC 濃度、超標累積次數與重度事件率對照圖\n(深夜與清晨超標累積突破 7,000 次 · 白天對流消散降至谷底)', fontsize=11.5, fontweight='bold', pad=14, color='#1e3a8a')
         ax1.grid(axis='y', linestyle='--', alpha=0.4)
+        
+        # 整合圖例
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right', frameon=True, facecolor='#f8fafc', fontsize=8.5)
+        
         plt.tight_layout()
         chart4_path = os.path.join(output_dir, 'docx_chart4_timeblocks.png')
         plt.savefig(chart4_path)
@@ -579,12 +604,12 @@ def export_docx():
         r.font.color.rgb = RGBColor(255, 255, 255)
 
     time_block_rows = [
-        ("00:00~04:00", "深夜偷排最高峰", "467 ppb", "7,489 次", "15.1%", "第一高發 (夜間巡邏跟監)"),
-        ("04:00~08:00", "清晨逆溫壓制期", "439 ppb", "7,083 次", "14.3%", "第一優先 (黃金突擊窗口)"),
-        ("20:00~24:00", "夜間排放蓄積期", "397 ppb", "6,745 次", "13.5%", "中優先 (周界駐點快篩)"),
-        ("16:00~20:00", "傍晚風向轉換期", "305 ppb", "5,719 次", "11.4%", "常態監測"),
-        ("12:00~16:00", "午後對流消散期", "167 ppb", "3,083 次", "6.1%", "一般巡查"),
-        ("08:00~12:00", "晨間工廠開工期", "202 ppb", "2,910 次", "5.8%", "常態監測")
+        ("00:00~04:00", "深夜偷排最高峰", "519.2 ppb", "7,442 次", "16.7%", "第一高發 (夜間巡邏跟監)"),
+        ("04:00~08:00", "清晨逆溫壓制期", "486.6 ppb", "7,041 次", "15.9%", "第一優先 (黃金突擊窗口)"),
+        ("20:00~24:00", "夜間排放蓄積期", "441.1 ppb", "6,706 次", "15.0%", "中優先 (周界駐點快篩)"),
+        ("16:00~20:00", "傍晚風向轉換期", "338.5 ppb", "5,685 次", "12.6%", "常態監測"),
+        ("12:00~16:00", "午後對流消散期", "183.9 ppb", "3,046 次", "6.8%", "一般巡查"),
+        ("08:00~12:00", "晨間工廠開工期", "222.4 ppb", "2,860 次", "6.3%", "常態監測")
     ]
 
     for r_idx, row in enumerate(time_block_rows, start=1):
