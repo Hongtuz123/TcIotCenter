@@ -20,4 +20,8 @@ Thumbs.db
 .vercel
 __pycache__/
 產業園區shp/
+臺中產業園區shp/
+output/
+*.log
+
 

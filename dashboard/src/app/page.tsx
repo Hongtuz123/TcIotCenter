@@ -7,7 +7,8 @@ import EventManager from '@/components/EventList/EventManager';
 import TrendChart from '@/components/Analytics/TrendChart';
 import { getEventSourceSensor } from '@/components/Map/useDispersionSim';
 import { Sensor, Observation, Event, Cluster, SystemSettings } from '@/types';
-import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { Play, Pause, RotateCcw, ShieldAlert, Radio, Settings, X, LogOut, BarChart3 } from 'lucide-react';
 
 // 取得當前台北時間（可傳入 offset 毫秒）並對齊到 5 分鐘
 const getTaipeiTime = (offsetMs = 0): string => {
@@ -831,6 +832,14 @@ export default function DashboardPage() {
               連線正常
             </span>
           </div>
+          <Link
+            href="/analytics"
+            className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white p-2 lg:px-3.5 lg:py-2 rounded-xl text-xs font-bold transition-all shadow-lg shadow-orange-500/20 cursor-pointer flex items-center gap-1.5 shrink-0"
+            title="查看臺中市產業園區長期空氣品質與異味大數據分析"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">📊 大數據分析</span>
+          </Link>
           <button
             onClick={() => {
               if (systemSettings) {

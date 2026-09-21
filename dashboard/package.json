@@ -11,6 +11,8 @@
   "dependencies": {
     "@prisma/client": "^6.2.1",
     "@supabase/supabase-js": "^2.108.2",
+    "highcharts": "^13.1.1",
+    "highcharts-react-official": "^3.2.3",
     "lucide-react": "^1.21.0",
     "mapbox-gl": "^3.25.0",
     "next": "16.2.9",
