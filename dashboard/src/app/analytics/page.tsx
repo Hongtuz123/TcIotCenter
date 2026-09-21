@@ -361,6 +361,7 @@ export default function AnalyticsPage() {
             data={currentHeatmap}
             metric={metric}
             zoneName={selectedZone}
+            onToggleMetric={setMetric}
           />
         </section>
 

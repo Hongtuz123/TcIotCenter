@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Wind, Flame } from 'lucide-react';
 
 interface WeekdayHourHeatmapProps {
   data: {
@@ -9,6 +10,7 @@ interface WeekdayHourHeatmapProps {
   };
   metric: 'pm25' | 'voc';
   zoneName: string;
+  onToggleMetric?: (metric: 'pm25' | 'voc') => void;
 }
 
 const WEEKDAYS = ['週一 (Mon)', '週二 (Tue)', '週三 (Wed)', '週四 (Thu)', '週五 (Fri)', '週六 (Sat)', '週日 (Sun)'];
@@ -16,46 +18,79 @@ const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')
 
 export const WeekdayHourHeatmap: React.FC<WeekdayHourHeatmapProps> = ({
   data,
-  metric,
-  zoneName
+  metric: initialMetric,
+  zoneName,
+  onToggleMetric
 }) => {
+  const [internalMetric, setInternalMetric] = useState<'pm25' | 'voc'>(initialMetric);
   const [hoveredCell, setHoveredCell] = useState<{ day: number; hour: number; val: number } | null>(null);
 
-  const isPm25 = metric === 'pm25';
+  // 當外部 metric 改變時同步
+  useEffect(() => {
+    setInternalMetric(initialMetric);
+  }, [initialMetric]);
+
+  const handleMetricChange = (newMetric: 'pm25' | 'voc') => {
+    setInternalMetric(newMetric);
+    if (onToggleMetric) {
+      onToggleMetric(newMetric);
+    }
+  };
+
+  const isPm25 = internalMetric === 'pm25';
   const unit = isPm25 ? 'μg/m³' : 'ppb';
   const matrix = isPm25 ? data?.pm25 : data?.voc;
 
-  // 計算該指標的最大值與最小值以產生漸層色階
-  const { maxVal, minVal } = useMemo(() => {
-    if (!matrix || matrix.length === 0) return { maxVal: 50, minVal: 0 };
-    let max = 0;
-    let min = Infinity;
-    matrix.forEach(row => {
-      row.forEach(val => {
-        if (val > max) max = val;
-        if (val < min && val > 0) min = val;
-      });
-    });
-    return { maxVal: max || 50, minVal: min === Infinity ? 0 : min };
-  }, [matrix]);
+  /**
+   * 官方 AQI 色彩對應系統：
+   * PM2.5 (上限 125.4):
+   *   0.0 ~ 12.4   -> 良好 (綠 #10b981)
+   *   12.5 ~ 30.4  -> 普通 (黃 #eab308)
+   *   30.5 ~ 50.4  -> 對敏感族群不健康 (橘 #f97316)
+   *   50.5 ~ 125.4 -> 對所有族群不健康 (紅 #ef4444)
+   *   > 125.4      -> 非常不健康 (紫 #a855f7)
+   *
+   * TVOC (按 PM2.5 比例對齊，上限 15,000):
+   *   0 ~ 1,500     -> 良好 (綠 #10b981)
+   *   1,500 ~ 3,600 -> 普通 (黃 #eab308)
+   *   3,600 ~ 6,000 -> 對敏感族群不健康 (橘 #f97316)
+   *   6,000 ~ 15,000-> 對所有族群不健康 (紅 #ef4444)
+   *   > 15,000      -> 非常不健康 (紫 #a855f7)
+   */
+  const getLevelInfo = (val: number) => {
+    if (val === undefined || val === null || val <= 0) {
+      return { label: '無資料', color: 'rgba(30, 41, 59, 0.4)', textClass: 'text-slate-500' };
+    }
 
-  // 動態顏色計算 (依濃度從暗藍 -> 綠 -> 橘 -> 紅 -> 紫)
-  const getColor = (val: number) => {
-    if (!val || val <= 0) return 'rgba(30, 41, 59, 0.4)';
-    const ratio = Math.min(Math.max((val - minVal) / (maxVal - minVal || 1), 0), 1);
-    
     if (isPm25) {
-      // PM2.5 漸層：低(深青/藍綠) -> 中(黃/橘) -> 高(大紅/紫)
-      if (ratio < 0.25) return `rgba(34, 197, 94, ${0.35 + ratio * 0.8})`; // 綠
-      if (ratio < 0.5) return `rgba(234, 179, 8, ${0.45 + ratio * 0.8})`;  // 黃
-      if (ratio < 0.75) return `rgba(249, 115, 22, ${0.6 + ratio * 0.5})`; // 橘
-      return `rgba(239, 68, 68, ${0.75 + ratio * 0.25})`;                 // 紅
+      if (val <= 12.4) {
+        return { label: '良好 (0~12.4)', color: '#10b981', textClass: 'text-emerald-400' };
+      }
+      if (val <= 30.4) {
+        return { label: '普通 (12.5~30.4)', color: '#eab308', textClass: 'text-yellow-400' };
+      }
+      if (val <= 50.4) {
+        return { label: '對敏感族群不健康 (30.5~50.4)', color: '#f97316', textClass: 'text-orange-400' };
+      }
+      if (val <= 125.4) {
+        return { label: '對所有族群不健康 (50.5~125.4)', color: '#ef4444', textClass: 'text-red-400' };
+      }
+      return { label: '非常不健康 (>125.4)', color: '#a855f7', textClass: 'text-purple-400' };
     } else {
-      // TVOC 漸層：低(深靛) -> 中(紫) -> 高(洋紅/粉紫)
-      if (ratio < 0.25) return `rgba(99, 102, 241, ${0.35 + ratio * 0.8})`;
-      if (ratio < 0.5) return `rgba(168, 85, 247, ${0.45 + ratio * 0.8})`;
-      if (ratio < 0.75) return `rgba(217, 70, 239, ${0.6 + ratio * 0.5})`;
-      return `rgba(244, 63, 94, ${0.75 + ratio * 0.25})`;
+      // TVOC (按比例以 15,000 為上限)
+      if (val <= 1500) {
+        return { label: '良好 (0~1,500)', color: '#10b981', textClass: 'text-emerald-400' };
+      }
+      if (val <= 3600) {
+        return { label: '普通 (1,500~3,600)', color: '#eab308', textClass: 'text-yellow-400' };
+      }
+      if (val <= 6000) {
+        return { label: '對敏感族群不健康 (3,600~6,000)', color: '#f97316', textClass: 'text-orange-400' };
+      }
+      if (val <= 15000) {
+        return { label: '對所有族群不健康 (6,000~15,000)', color: '#ef4444', textClass: 'text-red-400' };
+      }
+      return { label: '非常不健康 (>15,000)', color: '#a855f7', textClass: 'text-purple-400' };
     }
   };
 
@@ -83,25 +118,73 @@ export const WeekdayHourHeatmap: React.FC<WeekdayHourHeatmapProps> = ({
 
   return (
     <div className="w-full bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-xl backdrop-blur-md">
-      {/* 標題與說明 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+      {/* 標題與說明列 */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-5 gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-            <span>📅 {zoneName} — 星期 × 時段 {isPm25 ? 'PM2.5 空污' : 'TVOC 異味'} 週期熱力矩陣</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+              <span>📅 {zoneName} — 星期 × 時段 {isPm25 ? 'PM2.5 空污' : 'TVOC 異味'} 週期熱力矩陣</span>
+            </h3>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
               7 天 × 24 小時長期特徵
             </span>
-          </h3>
+          </div>
           <p className="text-xs text-slate-400 mt-1">
-            統計 432 天全時段聚合平均，可精準捕捉規律性工廠夜間排放或上下班尖峰。
+            統計 432 天全時段聚合平均，顏色採用標準空氣品質指標 (AQI) 5 級色階（{isPm25 ? '上限值 125.4 μg/m³' : '上限值 15,000 ppb'}）。
           </p>
         </div>
 
-        {/* 色階圖例 */}
-        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
-          <span>低 ({minVal.toFixed(1)})</span>
-          <div className="w-24 h-2.5 rounded-full bg-gradient-to-r from-emerald-600 via-amber-500 to-rose-600" />
-          <span>高 ({maxVal.toFixed(1)} {unit})</span>
+        {/* 右側：指標切換按鈕 + 色階圖例 */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* 切換按鈕 */}
+          <div className="bg-slate-950 p-1 rounded-xl border border-slate-800 flex items-center shrink-0">
+            <button
+              onClick={() => handleMetricChange('pm25')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isPm25 
+                  ? 'bg-orange-500 text-white shadow' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Wind size={13} />
+              PM2.5 (上限125.4)
+            </button>
+            <button
+              onClick={() => handleMetricChange('voc')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                !isPm25 
+                  ? 'bg-purple-600 text-white shadow' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Flame size={13} />
+              TVOC (上限15000)
+            </button>
+          </div>
+
+          {/* 5 級色階圖例 */}
+          <div className="flex items-center gap-1.5 text-[11px] bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
+            <div className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" />
+              <span className="text-slate-300">良好</span>
+            </div>
+            <div className="flex items-center gap-1 ml-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#eab308]" />
+              <span className="text-slate-300">普通</span>
+            </div>
+            <div className="flex items-center gap-1 ml-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#f97316]" />
+              <span className="text-slate-300">敏感不健康</span>
+            </div>
+            <div className="flex items-center gap-1 ml-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#ef4444]" />
+              <span className="text-slate-300">所有不健康</span>
+            </div>
+            <div className="flex items-center gap-1 ml-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#a855f7]" />
+              <span className="text-slate-300">非常不健康</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -109,7 +192,7 @@ export const WeekdayHourHeatmap: React.FC<WeekdayHourHeatmapProps> = ({
       <div className="overflow-x-auto pb-2">
         <div className="min-w-[700px]">
           {/* 小時軸頂部標籤 */}
-          <div className="grid grid-cols-[80px_repeat(24,1fr)] text-[10px] text-slate-400 mb-1 font-mono text-center">
+          <div className="grid grid-cols-[80px_repeat(24,1fr)] text-[10px] text-slate-400 mb-1.5 font-mono text-center">
             <div className="text-left pl-1">時段 →</div>
             {HOURS.map((h, i) => (
               <div key={h} className={i % 3 === 0 ? 'text-slate-300 font-semibold' : 'text-slate-600'}>
@@ -127,20 +210,21 @@ export const WeekdayHourHeatmap: React.FC<WeekdayHourHeatmapProps> = ({
               {matrix[dIdx].map((val, hIdx) => {
                 const isHovered = hoveredCell?.day === dIdx && hoveredCell?.hour === hIdx;
                 const isPeak = dIdx === peakDay && hIdx === peakHour;
+                const level = getLevelInfo(val);
 
                 return (
                   <div
                     key={hIdx}
                     onMouseEnter={() => setHoveredCell({ day: dIdx, hour: hIdx, val })}
                     onMouseLeave={() => setHoveredCell(null)}
-                    style={{ backgroundColor: getColor(val) }}
+                    style={{ backgroundColor: level.color }}
                     className={`h-7 rounded transition-all duration-150 cursor-pointer relative flex items-center justify-center ${
                       isHovered ? 'ring-2 ring-white scale-110 z-10' : ''
-                    } ${isPeak ? 'ring-1 ring-amber-400 animate-pulse' : ''}`}
-                    title={`${WEEKDAYS[dIdx]} ${HOURS[hIdx]}: ${val} ${unit}`}
+                    } ${isPeak ? 'ring-2 ring-amber-300 animate-pulse' : ''}`}
+                    title={`${WEEKDAYS[dIdx]} ${HOURS[hIdx]}: ${val?.toFixed(1) || 0} ${unit} (${level.label})`}
                   >
                     {isPeak && (
-                      <span className="text-[9px] text-amber-300 font-bold">★</span>
+                      <span className="text-[10px] text-white font-bold drop-shadow">★</span>
                     )}
                   </div>
                 );
@@ -154,19 +238,22 @@ export const WeekdayHourHeatmap: React.FC<WeekdayHourHeatmapProps> = ({
       <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
         <div className="text-slate-300">
           {hoveredCell ? (
-            <span>
-              🔍 <b>{WEEKDAYS[hoveredCell.day]} {HOURS[hoveredCell.hour]}</b> ： 
-              平均濃度 <b className="text-orange-400">{hoveredCell.val.toFixed(2)}</b> {unit}
+            <span className="flex items-center gap-2">
+              <span>🔍 <b>{WEEKDAYS[hoveredCell.day]} {HOURS[hoveredCell.hour]}</b> ：</span>
+              <span>平均濃度 <b className="text-white font-mono text-sm">{hoveredCell.val?.toFixed(2) || '--'}</b> {unit}</span>
+              <span className={`px-2 py-0.5 rounded font-bold text-[11px] ${getLevelInfo(hoveredCell.val).textClass} bg-slate-950 border border-slate-800`}>
+                {getLevelInfo(hoveredCell.val).label}
+              </span>
             </span>
           ) : (
-            <span className="text-slate-500">將滑鼠懸停於方格上查看指定時段數值</span>
+            <span className="text-slate-500">將滑鼠懸停於方格上查看指定時段數值與 AQI 級別</span>
           )}
         </div>
 
         <div className="bg-amber-950/40 border border-amber-800/50 px-3 py-1 rounded text-amber-300 flex items-center gap-1.5">
-          <span>⚡ <b>潛勢高峰建議：</b></span>
+          <span>⚡ <b>潛勢高峰時段：</b></span>
           <span>
-            {WEEKDAYS[peakDay].slice(0, 2)} {HOURS[peakHour]} ({peakVal.toFixed(1)} {unit}) 為歷史高好發期，建議鎖定加強查緝
+            {WEEKDAYS[peakDay].slice(0, 2)} {HOURS[peakHour]} (均值 {peakVal.toFixed(1)} {unit}) 為歷史高好發期，建議鎖定夜間加強稽查
           </span>
         </div>
       </div>
