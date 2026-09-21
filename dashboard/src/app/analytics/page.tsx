@@ -53,6 +53,12 @@ export default function AnalyticsPage() {
   const [metric, setMetric] = useState<'pm25' | 'voc'>('pm25');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedZone, setSelectedZone] = useState<string>('大甲幼獅產業園區');
+  const [focusedSensor, setFocusedSensor] = useState<any | null>(null);
+
+  const handleZoneChange = (zone: string) => {
+    setSelectedZone(zone);
+    setFocusedSensor(null);
+  };
 
   useEffect(() => {
     fetch('/zone_rankings.json')
@@ -201,7 +207,7 @@ export default function AnalyticsPage() {
               <Building2 size={14} className="text-orange-400" />
               <select
                 value={selectedZone}
-                onChange={e => setSelectedZone(e.target.value)}
+                onChange={e => handleZoneChange(e.target.value)}
                 className="bg-transparent text-slate-200 focus:outline-none cursor-pointer pr-2 max-w-[160px] truncate"
               >
                 {activeZoneSummary.map(z => (
@@ -315,33 +321,36 @@ export default function AnalyticsPage() {
               data={activeZoneSummary}
               metric={metric}
               selectedZone={selectedZone}
-              onSelectZone={setSelectedZone}
+              onSelectZone={handleZoneChange}
               selectedMonth={selectedMonth}
             />
           </div>
 
-          {/* 右側：GIS 熱區地圖 (支援 PM2.5 / TVOC 切換與站點選取) */}
+          {/* 右側：GIS 熱區地圖 (支援 PM2.5 / TVOC 切換、AQI 色階與站點選取動畫) */}
           <div className="xl:col-span-6 flex flex-col">
             <AnalyticsGISMap
               zoneSummary={activeZoneSummary}
               sensorSummary={data.sensor_summary}
               selectedZone={selectedZone}
-              onSelectZone={setSelectedZone}
+              onSelectZone={handleZoneChange}
               metric={metric}
               onChangeMetric={setMetric}
               selectedMonth={selectedMonth}
+              focusedSensor={focusedSensor}
+              onSelectSensor={setFocusedSensor}
             />
           </div>
         </section>
 
         {/* 3. 下層詳細圖表：微感器排名 + 歷史月份趨勢 */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* 左側：微感器排行 */}
+          {/* 左側：微感器排行 (點擊柱狀圖可於右上角 GIS 動畫聚焦) */}
           <div className="xl:col-span-6">
             <SensorRankingChart
               sensors={currentSensors}
               metric={metric}
               zoneName={selectedZone}
+              onSelectSensor={setFocusedSensor}
             />
           </div>
 
