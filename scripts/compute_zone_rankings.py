@@ -202,6 +202,39 @@ def compute_rankings():
             })
         all_months_rankings[m] = m_list
 
+    # ── 5.5 計算各園區每日指標 (Zone Daily Metrics - 供自訂日期區間使用) ──
+    print(">>> 計算各園區每日數據 (Zone Daily Metrics)...")
+    df_daily = df.with_columns(
+        pl.col("hour").str.slice(0, 10).alias("date")
+    ).filter(
+        pl.col("date").str.contains(r"^\d{4}-\d{2}-\d{2}$")
+    ).group_by(["zone_name", "date"]).agg([
+        pl.col("pm25_val").mean().round(2).alias("pm25_mean"),
+        pl.col("pm25_val").quantile(0.95).round(2).alias("pm25_p95"),
+        (pl.col("pm25_val") >= 35.0).sum().alias("exceed_pm25"),
+        pl.col("odor_val").mean().round(2).alias("voc_mean"),
+        pl.col("odor_val").quantile(0.95).round(2).alias("voc_p95"),
+        (pl.col("odor_val") >= 150.0).sum().alias("exceed_voc"),
+        pl.len().alias("count")
+    ]).sort(["zone_name", "date"])
+
+    available_dates = sorted(df_daily["date"].unique().to_list())
+    zone_daily = {}
+    for r in df_daily.iter_rows(named=True):
+        zname = r["zone_name"]
+        if zname not in zone_daily:
+            zone_daily[zname] = []
+        zone_daily[zname].append({
+            "d": r["date"],
+            "pm": r["pm25_mean"],
+            "p95": r["pm25_p95"],
+            "epm": r["exceed_pm25"],
+            "vm": r["voc_mean"],
+            "vp95": r["voc_p95"],
+            "evoc": r["exceed_voc"],
+            "cnt": r["count"]
+        })
+
     # ── 6. 整合並輸出 JSON ─────────────────────────────────────────────
     time_min = df["hour"].min()
     time_max = df["hour"].max()
@@ -209,9 +242,16 @@ def compute_rankings():
     result = {
         "generated_at": datetime.now().isoformat(),
         "data_range": f"{time_min} ~ {time_max}",
+        "date_limits": {
+            "min": available_dates[0],
+            "max": available_dates[-1],
+            "total_days": len(available_dates)
+        },
+        "available_dates": available_dates,
         "available_months": months,
         "zone_summary": zone_summary_list,
         "all_months_rankings": all_months_rankings,
+        "zone_daily": zone_daily,
         "sensor_summary": sensor_summary,
         "monthly_summary": monthly_summary,
         "weekday_hour_heatmap": weekday_hour_heatmap
@@ -225,7 +265,7 @@ def compute_rankings():
     print(f"=== 計算完成 ===")
     print(f"輸出路徑: {OUTPUT_JSON}")
     print(f"檔案大小: {json_size_mb:.2f} MB")
-    print(f"涵蓋月份: {len(months)} 個月 ({months[0]} ~ {months[-1]})")
+    print(f"涵蓋日期: {len(available_dates)} 天 ({available_dates[0]} ~ {available_dates[-1]})")
 
 if __name__ == "__main__":
     compute_rankings()
