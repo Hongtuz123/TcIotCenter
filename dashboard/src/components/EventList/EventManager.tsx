@@ -573,10 +573,17 @@ export const EventManager: React.FC<EventManagerProps> = ({
 
               return (
                 <div key={event.id} className="flex flex-col">
-                  {/* 按鈕列：點擊展開/收合 */}
-                  <button
-                    type="button"
+                  {/* 卡片列：點擊展開/收合 */}
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onViewEvent(isExpanded ? null : event)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onViewEvent(isExpanded ? null : event);
+                      }
+                    }}
                     className={`w-full text-left rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 border transition-all duration-200 cursor-pointer ${
                       isExpanded
                         ? 'bg-orange-500/10 border-orange-500/60 shadow-sm shadow-orange-500/10'
@@ -683,7 +690,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
                       )}
                       <span className={`text-slate-500 text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                     </div>
-                  </button>
+                  </div>
 
                   {/* 展開內容：事件說明 */}
                   {isExpanded && (
