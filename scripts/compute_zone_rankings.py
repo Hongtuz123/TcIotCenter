@@ -26,9 +26,23 @@ def compute_rankings():
 
     # 整合 VOC / TVOC 為統一 odor 指標 (優先 tvoc，若無取 voc)
     df = df.with_columns(
-        pl.coalesce(["tvoc", "voc"]).alias("odor_val"),
-        pl.col("pm2_5").alias("pm25_val")
+        pl.coalesce(["tvoc", "voc"]).alias("odor_raw"),
+        pl.col("pm2_5").alias("pm25_raw")
     )
+
+    # 過濾硬體溢位值與感測器異常：
+    #   TVOC/VOC >= 65535 為 16-bit ADC 硬體溢位上限，視為無效值
+    #   TVOC/VOC >= 29000 為常見 15-bit 溢位碼 (29206/32767)，視為無效值
+    #   PM2.5 > 500 μg/m³ 超出實際可能範圍，視為感測器瞬時異常
+    df = df.with_columns(
+        pl.when(pl.col("odor_raw") >= 29000).then(None)
+          .otherwise(pl.col("odor_raw")).alias("odor_val"),
+        pl.when(pl.col("pm25_raw") > 500).then(None)
+          .otherwise(pl.col("pm25_raw")).alias("pm25_val")
+    )
+    n_odor_filtered = df.filter(pl.col("odor_val").is_null()).height
+    n_pm25_filtered = df.filter(pl.col("pm25_val").is_null()).height
+    print(f"    過濾無效值：odor 溢位 {n_odor_filtered} 筆，PM2.5 異常 {n_pm25_filtered} 筆")
 
     # 篩選標準格式時間並轉換為 datetime (過濾格式不全的少數異常值)
     df = df.with_columns(
@@ -69,8 +83,10 @@ def compute_rankings():
         voc_exceed_rate = (r["exceed_voc_count"] or 0) / tot
         
         # 簡易正規化綜合潛勢指數
+        # PM2.5 正規化：以 40 μg/m³ 為滿分基準；超標率 x200
+        # VOC 正規化：以 15000 ppb 為上限，分母 150 (15000/100)；超標率 x150
         pm25_score = min(100.0, (r["pm25_mean"] or 0) * 2.5 + pm25_exceed_rate * 200)
-        voc_score = min(100.0, ((r["voc_mean"] or 0) / 2.0) + voc_exceed_rate * 150)
+        voc_score = min(100.0, ((r["voc_mean"] or 0) / 150.0) + voc_exceed_rate * 150)
         potency = round(pm25_score * 0.5 + voc_score * 0.5, 1)
 
         zone_summary_list.append({

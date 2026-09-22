@@ -266,6 +266,10 @@ export const AnalyticsGISMap: React.FC<AnalyticsGISMapProps> = ({
 
     if (map.getSource('analytics-sensors')) {
       (map.getSource('analytics-sensors') as mapboxgl.GeoJSONSource).setData(sensorGeoJSON as any);
+      // metric 切換時同步更新圓點色階表達式
+      if (map.getLayer('analytics-sensors-circle')) {
+        map.setPaintProperty('analytics-sensors-circle', 'circle-color', circleColorExpression);
+      }
     } else {
       map.addSource('analytics-sensors', {
         type: 'geojson',

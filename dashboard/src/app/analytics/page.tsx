@@ -144,9 +144,13 @@ export default function AnalyticsPage() {
   const activeZoneSummary = useMemo(() => {
     if (!data) return [];
     
-    // 全期且未過濾時，直接使用預計算的 zone_summary
+    // 全期且未過濾時，使用預計算的 zone_summary，但仍需依 metric 排序
     if (timeMode === 'all' && data.zone_summary) {
-      return data.zone_summary;
+      return [...data.zone_summary].sort((a, b) => {
+        const valA = metric === 'pm25' ? (a.pm25_mean || 0) : (a.voc_mean || 0);
+        const valB = metric === 'pm25' ? (b.pm25_mean || 0) : (b.voc_mean || 0);
+        return valB - valA;
+      });
     }
 
     if (!data.zone_daily) {
@@ -432,7 +436,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
                 <AlertTriangle size={14} className="text-amber-400" />
-                區間累積超標小時
+                感測器超標觀測次數
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono">
                 {isPm25 ? '≥ 50.4 μg/m³' : '≥ 500 ppb'}
@@ -442,7 +446,7 @@ export default function AnalyticsPage() {
               <span className="text-2xl font-black text-amber-400">
                 {(isPm25 ? currentZoneData?.exceed_pm25_count : currentZoneData?.exceed_voc_count)?.toLocaleString()}
               </span>
-              <span className="text-xs text-slate-400">次 (累積)</span>
+              <span className="text-xs text-slate-400">感測器-小時次 (累計)</span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
               日期範圍共涵蓋 <b className="text-slate-300">{Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24)) + 1)}</b> 天觀測
