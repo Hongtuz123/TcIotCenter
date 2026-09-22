@@ -435,7 +435,7 @@ export default function AnalyticsPage() {
                 區間累積超標小時
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono">
-                {isPm25 ? '> 35 μg/m³' : '> 150 ppb'}
+                {isPm25 ? '≥ 50.4 μg/m³' : '≥ 500 ppb'}
               </span>
             </div>
             <div className="mt-2.5 flex items-baseline gap-2">

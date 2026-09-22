@@ -49,6 +49,15 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({
         fontWeight: '600'
       }
     },
+    subtitle: {
+      text: `超標判定門檻標準：${isPm25 ? 'PM2.5 ≥ 50.4 μg/m³ (AQI 紅色警戒點)' : 'TVOC ≥ 500 ppb (異味警戒門檻)'}`,
+      align: 'left',
+      style: {
+        color: '#f87171',
+        fontSize: '11px',
+        fontWeight: '500'
+      }
+    },
     xAxis: {
       categories: categories,
       crosshair: true,
@@ -73,7 +82,7 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({
       {
         // 次軸：超標時數
         title: {
-          text: '超標總次數',
+          text: `超標總次數 (${isPm25 ? '≥ 50.4 μg/m³' : '≥ 500 ppb'})`,
           style: { color: '#ef4444', fontSize: '11px' }
         },
         labels: {
@@ -115,7 +124,7 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({
         }
       },
       {
-        name: '超標小時次數',
+        name: `超標小時次數 (${isPm25 ? '≥ 50.4 μg/m³' : '≥ 500 ppb'})`,
         type: 'column',
         data: exceedSeries,
         yAxis: 1,

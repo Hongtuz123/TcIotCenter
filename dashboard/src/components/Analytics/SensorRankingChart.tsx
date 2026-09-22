@@ -83,7 +83,21 @@ export const SensorRankingChart: React.FC<SensorRankingChartProps> = ({
         style: { color: '#94a3b8', fontSize: '11px' }
       },
       labels: { style: { color: '#94a3b8' } },
-      gridLineColor: 'rgba(51, 65, 85, 0.4)'
+      gridLineColor: 'rgba(51, 65, 85, 0.4)',
+      plotLines: [
+        {
+          value: isPm25 ? 50.4 : 500,
+          color: '#ef4444',
+          width: 1.5,
+          dashStyle: 'ShortDash',
+          zIndex: 5,
+          label: {
+            text: isPm25 ? '警戒門檻 50.4 μg/m³' : '警戒門檻 500 ppb',
+            align: 'right',
+            style: { color: '#ef4444', fontSize: '10px' }
+          }
+        }
+      ]
     },
     tooltip: {
       backgroundColor: 'rgba(15, 23, 42, 0.95)',

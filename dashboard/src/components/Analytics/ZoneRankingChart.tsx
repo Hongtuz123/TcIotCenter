@@ -108,20 +108,20 @@ export const ZoneRankingChart: React.FC<ZoneRankingChartProps> = ({
         style: { color: '#94a3b8' }
       },
       gridLineColor: 'rgba(51, 65, 85, 0.4)',
-      plotLines: isPm25 ? [
+      plotLines: [
         {
-          value: 35,
+          value: isPm25 ? 50.4 : 500,
           color: '#ef4444',
           width: 1.5,
           dashStyle: 'ShortDash',
           zIndex: 5,
           label: {
-            text: 'WHO/日均標準 35 μg/m³',
+            text: isPm25 ? '警戒門檻 50.4 μg/m³' : '異味警戒門檻 500 ppb',
             align: 'right',
             style: { color: '#ef4444', fontSize: '10px' }
           }
         }
-      ] : []
+      ]
     },
     tooltip: {
       backgroundColor: 'rgba(15, 23, 42, 0.92)',

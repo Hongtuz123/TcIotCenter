@@ -42,18 +42,22 @@ def compute_rankings():
         pl.col("dt").dt.hour().alias("hour_num")
     )
 
+    # ── 超標門檻常數定義 ─────────────────────────────────────────────
+    PM25_THRESHOLD = 50.4   # μg/m³ (AQI 敏感不健康上限 / 紅燈警戒)
+    VOC_THRESHOLD = 500.0   # ppb (TVOC 異味警戒門檻)
+
     # ── 1. 園區整體摘要 (Zone Summary) ───────────────────────────────────
-    print(">>> 計算園區整體排名指標...")
+    print(f">>> 計算園區整體排名指標 (門檻: PM2.5>={PM25_THRESHOLD}, VOC>={VOC_THRESHOLD})...")
     zone_agg = df.group_by("zone_name").agg([
         pl.col("name").n_unique().alias("sensor_count"),
         pl.col("pm25_val").mean().round(2).alias("pm25_mean"),
         pl.col("pm25_val").quantile(0.95).round(2).alias("pm25_p95"),
         pl.col("pm25_val").max().round(2).alias("pm25_max"),
-        (pl.col("pm25_val") >= 35.0).sum().alias("exceed_pm25_count"),
+        (pl.col("pm25_val") >= PM25_THRESHOLD).sum().alias("exceed_pm25_count"),
         pl.col("odor_val").mean().round(2).alias("voc_mean"),
         pl.col("odor_val").quantile(0.95).round(2).alias("voc_p95"),
         pl.col("odor_val").max().round(2).alias("voc_max"),
-        (pl.col("odor_val") >= 150.0).sum().alias("exceed_voc_count"),
+        (pl.col("odor_val") >= VOC_THRESHOLD).sum().alias("exceed_voc_count"),
         pl.len().alias("total_observations")
     ])
 
@@ -92,11 +96,11 @@ def compute_rankings():
         pl.col("pm25_val").mean().round(2).alias("pm25_mean"),
         pl.col("pm25_val").quantile(0.95).round(2).alias("pm25_p95"),
         pl.col("pm25_val").max().round(2).alias("pm25_max"),
-        (pl.col("pm25_val") >= 35.0).sum().alias("exceed_pm25_count"),
+        (pl.col("pm25_val") >= PM25_THRESHOLD).sum().alias("exceed_pm25_count"),
         pl.col("odor_val").mean().round(2).alias("voc_mean"),
         pl.col("odor_val").quantile(0.95).round(2).alias("voc_p95"),
         pl.col("odor_val").max().round(2).alias("voc_max"),
-        (pl.col("odor_val") >= 150.0).sum().alias("exceed_voc_count"),
+        (pl.col("odor_val") >= VOC_THRESHOLD).sum().alias("exceed_voc_count"),
         pl.len().alias("count")
     ])
 
@@ -130,10 +134,10 @@ def compute_rankings():
     month_agg = df.group_by(["zone_name", "month"]).agg([
         pl.col("pm25_val").mean().round(2).alias("pm25_mean"),
         pl.col("pm25_val").quantile(0.95).round(2).alias("pm25_p95"),
-        (pl.col("pm25_val") >= 35.0).sum().alias("exceed_pm25_count"),
+        (pl.col("pm25_val") >= PM25_THRESHOLD).sum().alias("exceed_pm25_count"),
         pl.col("odor_val").mean().round(2).alias("voc_mean"),
         pl.col("odor_val").quantile(0.95).round(2).alias("voc_p95"),
-        (pl.col("odor_val") >= 150.0).sum().alias("exceed_voc_count")
+        (pl.col("odor_val") >= VOC_THRESHOLD).sum().alias("exceed_voc_count")
     ]).sort(["zone_name", "month"])
 
     monthly_summary = {}
@@ -186,8 +190,8 @@ def compute_rankings():
             pl.col("pm25_val").quantile(0.95).round(2).alias("pm25_p95"),
             pl.col("odor_val").mean().round(2).alias("voc_mean"),
             pl.col("odor_val").quantile(0.95).round(2).alias("voc_p95"),
-            (pl.col("pm25_val") >= 35.0).sum().alias("exceed_pm25_count"),
-            (pl.col("odor_val") >= 150.0).sum().alias("exceed_voc_count")
+            (pl.col("pm25_val") >= PM25_THRESHOLD).sum().alias("exceed_pm25_count"),
+            (pl.col("odor_val") >= VOC_THRESHOLD).sum().alias("exceed_voc_count")
         ])
         m_list = []
         for r in m_df.iter_rows(named=True):
@@ -211,10 +215,10 @@ def compute_rankings():
     ).group_by(["zone_name", "date"]).agg([
         pl.col("pm25_val").mean().round(2).alias("pm25_mean"),
         pl.col("pm25_val").quantile(0.95).round(2).alias("pm25_p95"),
-        (pl.col("pm25_val") >= 35.0).sum().alias("exceed_pm25"),
+        (pl.col("pm25_val") >= PM25_THRESHOLD).sum().alias("exceed_pm25"),
         pl.col("odor_val").mean().round(2).alias("voc_mean"),
         pl.col("odor_val").quantile(0.95).round(2).alias("voc_p95"),
-        (pl.col("odor_val") >= 150.0).sum().alias("exceed_voc"),
+        (pl.col("odor_val") >= VOC_THRESHOLD).sum().alias("exceed_voc"),
         pl.len().alias("count")
     ]).sort(["zone_name", "date"])
 
@@ -241,7 +245,10 @@ def compute_rankings():
 
     result = {
         "generated_at": datetime.now().isoformat(),
-        "data_range": f"{time_min} ~ {time_max}",
+        "thresholds": {
+            "pm25": PM25_THRESHOLD,
+            "voc": VOC_THRESHOLD
+        },
         "date_limits": {
             "min": available_dates[0],
             "max": available_dates[-1],
