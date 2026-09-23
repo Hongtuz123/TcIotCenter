@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -50,16 +50,16 @@
   <h1>系統需求規格書 (SRS)</h1>
   <div class="meta">
     <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
-    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>文件版本</strong>：v1.2.0</span>
     <span><strong>作者</strong>：PST-Tim</span>
-    <span><strong>日期</strong>：2026-07</span>
+    <span><strong>日期</strong>：2026-09</span>
     <span><strong>目標讀者</strong>：PM、SA、開發工程師</span>
   </div>
 </div>
 
 <!-- ── 1. 系統概述 ── -->
 <h2>1. 系統概述</h2>
-<p>微感監測中心是一套即時環境空氣品質監測與異常事件自動偵測平台，整合台中市 1,100+ 個微感測站的 PM₂.₅、溫度、濕度觀測資料，透過 3D Mapbox 地圖進行視覺化呈現，並內建空間群聚演算法自動判定污染熱區、產生微感事件，供環保稽查人員使用。</p>
+<p>微感監測中心是一套即時環境空氣品質監測、大數據歷史回溯與異常事件自動偵測平台，整合台中市 1,100+ 個微感測站（全臺中 1,401 支感測站網絡）的 PM₂.₅、TVOC、溫度、濕度觀測資料。系統結合 3D Mapbox GL 即時地圖、前端輕量級動態高斯煙團大氣擴散模擬引擎（Dynamic Gaussian Puff Engine）、以及全臺中 20 處產業園區之歷史大數據深度分析儀表板（Highcharts），內建空間群聚與超標關聯演算法自動判定污染熱區與產生微感事件，供環保稽查與決策人員深度應用。</p>
 
 <h3>1.1 主要目標</h3>
 <ul>
@@ -133,10 +133,26 @@
 
 <h3>FR-06：系統門檻設定</h3>
 <ul>
-  <li>FR-06-1：管理員可調整 PM₂.₅ 超標閾值（µg/m³）。</li>
+  <li>FR-06-1：管理員可調整 PM₂.₅ 超標閾值（µg/m³，標準設為 50.4 µg/m³ / 54 µg/m³）。</li>
   <li>FR-06-2：管理員可調整連續超標判定筆數（N 筆 × 5 分鐘）。</li>
   <li>FR-06-3：管理員可調整群聚半徑（公里）。</li>
   <li>FR-06-4：管理員可調整群聚最少站數。</li>
+</ul>
+
+<h3>FR-07：全臺中 20 產業園區大數據歷史分析儀表板 (/analytics)</h3>
+<ul>
+  <li>FR-07-1：支援自訂歷史日期區間查詢（支援日粒度聚合，提供 2025-06-27 至 2026-09-01 期間大甲及全臺中微感大數據）。</li>
+  <li>FR-07-2：提供全區 20 產業園區污染潛勢綜合評分排行圖（ZoneRankingChart），支援 PM₂.₅、TVOC 雙指標與超標次數、P95 統計切換。</li>
+  <li>FR-07-3：提供各園區內微感器污染排行圖（SensorRankingChart），標註感測站編號、超標次數、均值與 P95。</li>
+  <li>FR-07-4：提供月份濃度趨勢對照圖（MonthlyTrendChart）與星期-小時矩陣熱力圖（WeekdayHourHeatmap），標註 AQI 5 級標準色階與超標門檻（PM₂.₅ 50.4 µg/m³、TVOC 500 ppb）。</li>
+  <li>FR-07-5：右側整合小型 GIS 熱區地圖（AnalyticsGISMap），支援微感器點擊互動平滑飛入動畫、脈衝雷達效果與 AQI 5 級色階 Scale Bar。</li>
+</ul>
+
+<h3>FR-08：動態高斯煙團大氣擴散即時模擬引擎 (useDispersionSim)</h3>
+<ul>
+  <li>FR-08-1：前端支援基於真實風速（m/s）、風向（度）即時計算 Pasquill-Gifford 大氣穩定度（A-F 級）。</li>
+  <li>FR-08-2：於 Mapbox GL 地圖即時渲染 4 小時污染煙團順風輸送路徑、橫向與垂直擴散、地形阻擋與乾沉降衰減。</li>
+  <li>FR-08-3：支援 60 FPS 平滑時間軸動態播放與等濃度輪廓線/影響範圍視覺化。</li>
 </ul>
 
 <!-- ── 4. 非功能性需求 ── -->
@@ -212,3 +228,4 @@
 </div>
 </body>
 </html>
+

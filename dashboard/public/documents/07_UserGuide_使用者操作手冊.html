@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -37,10 +37,10 @@
   <h1>使用者操作手冊</h1>
   <div class="meta">
     <span><strong>系統名稱</strong>：微感監測中心 (TC IoT Center)</span>
-    <span><strong>文件版本</strong>：v1.0.0</span>
+    <span><strong>文件版本</strong>：v1.2.0</span>
     <span><strong>作者</strong>：PST-Tim</span>
-    <span><strong>日期</strong>：2026-07</span>
-    <span><strong>目標讀者</strong>：一般使用者（稽查人員、管理員）</span>
+    <span><strong>日期</strong>：2026-09</span>
+    <span><strong>目標讀者</strong>：一般使用者（稽查人員、管理員、環境決策者）</span>
   </div>
 </div>
 
@@ -48,7 +48,7 @@
 <h2>1. 系統登入</h2>
 <div class="step-row"><div class="step-n">1</div><div>開啟瀏覽器（建議使用 Chrome 或 Edge 最新版），前往系統網址：<strong>https://tc-iot-center.vercel.app</strong></div></div>
 <div class="step-row"><div class="step-n">2</div><div>在登入頁面輸入帳號與密碼，點擊「登入」按鈕。</div></div>
-<div class="step-row"><div class="step-n">3</div><div>驗證成功後，系統將自動跳轉至主儀表板頁面。</div></div>
+<div class="step-row"><div class="step-n">3</div><div>驗證成功後，系統將自動跳轉至主儀表板頁面。點選左上方導覽列可切換至「即時監測地圖」或「歷史大數據分析 (/analytics)」。</div></div>
 <div class="tip">💡 若忘記密碼，請聯繫系統管理員重新設定。</div>
 
 <!-- ── 2. 主介面 ── -->
@@ -58,12 +58,13 @@
   <div class="img-cap">圖 1：主儀表板全景 — 左側篩選面板、中央 3D 地圖、右側事件列表、底部播放器</div>
 </div>
 
-<p>主介面分為四個主要區域：</p>
+<p>主介面分為五個主要區域：</p>
 <ul>
-  <li><span class="area-label">A 左側</span> <strong>篩選與控制面板</strong>：地區篩選、時間設定、指標切換。</li>
-  <li><span class="area-label">B 中央</span> <strong>3D 地圖畫布</strong>：顯示 1,100+ 個微感測站，以顏色標示 PM₂.₅ 濃度高低。</li>
-  <li><span class="area-label">C 右側</span> <strong>微感事件面板</strong>：系統自動偵測到的超標群聚事件列表。</li>
-  <li><span class="area-label">D 底部</span> <strong>歷史播放器</strong>：時間軸控制，可播放歷史污染擴散動態。</li>
+  <li><span class="area-label">A 左側</span> <strong>篩選與控制面板</strong>：地區篩選、時間設定、指標切換、動態高斯煙團大氣擴散模擬開關。</li>
+  <li><span class="area-label">B 中央</span> <strong>3D 地圖畫布</strong>：顯示 1,100+ 個微感測站（全臺中 1,401 支感測站網絡），以顏色標示 PM₂.₅ 濃度高低與即時擴散模擬羽流。</li>
+  <li><span class="area-label">C 右側</span> <strong>微感事件面板</strong>：系統自動偵測到的超標群聚事件列表，依工業園區自動命名。</li>
+  <li><span class="area-label">D 底部</span> <strong>歷史播放器</strong>：時間軸控制，可播放歷史污染擴散動態與煙團傳輸歷程。</li>
+  <li><span class="area-label">E 頂部</span> <strong>功能切換</strong>：快速跳轉至「全臺中 20 產業園區大數據歷史分析儀表板 (/analytics)」。</li>
 </ul>
 
 <!-- ── 3. 地圖操作 ── -->
@@ -156,9 +157,29 @@
   <li><strong>群聚半徑 (公里)</strong>：超標測站之間的最大聚集距離，預設 1.0 公里。</li>
   <li><strong>群聚最少站數</strong>：此半徑內至少需要多少超標測站才產生事件，預設 2 站。</li>
 </ul>
-<p>調整後點擊「儲存」，系統立即套用新參數並重新計算事件。</p>
+<!-- ── 8. 全園區歷史分析儀表板 (/analytics) ── -->
+<h2>8. 全園區歷史大數據深度分析儀表板 (/analytics)</h2>
+<p>點選導覽列上的「歷史大數據分析」或直接前往 <code>/analytics</code> 路徑，進入全臺中 20 處工業園區大數據分析頁面：</p>
+<ul>
+  <li><strong>自訂查詢區間</strong>：支援選擇開始日與結束日（限定有效數據區間 2025-06-27 至 2026-09-01），系統即時進行日粒度動態聚合。</li>
+  <li><strong>污染潛勢綜合排行 (ZoneRankingChart)</strong>：
+    <ul>
+      <li>可切換「PM₂.₅」或「TVOC 揮發性有機物」指標。</li>
+      <li>排行依據可選擇「綜合潛勢評分」、「超標累積次數」、「P95 濃度」或「平均濃度」。超標判定基準為 PM₂.₅ 50.4 µg/m³、TVOC 500 ppb。</li>
+    </ul>
+  </li>
+  <li><strong>園區微感器排行 (SensorRankingChart)</strong>：點選特定工業園區後，可檢視該園區內所有微感測站之超標次數與最高濃度排行。</li>
+  <li><strong>月份濃度趨勢 (MonthlyTrendChart) & 星期-小時熱力圖 (WeekdayHourHeatmap)</strong>：
+    <ul>
+      <li>展示污染熱點之週規律與日夜時段特徵（如偷排常發生的清晨或夜間時段）。</li>
+      <li>採用 AQI 5 級標準色彩階層與連續漸層 Scale Bar，懸浮即時顯示具體濃度數值。</li>
+    </ul>
+  </li>
+  <li><strong>右側互動式 GIS 視窗 (AnalyticsGISMap)</strong>：點擊左側微感測器卡片時，地圖會平滑飛入（Fly-To）目標站點並觸發雷達脈衝動畫，便於精確定位地理熱區。</li>
+</ul>
 
 <footer>© 2026 微感監測中心 | 07_UserGuide_使用者操作手冊 | 作者：PST-Tim</footer>
 </div>
 </body>
 </html>
+
