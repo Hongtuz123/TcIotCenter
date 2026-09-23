@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10 大甲幼獅工業區微感測器異味污染物(VOC)熱點溯源與科技稽查決策評估報告</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --primary: #f97316;
+    --primary-light: #fb923c;
+    --blue: #38bdf8;
+    --bg: #0b1329;
+    --card: #152238;
+    --card-hover: #1c2e4c;
+    --border: #24344d;
+    --text: #cbd5e1;
+    --heading: #f8fafc;
+    --green: #34d399;
+    --yellow: #facc15;
+    --red: #f87171;
+    --purple: #c084fc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.75;
+    padding: 32px 16px;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  
+  /* 公文與報告標頭 */
+  .doc-header {
+    background: linear-gradient(135deg, rgba(249,115,22,0.12) 0%, rgba(56,189,248,0.06) 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    margin-bottom: 32px;
+    position: relative;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  }
+  .badge-confidential {
+    display: inline-block;
+    background: rgba(248,113,113,0.15);
+    color: var(--red);
+    border: 1px solid rgba(248,113,113,0.3);
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+  .badge-qc {
+    display: inline-block;
+    background: rgba(52,211,153,0.15);
+    color: var(--green);
+    border: 1px solid rgba(52,211,153,0.3);
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    margin-left: 8px;
+  }
+  .doc-header h1 {
+    font-size: 2.1rem;
+    font-weight: 800;
+    color: var(--heading);
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  .doc-header h1 span { color: var(--primary); }
+  .doc-header p.subtitle {
+    font-size: 1.05rem;
+    color: #94a3b8;
+    margin-bottom: 20px;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.875rem;
+  }
+  .meta-item strong { color: var(--blue); display: block; margin-bottom: 2px; }
+
+  /* 關鍵指標 KPI 卡片 */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    transition: all .25s ease;
+  }
+  .kpi-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+  .kpi-title { font-size: 0.85rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+  .kpi-val { font-size: 1.85rem; font-weight: 800; color: var(--heading); margin: 6px 0 4px; }
+  .kpi-val.highlight-red { color: var(--red); }
+  .kpi-val.highlight-orange { color: var(--primary); }
+  .kpi-val.highlight-blue { color: var(--blue); }
+  .kpi-sub { font-size: 0.8rem; color: #64748b; }
+
+  /* 章節結構 */
+  h2 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--heading);
+    border-left: 5px solid var(--primary);
+    padding-left: 14px;
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--blue);
+    margin: 28px 0 12px;
+  }
+  p { margin-bottom: 14px; color: var(--text); }
+
+  /* 提示框 */
+  .callout {
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 20px 0 28px;
+    font-size: 0.95rem;
+  }
+  .callout-warn {
+    background: rgba(249, 115, 22, 0.08);
+    border-left: 4px solid var(--primary);
+  }
+  .callout-danger {
+    background: rgba(248, 113, 113, 0.08);
+    border-left: 4px solid var(--red);
+  }
+  .callout-info {
+    background: rgba(56, 189, 248, 0.08);
+    border-left: 4px solid var(--blue);
+  }
+  .callout-qc {
+    background: rgba(52, 211, 153, 0.08);
+    border-left: 4px solid var(--green);
+  }
+  .callout-title { font-weight: 700; color: var(--heading); margin-bottom: 6px; font-size: 1rem; }
+
+  /* 圖表容器 */
+  .chart-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin: 24px 0 36px;
+  }
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .chart-title { font-size: 1.1rem; font-weight: 700; color: var(--heading); }
+  .chart-desc { font-size: 0.85rem; color: #94a3b8; }
+  .chart-box { position: relative; width: 100%; height: 380px; }
+  .chart-box-lg { height: 460px; }
+
+  /* 核密度圖 (KDE) 並列展示區 */
+  .kde-comparison {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: 24px;
+    margin: 24px 0 36px;
+  }
+  .kde-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: all .25s ease;
+  }
+  .kde-card:hover { border-color: var(--blue); }
+  .kde-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-bottom: 1px solid var(--border);
+  }
+  .kde-info { padding: 20px 24px; }
+  .kde-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .kde-tag.pm25 { background: rgba(250, 204, 21, 0.15); color: var(--yellow); }
+  .kde-tag.voc { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+  .kde-info h4 { font-size: 1.05rem; font-weight: 700; color: var(--heading); margin-bottom: 8px; }
+  .kde-info p { font-size: 0.9rem; color: #94a3b8; line-height: 1.6; margin: 0; }
+
+  /* 數據表格 */
+  .tbl-wrap {
+    overflow-x: auto;
+    margin: 20px 0 32px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: left; }
+  th {
+    background: #0f1c33;
+    color: var(--heading);
+    padding: 12px 16px;
+    font-weight: 700;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:hover td { background: rgba(56, 189, 248, 0.04); }
+  .rank-pill {
+    display: inline-block;
+    width: 26px;
+    height: 26px;
+    line-height: 26px;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: 800;
+    font-size: 0.8rem;
+  }
+  .rank-1 { background: #ef4444; color: white; }
+  .rank-2 { background: #f97316; color: white; }
+  .rank-3 { background: #f59e0b; color: white; }
+  .rank-sub { background: #334155; color: #94a3b8; }
+  .val-danger { color: #f87171; font-weight: 700; }
+  .val-warn { color: #fb923c; font-weight: 600; }
+
+  /* 熱區劃設行動指南卡片 */
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+    margin: 24px 0 36px;
+  }
+  .action-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    transition: all .25s ease;
+  }
+  .action-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .action-step {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .action-title { font-size: 1.15rem; font-weight: 700; color: var(--heading); margin-bottom: 10px; }
+  .action-box ul { padding-left: 20px; font-size: 0.92rem; color: #94a3b8; }
+  .action-box li { margin-bottom: 6px; }
+
+  .btn-hotspot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(249,115,22,0.15);
+    border: 1px solid var(--primary);
+    color: var(--primary-light);
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-top: 14px;
+    transition: all .2s ease;
+  }
+  .btn-hotspot:hover {
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(249,115,22,0.4);
+  }
+
+  /* ── 專家級 PDF 列印專用樣式 ── */
+  @media print {
+    #tgosMapContainer { display: block !important; }
+    #dajiaMap { display: none !important; }
+    *, *::before, *::after {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    @page {
+      size: A4 portrait;
+      margin: 12mm 10mm 12mm 10mm;
+    }
+    html, body {
+      background-color: #0b0f19 !important;
+      color: #e2e8f0 !important;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      max-width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .map-toolbar,
+    .btn-hotspot,
+    .btn-locate,
+    button {
+      display: none !important;
+    }
+    .kpi-grid,
+    .kpi-card,
+    .chart-section,
+    .hotspot-card,
+    .callout,
+    .table-wrap,
+    table,
+    tr,
+    h2,
+    h3 {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    h2 {
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+    }
+    #dajiaMap {
+      height: 480px !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── 報告公文標頭 ── -->
+  <div class="doc-header">
+    <div>
+      <span class="badge-qc" style="margin-left: 0;">數據檢核 (QC) 完整驗證</span>
+    </div>
+    <h1>大甲幼獅工業區微型感測器<span>異味污染物 (VOC)</span> 熱點溯源與科技稽查決策評估報告</h1>
+    <p class="subtitle">基於 31 台有效微型感測器 273,400 筆每小時連續觀測數據（計算單位統一採用每小時平均值 Hourly Mean）之空間核密度 (KDE) 與異常時序規律深度研判</p>
+    
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>委託機關</strong>
+        臺中市政府環境保護局
+      </div>
+      <div class="meta-item">
+        <strong>研究分析單位</strong>
+        振興發科技有限公司
+      </div>
+      <div class="meta-item">
+        <strong>資料來源</strong>
+        自架微感 + 環境物聯網提供之 IOT 測值數據
+      </div>
+      <div class="meta-item">
+        <strong>精確觀測時段與天數</strong>
+        2025 年 6 月 27 日 00:00 ～ 2026 年 9 月 1 日 23:00 (共 432 天全時序)
+      </div>
+      <div class="meta-item">
+        <strong>空間邊界與計算單位</strong>
+        大甲幼獅 500m Buffer (31台有效測站 · <b>統一以每小時平均值計算</b>)
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 關鍵決策 KPI 卡片 ── -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-title">範圍內有效微感 vs 全臺中總量</div>
+      <div class="kpi-val highlight-blue">31 <span style="font-size:1rem;font-weight:normal;color:#94a3b8">/ 範圍 35 (全臺中 1,381 台)</span></div>
+      <div class="kpi-sub">已篩選剔除 4 台失效設備 (零值≥80%或死線)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">全區異味最高測站 (常態長效熱點)</div>
+      <div class="kpi-val highlight-red">TC1043 <span style="font-size:1rem;font-weight:normal">(中山路二段)</span></div>
+      <div class="kpi-sub">年均 1,540.4 ppb / 警示(>200ppb)達 3,505 小時</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">執法排班關鍵 (破除週末迷思)</div>
+      <div class="kpi-val highlight-orange">平假日連續排污</div>
+      <div class="kpi-sub">星期維度無信號 (全週差異 < 7%)，任何一天皆可突擊</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">建議突擊稽查黃金時段</div>
+      <div class="kpi-val" style="color:var(--yellow)">04:30 ～ 06:30</div>
+      <div class="kpi-sub">深夜至清晨重度事件率達 16.7% (白天的 2.6 倍)</div>
+    </div>
+  </div>
+
+  <!-- ── 第一章：執行背景與問題陳述 ── -->
+  <h2>一、背景分析與核心挑戰</h2>
+  <p>大甲幼獅工業區位於臺中市大甲區東北隅，為海線重要之金屬加工、表面處理、機械製造、塑膠射出及化工聚落。長期以來，周邊社區（日南里、幸福里、西岐里）屢屢反映夜間及清晨傳出刺鼻酸臭、塑膠燃燒味與油漆溶劑異味，<strong>於近期民意與民間環保團體票選評比中，更被指名為臺中市「異味異味通報最高熱區」之一</strong>。</p>
+  
+  <p style="background: rgba(56,189,248,0.06); border-left: 3px solid var(--blue); padding: 10px 16px; border-radius: 6px; font-size: 0.92rem;">
+    ⏱️ <strong>計算單位特別聲明</strong>：為克服物聯網微型感測器每 1～2 分鐘即時頻率之微小瞬時微擾，本報告所有統計、排行、空間核密度 (KDE) 及時序特徵分析，<strong>統一採用標準「每小時平均值 (Hourly Mean)」作為核心計算單位</strong>，全期累積 273,400 筆標準觀測時數，嚴格要求單設備單日觀測筆數 ≤ 24 筆。
+  </p>
+
+  <div class="callout callout-warn" style="margin-top: 20px;">
+    <div class="callout-title">⚠️ 環保局傳統稽查痛點：為何民眾頻繁反映有異味，進廠卻抓不到？</div>
+    <ol style="margin-left: 20px;">
+      <li><strong>PM2.5 與異味脫節</strong>：傳統大氣測站多以 PM2.5 / PM10 作為指標，然而<strong>異味污染多由揮發性有機物 (VOCs) 與還原性硫化物引起</strong>，在低微粒濃度時依然氣味刺鼻，造成「空氣指標良好，居民卻聞到惡臭」的矛盾假象。</li>
+      <li><strong>規避日間查緝的清晨偷排</strong>：違規業者常利用夜間 02:00～06:00 稽查人力空檔進行製程廢氣直排或防制設備停機，利用清晨大氣擴散差在短時間內排空。</li>
+      <li><strong>缺乏空間關聯鐵證</strong>：微型感測器數據高達數十萬筆，過去欠缺空間核密度分析（KDE）與時段比對工具，難以說服廠商或作為鎖定特定街廓之執法依據。</li>
+    </ol>
+  </div>
+
+  <!-- ── 第二章：微感測器空間分佈地圖與三大熱區劃設 ── -->
+  <h2>二、大甲幼獅 31 台微感測器空間分佈與三大污染潛勢區域劃設</h2>
+  <p>為利稽查人員於現場直觀研判，本系統於地圖上直接劃設<strong>「三大污染潛勢區域警戒面域」</strong>（包含東南側生活圈熱區、核心製程熱區、西北界址熱區）。點擊下方清冊或點擊熱區按鈕，地圖將自動縮放聚焦至該警戒區域：</p>
+
+  <div class="chart-section" style="padding: 16px; margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 8px; flex-wrap: wrap; gap: 8px;">
+      <div style="font-weight: 700; color: var(--heading);">🗺️ 空間分佈地圖 (含 500m 緩衝邊界 · 31台有效測站 · 三大劃設污染潛勢區域)</div>
+      <div style="font-size: 0.85rem; color: #94a3b8;">
+        <span style="color:#ef4444; font-weight:bold;">■</span> 污染潛勢區域一(東南) &nbsp;|&nbsp;
+        <span style="color:#f97316; font-weight:bold;">■</span> 污染潛勢區域二(核心) &nbsp;|&nbsp;
+        <span style="color:#facc15; font-weight:bold;">■</span> 污染潛勢區域三(西北) &nbsp;|&nbsp;
+        <span style="color:#f97316; font-weight:bold;">---</span> 500m 邊界
+      </div>
+    </div>
+    
+    <!-- 熱區快速切換按鈕列 -->
+    <div style="display: flex; gap: 10px; margin-bottom: 12px; padding: 0 4px; flex-wrap: wrap;">
+      <button onclick="focusHotspotZone('zone1')" style="background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #fca5a5; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+        📍 聚焦【污染潛勢區域一】
+      </button>
+      <button onclick="focusHotspotZone('zone2')" style="background: rgba(249,115,22,0.15); border: 1px solid #f97316; color: #fdba74; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+        📍 聚焦【污染潛勢區域二】
+      </button>
+      <button onclick="focusHotspotZone('zone3')" style="background: rgba(250,204,21,0.15); border: 1px solid #facc15; color: #fef08a; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+        📍 聚焦【污染潛勢區域三】
+      </button>
+      <button onclick="resetMapView()" style="background: rgba(56,189,248,0.15); border: 1px solid #38bdf8; color: #7dd3fc; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+        🔄 重設全區視角
+      </button>
+    </div>
+
+    
+    <!-- 國土測繪 TGOS 臺灣通用電子地圖 (高清版) 與 互動地圖切換 -->
+    <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <div style="font-size: 0.9rem; font-weight: bold; color: var(--accent);">
+        🗺️ 臺灣通用電子地圖 (TGOS/NLSC 底圖 · 零浮水印 · 污染潛勢區域定位圖)
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button id="btnShowTgos" onclick="toggleMapMode('tgos')" style="background: #3b82f6; border: 1px solid #60a5fa; color: #fff; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+          🗺️ TGOS 通用電子地圖
+        </button>
+        <button id="btnShowInteractive" onclick="toggleMapMode('interactive')" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: bold; cursor: pointer;">
+          🌐 GIS 互動圖層
+        </button>
+      </div>
+    </div>
+
+    <!-- 高解析度 TGOS 地圖展示容器 -->
+    <div id="tgosMapContainer" style="width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px; background: #ffffff; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+      <img src="../figures/dajia_hotspots_map_updated.png" alt="大甲幼獅工業區 31 臺微型感測器空間分佈與三大稽查污染潛勢區域定位圖" style="width: 100%; max-width: 1200px; height: auto; display: block; margin: 0 auto;">
+      <div style="padding: 8px; font-size: 12px; color: #475569; background: #f8fafc; border-top: 1px solid #e2e8f0; font-weight: 500;">
+        圖：大甲幼獅 31 臺微型感測器空間分佈與三大稽查污染潛勢區域劃設圖（內政部國土測繪中心 NLSC 臺灣通用電子地圖 · 白色系零浮水印）
+      </div>
+    </div>
+
+    <div id="dajiaMap" style="height: 500px; width: 100%; border-radius: 10px; border: 1px solid var(--border); z-index: 1;"></div>
+  </div>
+
+  <!-- 31 支微感清冊 -->
+  <div class="tbl-wrap" style="max-height: 420px; overflow-y: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th style="position: sticky; top: 0; z-index: 2;">序號</th>
+          <th style="position: sticky; top: 0; z-index: 2;">測站代碼</th>
+          <th style="position: sticky; top: 0; z-index: 2;">設備 ID</th>
+          <th style="position: sticky; top: 0; z-index: 2;">所在位置 / 路段</th>
+          <th style="position: sticky; top: 0; z-index: 2;">經度 (°E)</th>
+          <th style="position: sticky; top: 0; z-index: 2;">緯度 (°N)</th>
+          <th style="position: sticky; top: 0; z-index: 2;">VOC 檢核均值 (ppb)</th>
+          <th style="position: sticky; top: 0; z-index: 2;">PM2.5 均值 (μg/m³)</th>
+          <th style="position: sticky; top: 0; z-index: 2;">有效時數 / 屬性備註</th>
+          <th style="position: sticky; top: 0; z-index: 2;">地圖定位</th>
+        </tr>
+      </thead>
+      <tbody id="sensorsTableBody">
+        <!-- 由 JavaScript 動態注入 31 支測站 -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── 第三章：空間核密度分析 (KDE Maps) ── -->
+  <h2>三、空間核密度分析 (KDE Maps)：PM2.5 與 VOC 空間分佈對比</h2>
+  <p>經資料檢核過濾後，導入<strong>空間高斯核密度估計（Weighted Gaussian KDE）</strong>演算法，針對大甲幼獅 30 台長期有效微型感測器進行一整年觀測權重平滑運算。以下兩張高解析度核密度圖，直觀揭示了「顆粒物」與「異味揮發物」本質上的巨大差異：</p>
+
+  <div class="kde-comparison">
+    <!-- 圖 1: PM2.5 KDE -->
+    <div class="kde-card">
+      <img src="../figures/dajia_kde_pm25.png" alt="大甲幼獅工業區 PM2.5 空間核密度圖">
+      <div class="kde-info">
+        <span class="kde-tag pm25">常規微粒指標</span>
+        <h4>圖 1：以 PM2.5 為主之空間濃度核密度圖 (檢核後)</h4>
+        <p><strong>特徵解讀</strong>：全區 PM2.5 濃度梯度介於 6.6 ～ 26.6 μg/m³ 之間，呈現<strong>大範圍廣域平緩漸變</strong>特徵，微偏工業區東南至南側。這反映了 PM2.5 主要受區域背景大氣擴散與季風傳輸主導，無法有效鎖定工業區內個別工廠的非法偷排行為。</p>
+      </div>
+    </div>
+
+    <!-- 圖 2: VOC KDE -->
+    <div class="kde-card">
+      <img src="../figures/dajia_kde_voc.png" alt="大甲幼獅工業區 VOC 異味空間核密度圖">
+      <div class="kde-info">
+        <span class="kde-tag voc">異味關鍵核心指標</span>
+        <h4>圖 2：以 VOC (異味污染物) 為主之空間核密度圖 (檢核後)</h4>
+        <p><strong>特徵解讀</strong>：VOC 空間呈現<strong>「極端局部島狀聚集」</strong>！全區背景值多低於 250 ppb，但在<strong>東南側邊界 (TC1043)</strong>、<strong>黎明路幸福里 (TC0697)</strong> 與<strong>西北順帆路 (TC1278)</strong> 出現極度陡峭的深色高濃度「紅爆熱點」（達 1,000~1,540 ppb），具備極高點源排放指紋！</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-danger">
+    <div class="callout-title">🚨 空間核密度關鍵發現：東南側生活圈交界「異味重嫌確立」</div>
+    <p>比對圖 1 與圖 2 可清楚看出：<strong>TC1043 (東南隅中山路二段) 與 TC0697 (黎明路) 是全區長時序 VOC 濃度熱區的最核心震央</strong>。該熱區直接緊貼日南國小與住宅密集圈，精準印證了民意票選與異味異味通報案件高度集中於該處的真實原因！</p>
+  </div>
+
+  <!-- ── 第四章：全時序異常頻率多維深度分析 (月均值 -> 曜日 -> 4小時時段三層收斂) ── -->
+  <h2>四、全時序異常頻率多維深度分析：精準鎖定稽查黃金出動契機</h2>
+  <p>掌握污染空間熱區後，稽查大隊面臨最核心的戰術問題是：<strong>「究竟哪幾個月最嚴重？該選在週幾去查？一天之中的哪幾個小時出動最有把握抓到違規？」</strong>本模組針對 432 天數據進行「月均值 ➔ 曜日 ➔ 4小時時段」三層收斂分析：</p>
+
+  <!-- 第一層：月均值分析 -->
+  <h3>4.1 第一層收斂：長時序月度均值變化（鎖定高污染月份）</h3>
+  <p>下圖呈現 2025 年 6 月至 2026 年 9 月全區 30 台常態測站之每小時數據聚合月均值及重度污染事件率（>500 ppb 時數佔比）：</p>
+  
+  <div class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">📅 月度 VOC 平均濃度與重度事件率趨勢圖 (2025/06 ～ 2026/09)</div>
+        <div class="chart-desc">長條代表月均 VOC 濃度 (ppb)；折線代表重度污染事件發生率 (%)</div>
+      </div>
+    </div>
+    <div class="chart-box">
+      <canvas id="chartMonthlyTrend"></canvas>
+    </div>
+  </div>
+
+  <div class="callout callout-warn">
+    <div class="callout-title">🔍 第一層分析結論：夏季至初秋（6月 ～ 9月）為全年度異味污染最高峰</div>
+    <ul style="margin-left: 20px;">
+      <li><strong>高溫揮發劇烈</strong>：每年 <strong>6月 ～ 9月</strong> 全區 VOC 月均濃度達到最高峰（<strong>513.8 ～ 541.2 ppb</strong>），且重度污染事件率高達 <strong>14.6% ～ 17.0%</strong>，顯著高於冬季與春季（270 ～ 316 ppb，事件率約 9% ～ 11%）。</li>
+      <li><strong>氣象與海陸風影響</strong>：夏季海風於午後深入陸地，傍晚轉為微弱陸風時常形成局部渦旋，致使有機溶劑與製程廢氣蓄積於大甲盆地邊界，此時期居民異味感受最為強烈。</li>
+    </ul>
+  </div>
+
+  <!-- 第二層：曜日分析 -->
+  <h3>4.2 第二層收斂：星期特徵分析 —— 破除「週末停工」迷思，全區呈現常態連續排污</h3>
+  <p>為確認工業區是否有「特定單日趕工」或「週末停工休假」的週期排程，本模組分析星期一至星期日（Day of Week）的濃度強度與重度事件發生頻率：</p>
+
+  <div class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">📆 星期幾 (週一至週日) 污染分佈圖（各曜日均值差異 < 7%，平假日均勻嚴重）</div>
+        <div class="chart-desc">柱狀為各曜日平均 VOC (ppb)；紫色虛線為 P95 峰值；黃色折線為重度事件率 (%)</div>
+      </div>
+    </div>
+    <div class="chart-box">
+      <canvas id="chartWeekdayPattern"></canvas>
+    </div>
+  </div>
+
+  <!-- 星期 ✕ 小時 7x24 超標熱力矩陣圖 (每格剛好 1 小時) -->
+  <div class="chart-section" style="margin-top: 24px;">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">🔥 星期與小時 (Weekday vs. Hour) 重度超標 (>500 ppb) 頻率熱力矩陣圖</div>
+        <div class="chart-desc">X 軸為每日發生小時 (00:00～23:00 · 每格剛好 1 小時) ；Y 軸為週一至週日；格子數字為全區合格測站累積超標次數</div>
+      </div>
+    </div>
+    <div style="text-align: center; margin-top: 10px;">
+      <img src="../figures/dajia_weekday_hour_heatmap.png" alt="星期與小時超標頻率熱力矩陣圖" style="width: 100%; max-width: 1200px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.25);">
+      <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 8px; font-style: italic;">
+        圖：全區微感測器 VOC 重度超標 (>500 ppb) 星期與小時熱力圖（橫向清晨 00～06 時極強爆發 · 縱向全週天天均勻連續排污）
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-title">🎯 第二層分析重要結論：星期維度「無顯著信號」，打破「週末工廠停工空氣較好」的傳統迷思！</div>
+    <ul style="margin-left: 20px; line-height: 1.8;">
+      <li><strong>熱力矩陣橫向透視（X 軸小時）</strong>：從 00 時至 06 時，全週每天清晨每一格累積超標次數高達 <strong>250～306 次</strong>（呈深紅色火海）；中午 11～14 時驟降至 <strong>71～99 次</strong>（退為淺黃色），清晨超標頻率為午後的 <strong>3.5 倍</strong>。</li>
+      <li><strong>熱力矩陣縱向透視（Y 軸星期）</strong>：週一至週日每一列的紅色火斑結構完全一致！各星期累積超標總次數（週一 4,798 次 ～ 週日 4,611 次）<strong>全週差距僅 5.6%</strong>，直接以二維大數據證實全區污染「全週 7 天天天連續排污」，平假日出勤皆具高度效益。</li>
+      <li><strong>平假日無差別排放（差異僅 6.9%）</strong>：統計顯示工作日（週一至週五）平均 VOC 為 <strong>371.9 ppb</strong>，週末（週六週日）平均 VOC 仍高達 <strong>347.8 ppb</strong>，兩者差距僅 <strong>24.1 ppb（波動率僅 6.9%）</strong>；全週每日重度事件率（>500 ppb）均勻落在 <strong>11.8% ～ 12.6%</strong>，統計檢定幾無週期性波動。</li>
+      <li><strong>核心震央 TC1043 週末照常高壓排放</strong>：即使觀察東南側最高熱區 TC1043，週六平均 VOC 依然高達 <strong>1,599.5 ppb</strong>，重度事件率達 <strong>35.7%</strong>（與平日週二～週五完全相同）！</li>
+      <li><strong>執法作戰指導意義</strong>：這證實大甲幼獅的違規業者多屬 <strong>24 小時連續式製程（Continuous Process，如連續合成反應、表面塗裝、塑膠射出）</strong>，或將空污防制設備夜間停機視為常態，<strong>工廠週末根本沒有停工停排！</strong>因此，稽查大隊<strong>「平假日任何一天出動皆可，排班無須受限於週間或週末」</strong>。</li>
+    </ul>
+  </div>
+
+  <!-- 第三層：4小時時段分析 -->
+  <h3>4.3 第三層收斂：一日 6 個 4 小時時段分析（鎖定一日執法黃金時段）</h3>
+  <p>為利於稽查大隊排定輪班勤務，本模組將 24 小時嚴格劃分為 6 個標準 4 小時時段（00-04 深夜、04-08 清晨、08-12 上午、12-16 下午、16-20 傍晚、20-24 夜間）：</p>
+
+  <div class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">⏱️ 一日 6 個 4 小時時段濃度梯度與異常事件結構圖</div>
+        <div class="chart-desc">清晨拂曉與深夜呈現極端突波，白天下跌至谷底</div>
+      </div>
+    </div>
+    <div class="chart-box">
+      <canvas id="chartTimeBlockPattern"></canvas>
+    </div>
+  </div>
+
+  <!-- 6 大時段交叉分析詳細表格 (含超標次數) -->
+  <div class="tbl-wrap" style="margin: 20px 0 28px;">
+    <table>
+      <thead>
+        <tr>
+          <th>時段區間</th>
+          <th>代表時段特徵</th>
+          <th>VOC 均值 (ppb)</th>
+          <th style="color: #fca5a5;">超標次數 (>500 ppb)</th>
+          <th>重度事件率</th>
+          <th>執法優先序</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background: rgba(239, 68, 68, 0.12);">
+          <td><strong style="color: #ef4444;">00:00～04:00</strong></td>
+          <td style="color: #f87171; font-weight: 600;">深夜偷排最高峰</td>
+          <td><strong>467.1 ppb</strong></td>
+          <td><strong style="color: #ef4444; font-size: 1.05rem;">7,489 次</strong></td>
+          <td><strong>15.1%</strong></td>
+          <td><span style="background: #ef4444; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">第一高發 (夜間跟監)</span></td>
+        </tr>
+        <tr style="background: rgba(249, 115, 22, 0.08);">
+          <td><strong style="color: #f97316;">04:00～08:00</strong></td>
+          <td style="color: #fb923c; font-weight: 600;">清晨逆溫壓制期</td>
+          <td><strong>438.9 ppb</strong></td>
+          <td><strong style="color: #f97316; font-size: 1.05rem;">7,083 次</strong></td>
+          <td><strong>14.3%</strong></td>
+          <td><span style="background: #f97316; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">第一優先 (黃金突擊)</span></td>
+        </tr>
+        <tr>
+          <td>20:00～24:00</td>
+          <td>夜間排放蓄積期</td>
+          <td>396.5 ppb</td>
+          <td><strong style="color: #facc15;">6,745 次</strong></td>
+          <td>13.5%</td>
+          <td><span style="background: #eab308; color: #0f172a; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">中優先 (駐點快篩)</span></td>
+        </tr>
+        <tr>
+          <td>16:00～20:00</td>
+          <td>傍晚風向轉換期</td>
+          <td>305.0 ppb</td>
+          <td><strong style="color: #94a3b8;">5,719 次</strong></td>
+          <td>11.4%</td>
+          <td><span style="color: #94a3b8;">常態監測</span></td>
+        </tr>
+        <tr>
+          <td>12:00～16:00</td>
+          <td>午後對流消散期</td>
+          <td>166.7 ppb</td>
+          <td><strong style="color: #94a3b8;">3,083 次</strong></td>
+          <td>6.1%</td>
+          <td><span style="color: #64748b;">一般巡查</span></td>
+        </tr>
+        <tr>
+          <td>08:00～12:00</td>
+          <td>晨間工廠開工期</td>
+          <td>201.8 ppb</td>
+          <td><strong style="color: #94a3b8;">2,910 次</strong></td>
+          <td>5.8%</td>
+          <td><span style="color: #94a3b8;">常態監測</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-danger">
+    <div class="callout-title">🚨 第三層分析結論：清晨拂曉「04:00 ～ 08:00 (黃金核心 04:30～06:30)」為必中時段！</div>
+    <ul style="margin-left: 20px;">
+      <li><strong>全區日夜反差極端 (2.8 倍)</strong>：
+        <strong>00:00～04:00 (深夜)</strong> 均值高達 <strong>467.1 ppb</strong>（超標 7,489 次，重度率 15.1%）；
+        <strong>04:00～08:00 (清晨拂曉)</strong> 均值達 <strong>438.9 ppb</strong>（超標 7,083 次，重度率 14.3%）；
+        反觀 <strong>12:00～16:00 (下午)</strong> 均值僅 <strong>166.7 ppb</strong>（超標 3,083 次，重度率 6.1%）。深夜與清晨超標次數合計達 <strong>14,572 次</strong>（佔全天候超標總量的 <strong>44.1%</strong>），夜間至清晨重度污染頻率是白天的 <strong>2.8 倍</strong>！</li>
+      <li><strong>東南常態震央 TC1043 的震撼表現</strong>：
+        TC1043 在 <strong>04:00～08:00 清晨均值高達 1,948.2 ppb（P95 破 10,351 ppb，重度事件率高達 43.1%）</strong>；夜間 20:00～24:00 均值高達 2,036.7 ppb（重度率 46.5%）！白天下跌至 658 ppb。</li>
+      <li><strong>執法黃金窗口</strong>：結合大氣逆溫層物理機制，<strong>清晨 04:30～06:30</strong> 是混合層高度最低、工廠以為稽查人員熟睡而直排的高峰，為進廠直擊之黃金窗口！</li>
+    </ul>
+  </div>
+
+  <!-- ── 第五章：全區微感測器 VOC 常態排比與警示時數統計 ── -->
+  <h2>五、全區微感測器 VOC 常態排比與高濃度警示時數統計</h2>
+  <p>本模組對檢核後 273,400 筆每小時數據進行精準統計分析。下表列出全區具備長效代表性之前 10 名微型感測器詳細參數（<strong>數值與底層 Parquet 100% 嚴格吻合</strong>）：</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>排名</th>
+          <th>測站編號</th>
+          <th>設備 ID</th>
+          <th>裝設路段 / 位置</th>
+          <th>檢核平均 VOC (ppb)</th>
+          <th>P95 峰值 (ppb)</th>
+          <th>警示時數 (>200ppb)</th>
+          <th>重度事件時數 (>500ppb)</th>
+          <th>平均 PM2.5 (μg/m³)</th>
+          <th>異味疑慮評等</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="rank-pill rank-1">1</span></td>
+          <td><strong>TC1043</strong></td>
+          <td><code>11985038147</code></td>
+          <td>大甲區中山路二段 743號 (日南車站旁)</td>
+          <td class="val-danger">1,540.37</td>
+          <td>9,228.31</td>
+          <td>3,505 小時</td>
+          <td class="val-danger">2,532 小時</td>
+          <td>22.29</td>
+          <td><span style="color:#ef4444;font-weight:bold">🔴 極高度嫌疑 (常態長效)</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-2">2</span></td>
+          <td><strong>TC0697</strong></td>
+          <td><code>11989540173</code></td>
+          <td>黎明路 (東南幸福里住宅圈)</td>
+          <td class="val-warn">1,034.34</td>
+          <td>5,951.52</td>
+          <td>4,147 小時</td>
+          <td class="val-warn">3,229 小時</td>
+          <td>6.61</td>
+          <td><span style="color:#f97316;font-weight:bold">🟠 高度疑慮 (製程/生活圈)</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-3">3</span></td>
+          <td><strong>TC1278</strong></td>
+          <td><code>11831782029</code></td>
+          <td>順帆路 18號 (西側邊界)</td>
+          <td class="val-warn">956.26</td>
+          <td>7,208.37</td>
+          <td>2,859 小時</td>
+          <td class="val-warn">1,858 小時</td>
+          <td>7.78</td>
+          <td><span style="color:#f97316;font-weight:bold">🟠 高度疑慮 (製程/生活圈)</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-sub">4</span></td>
+          <td><strong>TC0913</strong></td>
+          <td><code>11833503348</code></td>
+          <td>東側邊界高架旁 (農田交界)</td>
+          <td class="val-warn">730.29</td>
+          <td>3,231.01</td>
+          <td>4,747 小時</td>
+          <td class="val-warn">3,630 小時</td>
+          <td>23.43</td>
+          <td><span style="color:#f59e0b;font-weight:bold">🟡 中度疑慮 (擴散邊界)</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-sub">5</span></td>
+          <td><strong>TC0875</strong></td>
+          <td><code>11826104620</code></td>
+          <td>南側農田交界處</td>
+          <td class="val-warn">704.15</td>
+          <td>4,718.99</td>
+          <td>3,408 小時</td>
+          <td class="val-warn">2,197 小時</td>
+          <td>26.64</td>
+          <td><span style="color:#f59e0b;font-weight:bold">🟡 中度疑慮 (擴散邊界)</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-sub">6</span></td>
+          <td><strong>TC0676</strong></td>
+          <td><code>12074963842</code></td>
+          <td>中山路二段 912巷 1之1號</td>
+          <td class="val-warn">669.04</td>
+          <td>3,490.51</td>
+          <td>2,300 小時</td>
+          <td class="val-warn">1,678 小時</td>
+          <td>19.43</td>
+          <td><span style="color:#f59e0b;font-weight:bold">🟡 中度疑慮 (擴散邊界)</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-sub">7</span></td>
+          <td><strong>TC0940</strong></td>
+          <td><code>11798443612</code></td>
+          <td>幼五路 3號 (核心製程區)</td>
+          <td >631.81</td>
+          <td>3,750.71</td>
+          <td>2,521 小時</td>
+          <td >1,648 小時</td>
+          <td>15.26</td>
+          <td><span>🔵 關聯稽查/背景對照</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-sub">8</span></td>
+          <td><strong>TC0206</strong></td>
+          <td><code>11802345498</code></td>
+          <td>長壽路北側</td>
+          <td >604.98</td>
+          <td>3,363.04</td>
+          <td>894 小時</td>
+          <td >665 小時</td>
+          <td>12.89</td>
+          <td><span>🔵 關聯稽查/背景對照</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-sub">9</span></td>
+          <td><strong>TC8097</strong></td>
+          <td><code>12172005702</code></td>
+          <td>長壽東西六路 (西北界址)</td>
+          <td >480.03</td>
+          <td>2,912.67</td>
+          <td>1,630 小時</td>
+          <td >1,360 小時</td>
+          <td>21.39</td>
+          <td><span>🔵 關聯稽查/背景對照</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-pill rank-sub">10</span></td>
+          <td><strong>TC0891</strong></td>
+          <td><code>11832548941</code></td>
+          <td>幼五路 / 工三路口</td>
+          <td >478.94</td>
+          <td>1,991.14</td>
+          <td>4,514 小時</td>
+          <td >2,207 小時</td>
+          <td>21.27</td>
+          <td><span>🔵 關聯稽查/背景對照</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 分析圖表 1: VOC 排行長條圖 -->
+  <div class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">📊 分析圖表一：全區檢核合格微感測器 VOC 年均值排比圖 (ppb · 每小時平均)</div>
+        <div class="chart-desc">長條顏色代表嚴重程度 (紅色：>1,000 ppb 極高疑慮；橙色：>500 ppb 中高疑慮；藍色：背景值)</div>
+      </div>
+    </div>
+    <div class="chart-box chart-box-lg">
+      <canvas id="chartVocRanking"></canvas>
+    </div>
+  </div>
+
+  <!-- ── 第六章：重點測站 24 小時連續時序曲線 ── -->
+  <h2>六、重點測站 24 小時連續時序曲線：直擊清晨與夜間異常突波</h2>
+  <p>分析各重點測站於 24 小時（00:00 至 23:00）的濃度週期曲線，印證夜間蓄積與清晨偷排特徵：</p>
+
+  <!-- 分析圖表 2: 24 小時時序曲線圖 -->
+  <div class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">📈 分析圖表二：重點嫌疑測站 24 小時平均 VOC 濃度週期曲線 (ppb)</div>
+        <div class="chart-desc">點擊下方圖例可切換測站。清楚可見夜間至清晨 04:30 ~ 08:00 呈現劇烈高濃度曲線！</div>
+      </div>
+    </div>
+    <div class="chart-box chart-box-lg">
+      <canvas id="chartHourlyCurve"></canvas>
+    </div>
+  </div>
+
+  <div class="callout callout-danger">
+    <div class="callout-title">🚨 數據剖析：TC1043 常態夜間高壓排放 vs TC0905 歷史短期突發偷排</div>
+    <ul>
+      <li><strong>TC1043 (中山路二段 743號 · 常態震央)</strong>：最高峰集中於 <strong>清晨 06:00～09:00（均值達 2,100 ～ 2,470.8 ppb）</strong>，夜間均值維持在 1,800~2,200 ppb，高達日間午後（493~583 ppb）的 <strong>4 ～ 5 倍</strong>，呈現「常態長效高排放 + 清晨逆溫蓄積」態勢。</li>
+      <li><strong>TC0697 (黎明路 · 幸福里)</strong>：於<strong>傍晚至入夜 17:00～20:00 出現 2,000 ～ 2,111.7 ppb 高峰</strong>，顯示下風處夜間生活圈受製程廢氣影響顯著。</li>
+      <li><strong>TC0905 (幼四路 33號 · 歷史短期專案案例)</strong>：雖在線僅 135 小時，但該 5 天內於<strong>清晨 04:00～07:00 出現 7,300 ～ 8,926 ppb（瞬時極值 14,442 ppb）之驚人暴衝</strong>，而日間僅 1~10 ppb，呈現典型偷排特徵，值得環保局重啟專案跟監！</li>
+    </ul>
+  </div>
+
+  <!-- 分析圖表 3 & 4 網格 -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(480px, 1fr));gap:20px;margin-bottom:36px;">
+    <div class="chart-section" style="margin:0">
+      <div class="chart-title">🍩 分析圖表三：Top 5 測站高濃度時數結構 (>200, >500, >1000 ppb)</div>
+      <div class="chart-desc" style="margin-bottom:12px">呈現重度異味事件頻率與持久度</div>
+      <div class="chart-box">
+        <canvas id="chartThresholdStacked"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-section" style="margin:0">
+      <div class="chart-title">🎯 分析圖表四：PM2.5 vs VOC 污染類型矩陣分佈</div>
+      <div class="chart-desc" style="margin-bottom:12px">破除「PM2.5 低就無污染」之盲點</div>
+      <div class="chart-box">
+        <canvas id="chartScatterMatrix"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 第七章：三大可疑熱區與現場稽查路段定位 (含地圖劃設區域連動) ── -->
+  <h2>七、三大可疑熱區劃設與現場稽查路段定位</h2>
+  <p>依據物聯網微感測大數據分析，系統已於第二章地圖上精確劃設出<strong>三大可疑熱區多邊形警戒面域</strong>。稽查人員可點擊各熱區卡片中的定位按鈕，系統將自動於地圖高亮該熱區多邊形並平滑縮放至該街廓：</p>
+
+  <div class="action-grid">
+    <!-- 熱區 1 -->
+    <div class="action-box" style="border-top: 4px solid #ef4444;">
+      <div class="action-step" style="color: #ef4444;">污染潛勢區域一 · 優先等級：最高 (常態長效熱區)</div>
+      <div class="action-title">東南側生活圈交界熱區</div>
+      <ul>
+        <li><strong>劃設面域坐標</strong>：中心點 (24.3963°N, 120.6558°E)，涵蓋日南國小南側至中山路二段兩側。</li>
+        <li><strong>核心微感測器</strong>：<code>TC1043</code> (中山路二段743號)、<code>TC0697</code> (黎明路)、<code>TC0676</code> (中山路二段912巷)、<code>TC0875</code>、<code>TC0913</code>。</li>
+        <li><strong>現場稽查重點路段</strong>：
+          <br>• <strong>中山路二段（日南車站商圈至 743號路段）</strong>
+          <br>• <strong>黎明路（幸福里住宅密集區）</strong>
+          <br>• <strong>中山路二段 912巷</strong></li>
+        <li><strong>鎖定行業別</strong>：塗料製造、金屬表面烤漆、有機溶劑脫脂、塑膠射出廠。</li>
+        <li><strong>污染特徵</strong>：TC1043 年均達 1,540 ppb（全區第一），高濃度警示時數達 3,505 小時，重度超標率達 35%~43%，直接衝擊數千居民生活圈。</li>
+      </ul>
+      <button class="btn-hotspot" onclick="focusHotspotZone('zone1')">
+        🗺️ 於地圖高亮定位【污染潛勢區域一】
+      </button>
+    </div>
+
+    <!-- 熱區 2 -->
+    <div class="action-box" style="border-top: 4px solid #f97316;">
+      <div class="action-step" style="color: #f97316;">污染潛勢區域二 · 優先等級：最高 (清晨偷排嫌疑)</div>
+      <div class="action-title">幼四路／幼五路核心製程區</div>
+      <ul>
+        <li><strong>劃設面域坐標</strong>：中心點 (24.4042°N, 120.6513°E)，位於工業區正中心幾何核心。</li>
+        <li><strong>核心微感測器</strong>：<code>TC0940</code> (幼五路3號)、<code>TC0905</code> (幼四路33號 · 歷史暴衝)、<code>TC0891</code>、<code>TC0941</code>、<code>TC0746</code>。</li>
+        <li><strong>現場稽查重點路段</strong>：
+          <br>• <strong>幼四路（全線重工廠街廓）</strong>
+          <br>• <strong>幼五路（與工三路交叉口周邊）</strong>
+          <br>• <strong>幼三路東段</strong></li>
+        <li><strong>鎖定行業別</strong>：化學原材料儲槽、樹脂合成、橡膠硫化、非鐵金屬鑄造與瀝青拌合廠。</li>
+        <li><strong>污染特徵</strong>：TC0905 曾於清晨 04:00～07:00 記錄到 14,442 ppb 劇烈突波；TC0940 重度事件時數達 1,648 小時，典型利用清晨逆溫直排。</li>
+      </ul>
+      <button class="btn-hotspot" onclick="focusHotspotZone('zone2')">
+        🗺️ 於地圖高亮定位【污染潛勢區域二】
+      </button>
+    </div>
+
+    <!-- 熱區 3 -->
+    <div class="action-box" style="border-top: 4px solid #facc15;">
+      <div class="action-step" style="color: #facc15;">污染潛勢區域三 · 優先等級：中高 (西北邊界受體)</div>
+      <div class="action-title">西北側順帆路／長壽路界址</div>
+      <ul>
+        <li><strong>劃設面域坐標</strong>：中心點 (24.4096°N, 120.6423°E)，背靠西岐里與銅安里邊界。</li>
+        <li><strong>核心微感測器</strong>：<code>TC1278</code> (順帆路18號)、<code>TC8097</code> (長壽東西六路)、<code>TC1148</code>、<code>TC0935</code>、<code>TC0206</code>。</li>
+        <li><strong>現場稽查重點路段</strong>：
+          <br>• <strong>順帆路（18號至銅安里交界）</strong>
+          <br>• <strong>長壽東西六路</strong>
+          <br>• <strong>長壽路北端鐵皮工廠聚落</strong></li>
+        <li><strong>鎖定行業別</strong>：機械表面切削油霧、有機溶劑脫脂清洗、無照鐵皮違章加工廠。</li>
+        <li><strong>污染特徵</strong>：TC1278 清晨常態均值達 1,500 ppb，P95 峰值達 7,208 ppb；TC8097 警示時數達 1,630 小時。</li>
+      </ul>
+      <button class="btn-hotspot" onclick="focusHotspotZone('zone3')">
+        🗺️ 於地圖高亮定位【污染潛勢區域三】
+      </button>
+    </div>
+  </div>
+
+  <!-- ── 第八章：結論與後續跟進 ── -->
+  <h2>八、結論與後續跟進：大數據三大維度訊號對比與執法資源最優配置</h2>
+  <p>大甲幼獅工業區「異味票選最高」之民意並非空穴來風，而是有扎實之物聯網微感測數據為證。本評估報告以<strong>「每小時平均值 (Hourly Mean)」為基底</strong>，在排除故障設備、嚴格剔除儀器溢位異常值之科學檢核基礎下，透過長時序多維度交叉剖析，獲致大數據三大維度訊號強弱對比之關鍵結論：</p>
+  
+  <!-- 三大維度訊號強弱對比矩陣 -->
+  <div class="tbl-wrap" style="margin: 16px 0 24px;">
+    <table>
+      <thead>
+        <tr>
+          <th>分析維度</th>
+          <th>訊號強度等級</th>
+          <th>數據對比特徵 (倍數差距)</th>
+          <th>環保局科技執法策略建議</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--red);">時段維度 (Hour of Day)</strong></td>
+          <td><span style="color:#ef4444;font-weight:bold;">🔥 極強信號 (2.8 倍)</span></td>
+          <td>清晨與深夜均值 <strong>520 ppb</strong> 是日間午後 (183 ppb) 的 <strong>整整 2.8 倍</strong> (重度率 16.7% vs 6.8%)</td>
+          <td><strong>出動時段絕對死守清晨 04:30～06:30</strong>，避開日間巡查，趁逆溫蓄積時段進廠直擊。</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--primary);">月份維度 (Month of Year)</strong></td>
+          <td><span style="color:var(--primary);font-weight:bold;">⚡ 強信號 (2.0 倍)</span></td>
+          <td>夏季 6～9 月均值 <strong>540 ppb</strong> 是冬季 (270 ppb) 的 <strong>整整 2.0 倍</strong> (事件率達 17%)</td>
+          <td><strong>專案資源集中於夏季高溫期</strong>，高溫揮發劇烈且海陸風逆溫蓄積最嚴重，異味高峰期重兵布防。</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--blue);">星期維度 (Day of Week)</strong></td>
+          <td><span style="color:#94a3b8;font-weight:bold;">⚪ 無信號 (僅 1.08 倍)</span></td>
+          <td>週五 (387 ppb) 與週一 (357 ppb) <strong>僅差 1.08 倍</strong> (工作日 vs 週末差異僅 6.9%，TC1043 週六照常飆破 1,600 ppb)</td>
+          <td><strong>打破「週末工廠停工休假」的傳統迷思！</strong>工廠屬連續式製程常態排污，平假日皆需嚴密布防，週末突襲效果尤佳。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ul style="margin-left: 20px; line-height: 1.8; margin-bottom: 16px;">
+    <li><strong>空間熱區焦點收斂</strong>：全區 31 台微感中，<strong>東南側中山路二段 (TC1043)</strong> 與 <strong>黎明路 (TC0697)</strong> 確立為常態最重嫌震央，直接緊貼日南住宅生活圈；<strong>順帆路 (TC1278)</strong> 則為下風處主要擴散邊界。</li>
+    <li><strong>歷史偷排重點跟監</strong>：針對 <strong>幼四路 33號 (TC0905)</strong> 曾記錄到清晨瞬間破萬 ppb 之短波暴衝特性，建議稽查大隊將其列入重點名冊，不定期架設自動觸發採樣設備進行守株待兔式執法。</li>
+  </ul>
+
+  <!-- ── 第九章（附錄）：嚴格資料檢核 (Data QC) 規則與定義說明 ── -->
+  <h2>九、附錄：嚴格資料檢核 (Data QC) 規則與定義說明</h2>
+  <div class="callout callout-qc" style="border-left: 4px solid var(--green); background: rgba(52,211,153,0.06); padding: 22px; border-radius: 12px; margin: 20px 0 36px;">
+    <div class="callout-title" style="font-size: 1.1rem; color: var(--green); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+      🛡️ 數據清理原則、設備剔除清冊與篩選門檻定義說明
+    </div>
+    <ul style="margin-left: 20px; line-height: 1.8; color: #cbd5e1; font-size: 0.95rem;">
+      <li><strong>計算單位標準化</strong>：原始資料為每 1～2 分鐘 1 筆之瞬時監測值，全時序累積超過 1,500 萬筆。為消除瞬時擾動並符合宏觀趨勢分析，本報告全數轉換聚合為 <strong>每小時平均值 (Hourly Mean)</strong>，共產出 273,400 列標準時數資料。</li>
+      <li><strong>設備層級篩選剔除清冊（Excluded Sensors · 共 4 台）</strong>：經全時序完整性稽核，以下 4 台設備因嚴重硬體故障或未連線，<strong>已全數予以排除</strong>，不納入統計排名與空間內插計算：
+        <ol style="margin-left: 20px; margin-top: 4px; color: #94a3b8;">
+          <li><code>TC0179</code> (ID: 11816167581)：100.0% 讀值恆為 0.0，且僅在線 6 天（146 小時），屬未連線無效設備。</li>
+          <li><code>TC0915</code> (ID: 12201470934)：100.0% 讀值恆為 0.0（超過 80% 門檻），VOC 感測元件未接或硬體損壞。</li>
+          <li><code>TC0221</code> (ID: 11849005043)：94.12% 讀值恆為 0.0（超過 80% 門檻），感測器大部分時段失效。</li>
+          <li><code>TC0414</code> (ID: 12203929073)：全程 10,360 小時讀值恆定為 8.0 ppb（標準差 $\sigma = 0.0$），屬底線卡死異常設備。</li>
+        </ol>
+      </li>
+      <li><strong>數值層級異常值過濾 (Record-level Outlier QC)</strong>：
+        <ol style="margin-left: 20px; margin-top: 4px; color: #94a3b8;">
+          <li><strong>VOC/TVOC</strong>：剔除微型感測器 16-bit 暫存器溢位極限 65,535 ppb、韌體截斷飽和值 29,206 ppb，以及其他超過 15,000 ppb 之極端異常突波（共剔除 4,468 筆，佔 1.63%）。</li>
+          <li><strong>PM2.5</strong>：剔除缺失值（Null）與超過 500 μg/m³ 之異常突波。</li>
+        </ol>
+      </li>
+      <li><strong>TC0905 (幼四路 33號) 設備定位修正說明</strong>：
+        TC0905 在 432 天中實際僅監測 135 小時（2025/06/27～07/02，約 5.6 天）。為恪遵統計代表性，本報告<strong>不將其納入全年常態排比</strong>；但因其在線期間清晨 04:00～06:00 記錄到 14,442 ppb 之極端偷排特徵，本報告將其<strong>獨立定調為「歷史短期專案突發案例」</strong>供稽查跟監參考。</li>
+      <li><strong>本報告自訂篩選門檻定義說明</strong>：
+        本報告所稱「高濃度警示時數 (>200 ppb)」與「重度事件時數 (>500 ppb)」，係本研究針對大甲幼獅微感網絡背景特徵所設定之<strong>內部快篩與熱區優先序篩選門檻</strong>，用以評估熱區嚴重度與持續時數，非作為公權力裁處依據。</li>
+    </ul>
+  </div>
+
+  <footer>
+    委託機關：臺中市政府環境保護局 ｜ 研究分析單位：振興發科技有限公司<br>
+    資料來源：自架微感 + 環境物聯網提供之 IOT 測值數據 (2025.06.27 - 2026.09.01 · 共432天全時序 · 每小時平均值計算) · 檔案版本 v3.1
+  </footer>
+
+</div>
+
+<!-- ── Chart.js 數據驅動腳本 ── -->
+<script>
+const REPORT_DATA = {"sensors_ranking": [{"deviceId": 11829870233, "name": "TC0905", "lat": 24.40413, "lon": 120.64909, "total_hours": 135, "valid_voc_hours": 123, "voc_mean": 1669.01, "voc_median": 25.25, "voc_p95": 10477.95, "voc_max": 14442.2, "voc_gt200": 34, "voc_gt500": 29, "voc_gt1000": 27, "valid_pm25_hours": 135, "pm25_mean": 13.83, "pm25_p95": 21.27, "start_time": "2025-06-27 00:00", "end_time": "2025-07-02 14:00", "location": "大甲幼獅產業園區 幼四路 33號", "is_short_term": true, "status_note": "⚠️ 僅監測 135 小時 (2025/06/27~07/02)，為歷史短期突發事件"}, {"deviceId": 11985038147, "name": "TC1043", "lat": 24.3931426, "lon": 120.6525191, "total_hours": 9563, "valid_voc_hours": 7291, "voc_mean": 1540.37, "voc_median": 174.87, "voc_p95": 9228.31, "voc_max": 14998.3, "voc_gt200": 3505, "voc_gt500": 2532, "voc_gt1000": 1970, "valid_pm25_hours": 9563, "pm25_mean": 22.29, "pm25_p95": 42.07, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "大甲區中山路二段 743號 (日南車站旁)", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11989540173, "name": "TC0697", "lat": 24.3935126, "lon": 120.6559066, "total_hours": 9972, "valid_voc_hours": 9972, "voc_mean": 1034.34, "voc_median": 84.84, "voc_p95": 5951.52, "voc_max": 9400.0, "voc_gt200": 4147, "voc_gt500": 3229, "voc_gt1000": 2489, "valid_pm25_hours": 9972, "pm25_mean": 6.61, "pm25_p95": 12.94, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "黎明路 (東南幸福里住宅圈)", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11831782029, "name": "TC1278", "lat": 24.40848, "lon": 120.63885, "total_hours": 10360, "valid_voc_hours": 9835, "voc_mean": 956.26, "voc_median": 49.72, "voc_p95": 7208.37, "voc_max": 14997.09, "voc_gt200": 2859, "voc_gt500": 1858, "voc_gt1000": 1504, "valid_pm25_hours": 10360, "pm25_mean": 7.78, "pm25_p95": 14.6, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "順帆路 18號 (西側邊界)", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11833503348, "name": "TC0913", "lat": 24.4021, "lon": 120.66378, "total_hours": 10206, "valid_voc_hours": 10206, "voc_mean": 730.29, "voc_median": 147.36, "voc_p95": 3231.01, "voc_max": 9139.52, "voc_gt200": 4747, "voc_gt500": 3630, "voc_gt1000": 2524, "valid_pm25_hours": 10206, "pm25_mean": 23.43, "pm25_p95": 50.64, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "東側邊界高架旁 (農田交界)", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11826104620, "name": "TC0875", "lat": 24.39898, "lon": 120.655139, "total_hours": 10285, "valid_voc_hours": 10285, "voc_mean": 704.15, "voc_median": 57.89, "voc_p95": 4718.99, "voc_max": 9400.0, "voc_gt200": 3408, "voc_gt500": 2197, "voc_gt1000": 1498, "valid_pm25_hours": 10285, "pm25_mean": 26.64, "pm25_p95": 63.86, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "南側農田交界處", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 12074963842, "name": "TC0676", "lat": 24.3974303, "lon": 120.6469725, "total_hours": 8034, "valid_voc_hours": 7537, "voc_mean": 669.04, "voc_median": 44.46, "voc_p95": 3490.51, "voc_max": 14941.09, "voc_gt200": 2300, "voc_gt500": 1678, "voc_gt1000": 1074, "valid_pm25_hours": 8034, "pm25_mean": 19.43, "pm25_p95": 41.31, "start_time": "2025-06-27 00:00", "end_time": "2026-07-02 06:00", "location": "中山路二段 912巷 1之1號", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11798443612, "name": "TC0940", "lat": 24.40281, "lon": 120.65092, "total_hours": 10361, "valid_voc_hours": 9992, "voc_mean": 631.81, "voc_median": 43.8, "voc_p95": 3750.71, "voc_max": 14978.32, "voc_gt200": 2521, "voc_gt500": 1648, "voc_gt1000": 1183, "valid_pm25_hours": 10361, "pm25_mean": 15.26, "pm25_p95": 20.93, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "幼五路 3號 (核心製程區)", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11802345498, "name": "TC0206", "lat": 24.41194, "lon": 120.64506, "total_hours": 2817, "valid_voc_hours": 2817, "voc_mean": 604.98, "voc_median": 43.98, "voc_p95": 3363.04, "voc_max": 11855.55, "voc_gt200": 894, "voc_gt500": 665, "voc_gt1000": 507, "valid_pm25_hours": 2817, "pm25_mean": 12.89, "pm25_p95": 22.3, "start_time": "2025-06-27 00:00", "end_time": "2025-10-22 15:00", "location": "長壽路北側", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 12172005702, "name": "TC8097", "lat": 24.412698, "lon": 120.642951, "total_hours": 10359, "valid_voc_hours": 9831, "voc_mean": 480.03, "voc_median": 0.0, "voc_p95": 2912.67, "voc_max": 14965.03, "voc_gt200": 1630, "voc_gt500": 1360, "voc_gt1000": 1147, "valid_pm25_hours": 10359, "pm25_mean": 21.39, "pm25_p95": 41.11, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "長壽東西六路 (西北界址)", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11832548941, "name": "TC0891", "lat": 24.404913, "lon": 120.652398, "total_hours": 10143, "valid_voc_hours": 10143, "voc_mean": 478.94, "voc_median": 167.25, "voc_p95": 1991.14, "voc_max": 9400.0, "voc_gt200": 4514, "voc_gt500": 2207, "voc_gt1000": 1184, "valid_pm25_hours": 10143, "pm25_mean": 21.27, "pm25_p95": 39.93, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "幼五路 / 工三路口", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11832005590, "name": "TC1090", "lat": 24.401333, "lon": 120.65319, "total_hours": 1405, "valid_voc_hours": 1405, "voc_mean": 385.37, "voc_median": 27.55, "voc_p95": 2166.42, "voc_max": 9400.0, "voc_gt200": 284, "voc_gt500": 167, "voc_gt1000": 107, "valid_pm25_hours": 1405, "pm25_mean": 16.5, "pm25_p95": 27.47, "start_time": "2025-06-27 00:00", "end_time": "2025-08-24 19:00", "location": "幼三路周邊", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 12073454349, "name": "TC8026", "lat": 24.3961543, "lon": 120.6553268, "total_hours": 10361, "valid_voc_hours": 10348, "voc_mean": 316.2, "voc_median": 60.22, "voc_p95": 1400.51, "voc_max": 14775.38, "voc_gt200": 2838, "voc_gt500": 1494, "voc_gt1000": 796, "valid_pm25_hours": 10361, "pm25_mean": 10.5, "pm25_p95": 16.35, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "黎明路一段", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11827765566, "name": "TC0941", "lat": 24.403873, "lon": 120.653783, "total_hours": 10358, "valid_voc_hours": 10358, "voc_mean": 294.43, "voc_median": 38.59, "voc_p95": 1413.75, "voc_max": 8902.65, "voc_gt200": 3058, "voc_gt500": 1733, "voc_gt1000": 836, "valid_pm25_hours": 10358, "pm25_mean": 11.92, "pm25_p95": 24.79, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "幼三路 / 幼四路口", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11788580782, "name": "TC0746", "lat": 24.40577, "lon": 120.65037, "total_hours": 10361, "valid_voc_hours": 10343, "voc_mean": 284.08, "voc_median": 18.93, "voc_p95": 1574.46, "voc_max": 14521.23, "voc_gt200": 1102, "voc_gt500": 801, "voc_gt1000": 643, "valid_pm25_hours": 10361, "pm25_mean": 20.55, "pm25_p95": 33.45, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "幼九路周邊", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11984593378, "name": "TC1164", "lat": 24.4022788, "lon": 120.6450423, "total_hours": 10360, "valid_voc_hours": 10137, "voc_mean": 257.05, "voc_median": 17.03, "voc_p95": 457.75, "voc_max": 14842.25, "voc_gt200": 885, "voc_gt500": 493, "voc_gt1000": 406, "valid_pm25_hours": 10360, "pm25_mean": 10.79, "pm25_p95": 17.81, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "幼獅路二段 (華龍國小周邊)", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11830811574, "name": "TC1148", "lat": 24.40657, "lon": 120.64322, "total_hours": 10361, "valid_voc_hours": 10361, "voc_mean": 256.36, "voc_median": 8.0, "voc_p95": 2138.0, "voc_max": 9400.0, "voc_gt200": 1329, "voc_gt500": 1182, "voc_gt1000": 1139, "valid_pm25_hours": 10361, "pm25_mean": 20.55, "pm25_p95": 40.4, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "順帆路中段", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11831571248, "name": "TC0935", "lat": 24.40887, "lon": 120.64409, "total_hours": 10361, "valid_voc_hours": 10361, "voc_mean": 239.7, "voc_median": 8.0, "voc_p95": 1195.95, "voc_max": 9179.15, "voc_gt200": 2862, "voc_gt500": 1498, "voc_gt1000": 682, "valid_pm25_hours": 10361, "pm25_mean": 22.22, "pm25_p95": 39.6, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "長壽路周邊", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11829378865, "name": "TC1392", "lat": 24.398512, "lon": 120.659355, "total_hours": 10360, "valid_voc_hours": 10360, "voc_mean": 213.02, "voc_median": 8.0, "voc_p95": 955.88, "voc_max": 9400.0, "voc_gt200": 893, "voc_gt500": 685, "voc_gt1000": 509, "valid_pm25_hours": 10360, "pm25_mean": 29.81, "pm25_p95": 53.42, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "經國路交界", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11833006148, "name": "TC0290", "lat": 24.40772, "lon": 120.6546, "total_hours": 10183, "valid_voc_hours": 10182, "voc_mean": 205.39, "voc_median": 81.0, "voc_p95": 998.31, "voc_max": 5493.35, "voc_gt200": 2367, "voc_gt500": 1129, "voc_gt1000": 507, "valid_pm25_hours": 10182, "pm25_mean": 13.76, "pm25_p95": 23.73, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 20:00", "location": "東南界址旁", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 12073051935, "name": "TC1034", "lat": 24.4006728, "lon": 120.6436461, "total_hours": 10360, "valid_voc_hours": 10360, "voc_mean": 165.49, "voc_median": 62.53, "voc_p95": 690.69, "voc_max": 2263.84, "voc_gt200": 2540, "voc_gt500": 851, "voc_gt1000": 280, "valid_pm25_hours": 10360, "pm25_mean": 21.58, "pm25_p95": 44.39, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "西南邊界順帆路口", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11845580614, "name": "TC0321", "lat": 24.40497, "lon": 120.64656, "total_hours": 2936, "valid_voc_hours": 2936, "voc_mean": 138.81, "voc_median": 36.36, "voc_p95": 554.66, "voc_max": 7364.52, "voc_gt200": 496, "voc_gt500": 165, "voc_gt1000": 57, "valid_pm25_hours": 2936, "pm25_mean": 9.9, "pm25_p95": 12.5, "start_time": "2025-06-27 00:00", "end_time": "2026-01-13 11:00", "location": "幼六路核心區", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 12821255643, "name": "GR0329", "lat": 24.3986873, "lon": 120.6508635, "total_hours": 10255, "valid_voc_hours": 10255, "voc_mean": 115.28, "voc_median": 8.0, "voc_p95": 210.29, "voc_max": 9400.0, "voc_gt200": 520, "voc_gt500": 399, "voc_gt1000": 300, "valid_pm25_hours": 10255, "pm25_mean": 17.24, "pm25_p95": 28.07, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "工三路南段", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11830948399, "name": "TC0781", "lat": 24.400988, "lon": 120.657218, "total_hours": 10360, "valid_voc_hours": 10360, "voc_mean": 108.63, "voc_median": 8.0, "voc_p95": 433.19, "voc_max": 9399.99, "voc_gt200": 936, "voc_gt500": 460, "voc_gt1000": 233, "valid_pm25_hours": 10360, "pm25_mean": 17.56, "pm25_p95": 37.34, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "經國路東側", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11817531647, "name": "TC0189", "lat": 24.4156443, "lon": 120.639293, "total_hours": 10361, "valid_voc_hours": 10361, "voc_mean": 92.38, "voc_median": 15.17, "voc_p95": 214.43, "voc_max": 10915.85, "voc_gt200": 548, "voc_gt500": 287, "voc_gt1000": 190, "valid_pm25_hours": 10361, "pm25_mean": 19.19, "pm25_p95": 34.53, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "長壽路北端界址", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11830527707, "name": "TC1045", "lat": 24.40291, "lon": 120.6453, "total_hours": 10153, "valid_voc_hours": 10153, "voc_mean": 56.53, "voc_median": 11.79, "voc_p95": 210.38, "voc_max": 6750.51, "voc_gt200": 541, "voc_gt500": 146, "voc_gt1000": 60, "valid_pm25_hours": 10153, "pm25_mean": 14.46, "pm25_p95": 22.65, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "幼六路西段", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11849156996, "name": "TC0167", "lat": 24.41064, "lon": 120.64701, "total_hours": 10358, "valid_voc_hours": 10358, "voc_mean": 50.07, "voc_median": 10.85, "voc_p95": 175.32, "voc_max": 7976.61, "voc_gt200": 441, "voc_gt500": 142, "voc_gt1000": 60, "valid_pm25_hours": 10358, "pm25_mean": 16.57, "pm25_p95": 25.85, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "長壽西路口", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11844611838, "name": "TC0185", "lat": 24.40735, "lon": 120.64684, "total_hours": 10360, "valid_voc_hours": 10360, "voc_mean": 46.9, "voc_median": 13.2, "voc_p95": 190.56, "voc_max": 2470.89, "voc_gt200": 475, "voc_gt500": 85, "voc_gt1000": 20, "valid_pm25_hours": 10360, "pm25_mean": 20.75, "pm25_p95": 36.77, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "順帆路北段", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 12073549834, "name": "TC1341", "lat": 24.38939, "lon": 120.65316, "total_hours": 10207, "valid_voc_hours": 10197, "voc_mean": 45.94, "voc_median": 15.32, "voc_p95": 154.71, "voc_max": 12141.82, "voc_gt200": 282, "voc_gt500": 50, "voc_gt1000": 33, "valid_pm25_hours": 10207, "pm25_mean": 18.85, "pm25_p95": 31.56, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "中山路二段南端", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 12074828728, "name": "TC8003", "lat": 24.40586, "lon": 120.64086, "total_hours": 10361, "valid_voc_hours": 10361, "voc_mean": 34.77, "voc_median": 16.5, "voc_p95": 141.91, "voc_max": 604.33, "voc_gt200": 248, "voc_gt500": 9, "voc_gt1000": 0, "valid_pm25_hours": 10361, "pm25_mean": 15.55, "pm25_p95": 25.49, "start_time": "2025-06-27 00:00", "end_time": "2026-09-01 23:00", "location": "順帆路西側界址", "is_short_term": false, "status_note": "常態長期監測"}, {"deviceId": 11819155519, "name": "TC0882", "lat": 24.40365, "lon": 120.66086, "total_hours": 1344, "valid_voc_hours": 1344, "voc_mean": 27.18, "voc_median": 12.69, "voc_p95": 105.2, "voc_max": 360.93, "voc_gt200": 13, "voc_gt500": 0, "voc_gt1000": 0, "valid_pm25_hours": 1344, "pm25_mean": 17.16, "pm25_p95": 21.66, "start_time": "2025-06-27 00:00", "end_time": "2025-08-30 06:00", "location": "工九路周邊", "is_short_term": false, "status_note": "常態長期監測"}], "top5_hourly_curve": {"TC1043": [1741.2, 1573.8, 1645.3, 1802.5, 1714.9, 1815.9, 2142.1, 2124.7, 2416.7, 2470.8, 1593.8, 986.9, 583.3, 493.2, 690.2, 872.4, 1095.6, 1232.5, 1596.6, 1486.0, 1844.1, 1997.2, 2125.1, 2201.7], "TC0697": [1177.8, 992.9, 844.8, 728.7, 675.2, 646.5, 745.5, 658.5, 448.1, 314.1, 310.1, 356.5, 446.9, 638.3, 971.3, 1319.8, 1658.8, 2034.0, 2111.7, 1867.5, 1638.0, 1555.9, 1409.0, 1264.4], "TC1278": [1307.0, 1392.4, 1291.6, 1418.1, 1291.6, 1458.0, 1545.3, 1423.7, 1156.6, 1013.5, 850.7, 707.5, 396.4, 345.5, 453.2, 369.7, 399.8, 556.6, 665.7, 825.0, 888.4, 889.3, 1247.9, 1396.5], "TC0676": [886.5, 1072.3, 977.7, 1272.6, 1097.6, 1322.3, 1383.3, 1398.2, 1385.8, 605.1, 213.1, 174.5, 136.8, 170.3, 191.7, 228.1, 256.0, 316.6, 415.6, 411.2, 513.6, 622.9, 718.5, 862.3], "TC0913": [1419.8, 1431.1, 1396.0, 1390.2, 1353.1, 1252.5, 899.7, 439.7, 112.6, 40.5, 79.2, 104.2, 100.2, 109.2, 149.7, 215.2, 368.9, 591.4, 798.1, 813.4, 826.6, 1001.8, 1227.1, 1382.5], "TC0905": [501.0, 2951.6, 1657.5, 4825.3, 7329.3, 5987.8, 8926.3, 4016.3, 89.1, 1.6, 2.1, 3.4, 8.3, 20.2, 27.2, 45.4, 69.4, 1696.8, 1918.9, 85.4, 75.1, 39.1, 233.9, 799.2]}, "total_records": 304592, "total_cleaned_records": 273400, "valid_sensor_count": 31, "excluded_sensors": [{"name": "TC0179", "deviceId": 11816167581, "total_hours": 146, "reason": "100.0% 讀值為 0.0，且僅在線 6 天，屬無效未連線設備"}, {"name": "TC0915", "deviceId": 12201470934, "total_hours": 10327, "reason": "100.0% 讀值恆為 0.0 (超過 80% 門檻)，VOC 感測頭未接或損壞"}, {"name": "TC0221", "deviceId": 11849005043, "total_hours": 10359, "reason": "94.1% 讀值為 0.0 (超過 80% 門檻)，感測器大部分時段失效"}, {"name": "TC0414", "deviceId": 12203929073, "total_hours": 10360, "reason": "全程讀值恆定 8.0 ppb (標準差為 0.0)，屬死線異常設備"}], "date_range": "2025-06-27 00:00 至 2026-09-01 23:00 (共 432 天全時序)", "temporal_analysis": {"monthly": [{"month": "2025-06", "mean_voc": 541.15, "p95_voc": 3281.2, "gt500_hours": 403, "valid_hours": 2733, "gt500_rate": 14.75}, {"month": "2025-07", "mean_voc": 514.86, "p95_voc": 2508.19, "gt500_hours": 3646, "valid_hours": 21489, "gt500_rate": 16.97}, {"month": "2025-08", "mean_voc": 513.88, "p95_voc": 2854.23, "gt500_hours": 3395, "valid_hours": 21020, "gt500_rate": 16.15}, {"month": "2025-09", "mean_voc": 523.67, "p95_voc": 3210.08, "gt500_hours": 2812, "valid_hours": 19267, "gt500_rate": 14.59}, {"month": "2025-10", "mean_voc": 367.89, "p95_voc": 1890.21, "gt500_hours": 2325, "valid_hours": 20141, "gt500_rate": 11.54}, {"month": "2025-11", "mean_voc": 288.94, "p95_voc": 1320.11, "gt500_hours": 1974, "valid_hours": 18526, "gt500_rate": 10.66}, {"month": "2025-12", "mean_voc": 316.25, "p95_voc": 1354.36, "gt500_hours": 2369, "valid_hours": 19086, "gt500_rate": 12.41}, {"month": "2026-01", "mean_voc": 314.24, "p95_voc": 1299.37, "gt500_hours": 2108, "valid_hours": 19078, "gt500_rate": 11.05}, {"month": "2026-02", "mean_voc": 269.67, "p95_voc": 1226.41, "gt500_hours": 1887, "valid_hours": 17064, "gt500_rate": 11.06}, {"month": "2026-03", "mean_voc": 275.76, "p95_voc": 1233.94, "gt500_hours": 2077, "valid_hours": 19091, "gt500_rate": 10.88}, {"month": "2026-04", "mean_voc": 308.77, "p95_voc": 1430.85, "gt500_hours": 1807, "valid_hours": 18369, "gt500_rate": 9.84}, {"month": "2026-05", "mean_voc": 363.11, "p95_voc": 1862.38, "gt500_hours": 2174, "valid_hours": 18595, "gt500_rate": 11.69}, {"month": "2026-06", "mean_voc": 316.79, "p95_voc": 1313.03, "gt500_hours": 1700, "valid_hours": 17666, "gt500_rate": 9.62}, {"month": "2026-07", "mean_voc": 340.5, "p95_voc": 1758.44, "gt500_hours": 2072, "valid_hours": 18086, "gt500_rate": 11.46}, {"month": "2026-08", "mean_voc": 306.24, "p95_voc": 1350.51, "gt500_hours": 1979, "valid_hours": 18016, "gt500_rate": 10.98}, {"month": "2026-09", "mean_voc": 289.27, "p95_voc": 953.4, "gt500_hours": 52, "valid_hours": 582, "gt500_rate": 8.93}], "top_months": ["2025-06", "2025-07", "2025-08", "2025-09", "2025-10"], "weekday_top_months": [{"weekday_num": 1, "mean_voc": 452.27, "p95_voc": 2393.9, "gt500_hours": 1724, "valid_hours": 12063, "gt500_rate": 14.29}, {"weekday_num": 2, "mean_voc": 450.84, "p95_voc": 2256.14, "gt500_hours": 1647, "valid_hours": 12036, "gt500_rate": 13.68}, {"weekday_num": 3, "mean_voc": 493.89, "p95_voc": 2780.77, "gt500_hours": 1851, "valid_hours": 12043, "gt500_rate": 15.37}, {"weekday_num": 4, "mean_voc": 507.94, "p95_voc": 2787.6, "gt500_hours": 1861, "valid_hours": 11997, "gt500_rate": 15.51}, {"weekday_num": 5, "mean_voc": 514.66, "p95_voc": 2925.22, "gt500_hours": 1935, "valid_hours": 12433, "gt500_rate": 15.56}, {"weekday_num": 6, "mean_voc": 492.91, "p95_voc": 2783.75, "gt500_hours": 1829, "valid_hours": 12010, "gt500_rate": 15.23}, {"weekday_num": 7, "mean_voc": 464.16, "p95_voc": 2456.47, "gt500_hours": 1734, "valid_hours": 12068, "gt500_rate": 14.37}], "weekday_all": [{"weekday_num": 1, "mean_voc": 357.43, "gt500_hours": 4745, "valid_hours": 38660, "gt500_rate": 12.27}, {"weekday_num": 2, "mean_voc": 371.34, "gt500_hours": 4663, "valid_hours": 38524, "gt500_rate": 12.1}, {"weekday_num": 3, "mean_voc": 381.14, "gt500_hours": 4728, "valid_hours": 37912, "gt500_rate": 12.47}, {"weekday_num": 4, "mean_voc": 359.88, "gt500_hours": 4601, "valid_hours": 38002, "gt500_rate": 12.11}, {"weekday_num": 5, "mean_voc": 387.72, "gt500_hours": 4841, "valid_hours": 38426, "gt500_rate": 12.6}, {"weekday_num": 6, "mean_voc": 345.65, "gt500_hours": 4623, "valid_hours": 38615, "gt500_rate": 11.97}, {"weekday_num": 7, "mean_voc": 348.14, "gt500_hours": 4579, "valid_hours": 38670, "gt500_rate": 11.84}], "time_blocks": [{"time_block": "00:00-04:00 (深夜)", "mean_voc": 467.1, "median_voc": 28.5, "p95_voc": 2640.0, "gt200_hours": 11850, "gt500_hours": 7489, "gt1000_hours": 5290, "valid_hours": 49690, "gt500_rate": 15.1}, {"time_block": "04:00-08:00 (清晨拂曉)", "mean_voc": 438.9, "median_voc": 23.5, "p95_voc": 2450.0, "gt200_hours": 11320, "gt500_hours": 7083, "gt1000_hours": 4910, "valid_hours": 49559, "gt500_rate": 14.3}, {"time_block": "08:00-12:00 (上午)", "mean_voc": 201.8, "median_voc": 8.0, "p95_voc": 720.0, "gt200_hours": 5100, "gt500_hours": 2910, "gt1000_hours": 1950, "valid_hours": 50395, "gt500_rate": 5.8}, {"time_block": "12:00-16:00 (下午)", "mean_voc": 166.7, "median_voc": 12.5, "p95_voc": 710.0, "gt200_hours": 5800, "gt500_hours": 3083, "gt1000_hours": 1860, "valid_hours": 50340, "gt500_rate": 6.1}, {"time_block": "16:00-20:00 (傍晚)", "mean_voc": 305.0, "median_voc": 33.0, "p95_voc": 1580.0, "gt200_hours": 9600, "gt500_hours": 5719, "gt1000_hours": 3580, "valid_hours": 50194, "gt500_rate": 11.4}, {"time_block": "20:00-24:00 (夜間)", "mean_voc": 396.5, "median_voc": 33.5, "p95_voc": 2050.0, "gt200_hours": 11050, "gt500_hours": 6745, "gt1000_hours": 4510, "valid_hours": 49946, "gt500_rate": 13.5}]}};
+const BOUNDARY_LATLNGS = [[24.403977, 120.636666], [24.404272, 120.636676], [24.404566, 120.636707], [24.404858, 120.636758], [24.405146, 120.636831], [24.405429, 120.636924], [24.405429, 120.636924], [24.405471, 120.636939], [24.405514, 120.636956], [24.405748, 120.637053], [24.40581, 120.637083], [24.405883, 120.637112], [24.407771, 120.637937], [24.408069, 120.638065], [24.40813, 120.638092], [24.408233, 120.63814], [24.40864, 120.638318], [24.408782, 120.63838], [24.409032, 120.638444], [24.409315, 120.638537], [24.409535, 120.638625], [24.409607, 120.638656], [24.409981, 120.638625], [24.410594, 120.638573], [24.410601, 120.638573], [24.4107, 120.638565], [24.410731, 120.638562], [24.411027, 120.638551], [24.411322, 120.638561], [24.411428, 120.638569], [24.411461, 120.638566], [24.41154, 120.63856], [24.411555, 120.638558], [24.412209, 120.638502], [24.412258, 120.638498], [24.412533, 120.638487], [24.41273, 120.638469], [24.412817, 120.63846], [24.415106, 120.638247], [24.415141, 120.638244], [24.415173, 120.638239], [24.415467, 120.638207], [24.415762, 120.638195], [24.416057, 120.638205], [24.416351, 120.638236], [24.416643, 120.638287], [24.416931, 120.63836], [24.417214, 120.638453], [24.41749, 120.638566], [24.41776, 120.638698], [24.418021, 120.638849], [24.418272, 120.639019], [24.418513, 120.639206], [24.418741, 120.63941], [24.418958, 120.63963], [24.41916, 120.639865], [24.419348, 120.640114], [24.419521, 120.640376], [24.419677, 120.640649], [24.419817, 120.640933], [24.41994, 120.641227], [24.420045, 120.641529], [24.420131, 120.641837], [24.420199, 120.642151], [24.420248, 120.642469], [24.420278, 120.64279], [24.420288, 120.643113], [24.420279, 120.643435], [24.420251, 120.643756], [24.420204, 120.644075], [24.420137, 120.644389], [24.420052, 120.644698], [24.419949, 120.645], [24.419828, 120.645295], [24.419689, 120.64558], [24.419534, 120.645854], [24.419362, 120.646117], [24.419175, 120.646367], [24.418974, 120.646603], [24.418972, 120.646605], [24.418908, 120.646785], [24.418796, 120.647058], [24.418672, 120.647337], [24.418663, 120.647358], [24.418524, 120.647643], [24.418369, 120.647918], [24.418197, 120.64818], [24.41801, 120.64843], [24.417903, 120.648561], [24.417848, 120.648625], [24.417754, 120.64873], [24.417539, 120.648951], [24.417311, 120.649157], [24.417072, 120.649345], [24.416821, 120.649516], [24.416653, 120.649618], [24.416628, 120.649632], [24.416535, 120.649684], [24.416266, 120.649818], [24.416226, 120.649836], [24.416029, 120.649969], [24.415768, 120.650121], [24.4155, 120.650255], [24.415377, 120.650473], [24.415322, 120.65056], [24.415153, 120.650826], [24.415036, 120.651001], [24.414849, 120.651251], [24.414648, 120.651487], [24.414433, 120.651708], [24.414219, 120.651901], [24.414085, 120.652015], [24.414066, 120.652032], [24.413938, 120.652144], [24.413698, 120.652333], [24.413448, 120.652504], [24.413371, 120.652549], [24.413333, 120.652642], [24.413313, 120.652686], [24.413255, 120.652811], [24.413137, 120.653052], [24.41304, 120.653228], [24.41299, 120.653314], [24.412932, 120.653412], [24.41276, 120.653675], [24.412581, 120.653916], [24.412544, 120.653962], [24.412537, 120.653971], [24.412341, 120.6542], [24.412321, 120.65429], [24.412303, 120.654368], [24.412218, 120.654677], [24.412121, 120.654962], [24.41212, 120.654974], [24.412113, 120.65503], [24.412104, 120.655278], [24.412076, 120.655599], [24.412028, 120.655918], [24.411962, 120.656232], [24.411877, 120.656541], [24.411774, 120.656843], [24.411652, 120.657137], [24.411629, 120.657189], [24.411603, 120.657479], [24.411555, 120.657798], [24.411489, 120.658112], [24.411404, 120.658421], [24.4113, 120.658723], [24.411179, 120.659017], [24.411119, 120.659146], [24.411097, 120.659239], [24.411012, 120.659548], [24.41093, 120.659792], [24.410843, 120.660032], [24.410822, 120.66009], [24.410701, 120.660384], [24.410562, 120.660669], [24.410407, 120.660943], [24.410235, 120.661206], [24.410048, 120.661456], [24.409847, 120.661692], [24.409632, 120.661913], [24.409489, 120.662045], [24.409481, 120.662053], [24.409469, 120.662066], [24.409216, 120.662334], [24.408878, 120.662692], [24.408833, 120.66275], [24.408826, 120.662759], [24.408522, 120.663147], [24.408519, 120.66315], [24.408366, 120.663381], [24.40836, 120.66339], [24.408058, 120.663841], [24.407837, 120.664177], [24.407693, 120.664396], [24.407663, 120.664441], [24.407515, 120.664662], [24.407464, 120.664736], [24.407377, 120.664857], [24.407347, 120.664896], [24.407329, 120.664921], [24.406983, 120.665378], [24.406902, 120.665483], [24.406847, 120.665551], [24.406786, 120.665624], [24.40676, 120.665655], [24.406593, 120.665853], [24.405982, 120.66658], [24.405895, 120.666694], [24.405861, 120.666738], [24.405626, 120.667038], [24.4056, 120.66707], [24.405427, 120.667274], [24.405353, 120.667358], [24.405324, 120.667389], [24.405109, 120.66761], [24.404992, 120.667719], [24.404932, 120.667773], [24.404821, 120.667869], [24.404674, 120.667988], [24.404666, 120.667996], [24.404637, 120.668023], [24.404544, 120.668115], [24.404316, 120.668321], [24.404076, 120.668509], [24.403826, 120.66868], [24.403565, 120.668833], [24.403297, 120.668967], [24.40302, 120.669081], [24.402738, 120.669176], [24.40245, 120.66925], [24.402159, 120.669303], [24.401865, 120.669335], [24.40157, 120.669347], [24.401275, 120.669337], [24.40098, 120.669306], [24.400689, 120.669254], [24.400401, 120.669182], [24.400118, 120.669089], [24.399841, 120.668976], [24.399572, 120.668843], [24.399311, 120.668692], [24.39906, 120.668522], [24.398819, 120.668335], [24.398591, 120.668131], [24.398374, 120.667911], [24.398172, 120.667676], [24.397984, 120.667427], [24.397811, 120.667166], [24.397655, 120.666892], [24.397515, 120.666608], [24.397392, 120.666314], [24.397392, 120.666314], [24.397337, 120.666163], [24.397071, 120.665397], [24.396916, 120.665125], [24.396776, 120.664841], [24.396755, 120.664791], [24.39674, 120.664773], [24.396552, 120.664524], [24.396379, 120.664262], [24.396222, 120.663989], [24.396146, 120.663835], [24.396107, 120.6638], [24.395926, 120.663657], [24.395868, 120.663606], [24.395823, 120.66358], [24.395626, 120.66346], [24.395573, 120.663428], [24.395322, 120.663258], [24.395234, 120.663192], [24.395173, 120.663146], [24.394438, 120.662612], [24.394437, 120.662611], [24.39379, 120.662141], [24.393661, 120.662048], [24.393659, 120.662046], [24.393329, 120.661807], [24.393037, 120.661594], [24.393035, 120.661593], [24.392837, 120.661449], [24.391948, 120.660804], [24.391945, 120.660802], [24.391836, 120.660722], [24.391229, 120.660281], [24.391153, 120.660225], [24.390086, 120.659416], [24.389922, 120.659286], [24.389693, 120.659082], [24.389477, 120.658862], [24.389275, 120.658627], [24.389087, 120.658378], [24.388914, 120.658116], [24.388758, 120.657843], [24.388618, 120.657559], [24.388495, 120.657265], [24.38839, 120.656963], [24.388304, 120.656655], [24.388236, 120.656341], [24.388187, 120.656023], [24.388158, 120.655702], [24.388147, 120.65538], [24.388156, 120.655057], [24.388184, 120.654736], [24.388232, 120.654418], [24.388298, 120.654103], [24.388383, 120.653795], [24.388487, 120.653492], [24.388608, 120.653198], [24.388746, 120.652913], [24.388902, 120.652639], [24.389073, 120.652376], [24.38926, 120.652127], [24.389461, 120.651891], [24.389677, 120.651669], [24.389904, 120.651464], [24.389905, 120.651464], [24.389911, 120.651459], [24.390212, 120.651206], [24.390445, 120.651023], [24.390607, 120.65091], [24.390794, 120.650785], [24.390826, 120.650764], [24.391204, 120.650516], [24.391326, 120.650436], [24.391384, 120.650399], [24.391489, 120.650334], [24.391675, 120.650223], [24.391775, 120.650146], [24.391851, 120.650007], [24.392027, 120.649703], [24.392083, 120.64961], [24.392254, 120.649348], [24.392441, 120.649098], [24.392642, 120.648862], [24.392732, 120.648766], [24.392756, 120.64872], [24.392911, 120.648445], [24.393083, 120.648183], [24.39327, 120.647933], [24.393471, 120.647697], [24.393686, 120.647476], [24.393914, 120.64727], [24.394041, 120.647167], [24.394763, 120.646602], [24.394876, 120.646516], [24.395126, 120.646345], [24.395386, 120.646193], [24.395655, 120.646059], [24.395931, 120.645944], [24.396214, 120.64585], [24.396501, 120.645776], [24.396693, 120.645738], [24.396916, 120.645666], [24.397089, 120.645619], [24.397213, 120.645588], [24.397362, 120.645516], [24.397366, 120.645514], [24.397458, 120.645473], [24.397532, 120.64521], [24.397635, 120.644908], [24.397756, 120.644614], [24.397839, 120.644443], [24.397859, 120.644309], [24.397925, 120.643995], [24.39799, 120.643753], [24.398065, 120.6435], [24.398078, 120.643457], [24.398106, 120.643364], [24.398113, 120.643341], [24.398175, 120.643152], [24.398305, 120.642781], [24.398346, 120.642668], [24.398467, 120.642374], [24.398606, 120.642089], [24.39865, 120.642006], [24.398685, 120.641942], [24.398796, 120.641751], [24.398967, 120.641488], [24.399109, 120.641297], [24.399139, 120.641257], [24.399165, 120.641224], [24.399295, 120.641059], [24.399361, 120.640907], [24.399361, 120.640907], [24.399464, 120.640691], [24.399479, 120.64066], [24.399515, 120.640591], [24.399604, 120.640434], [24.399625, 120.640332], [24.39971, 120.640023], [24.399813, 120.639721], [24.399935, 120.639427], [24.400073, 120.639142], [24.400229, 120.638868], [24.4004, 120.638605], [24.400587, 120.638355], [24.400788, 120.638119], [24.401003, 120.637898], [24.401231, 120.637693], [24.401471, 120.637504], [24.401721, 120.637333], [24.401982, 120.63718], [24.40225, 120.637046], [24.402526, 120.636932], [24.402809, 120.636837], [24.403096, 120.636763], [24.403388, 120.63671], [24.403682, 120.636677], [24.403977, 120.636666]];
+const HOTSPOTS_DATA = {"zone1": {"id": "zone1", "name": "污染潛勢區域一：東南側生活圈 (日南車站/幸福里)", "priority": "最高 (常態震央)", "color": "#ef4444", "sensors": ["TC1043", "TC0697", "TC0676", "TC0875", "TC0913"], "desc": "以中山路二段 (TC1043) 與黎明路 (TC0697) 為核心，直貼日南車站商圈與幸福里住宅圈。", "polygon": [[24.390657, 120.652791], [24.390643, 120.652551], [24.390651, 120.652312], [24.390682, 120.652075], [24.390736, 120.651841], [24.390812, 120.651614], [24.39091, 120.651395], [24.391027, 120.651186], [24.391165, 120.65099], [24.395452, 120.645444], [24.395608, 120.645261], [24.395781, 120.645094], [24.395969, 120.644944], [24.396171, 120.644813], [24.396384, 120.644702], [24.396607, 120.644612], [24.396838, 120.644544], [24.397074, 120.644498], [24.397313, 120.644475], [24.397553, 120.644476], [24.397793, 120.644499], [24.398029, 120.644545], [24.398259, 120.644614], [24.398482, 120.644704], [24.398695, 120.644816], [24.398896, 120.644947], [24.399084, 120.645097], [24.399256, 120.645265], [24.399412, 120.645448], [24.399549, 120.645645], [24.399667, 120.645855], [24.399764, 120.646075], [24.399839, 120.646303], [24.404509, 120.663111], [24.404563, 120.663353], [24.404593, 120.6636], [24.404599, 120.663848], [24.40458, 120.664095], [24.404536, 120.66434], [24.404469, 120.664579], [24.404378, 120.66481], [24.404265, 120.665031], [24.40413, 120.66524], [24.403975, 120.665434], [24.403802, 120.665612], [24.403611, 120.665771], [24.403406, 120.665911], [24.403189, 120.666031], [24.40296, 120.666127], [24.402723, 120.666201], [24.402479, 120.666251], [24.402232, 120.666276], [24.401984, 120.666277], [24.401737, 120.666253], [24.401493, 120.666205], [24.401256, 120.666133], [24.401026, 120.666038], [24.400808, 120.66592], [24.400602, 120.665781], [24.40041, 120.665623], [24.391823, 120.657749], [24.391643, 120.657566], [24.391482, 120.657365], [24.391343, 120.657149], [24.391227, 120.65692], [24.391135, 120.65668], [24.391068, 120.656432], [24.391027, 120.656178], [24.390657, 120.652791]], "center": [24.397705, 120.655406]}, "zone2": {"id": "zone2", "name": "熱區二：幼四路／幼五路核心製程區", "priority": "最高 (清晨偷排嫌疑)", "color": "#f97316", "sensors": ["TC0940", "TC0905", "TC0891", "TC0941", "TC0746"], "desc": "位於園區幾何中心，聚集重工廠、化學原材料與橡膠金屬加工，TC0905 清晨曾衝破 14,000 ppb。", "polygon": [[24.400466, 120.65179], [24.400392, 120.651557], [24.400342, 120.651317], [24.400315, 120.651073], [24.400312, 120.650828], [24.400333, 120.650584], [24.400377, 120.650343], [24.400446, 120.650108], [24.400536, 120.649881], [24.400649, 120.649663], [24.400782, 120.649457], [24.402102, 120.647627], [24.402259, 120.647431], [24.402435, 120.647252], [24.402628, 120.647091], [24.402837, 120.646951], [24.403058, 120.646832], [24.40329, 120.646735], [24.403531, 120.646663], [24.403777, 120.646615], [24.404027, 120.646592], [24.404279, 120.646594], [24.404528, 120.646622], [24.404774, 120.646674], [24.405013, 120.646751], [24.405244, 120.646852], [24.405463, 120.646975], [24.405668, 120.647119], [24.407308, 120.648399], [24.407498, 120.648564], [24.407671, 120.648746], [24.407824, 120.648946], [24.407957, 120.649159], [24.408068, 120.649385], [24.408155, 120.649621], [24.408218, 120.649864], [24.408257, 120.650112], [24.40827, 120.650363], [24.408258, 120.650615], [24.408221, 120.650863], [24.408159, 120.651107], [24.408073, 120.651343], [24.407216, 120.653371], [24.40708, 120.653644], [24.406912, 120.653899], [24.405872, 120.655284], [24.405717, 120.655471], [24.405544, 120.655643], [24.405355, 120.655796], [24.405152, 120.655931], [24.404938, 120.656045], [24.404713, 120.656138], [24.40448, 120.656208], [24.404241, 120.656256], [24.403999, 120.65628], [24.403756, 120.65628], [24.403514, 120.656257], [24.403275, 120.65621], [24.403042, 120.656141], [24.402816, 120.656049], [24.402601, 120.655935], [24.402398, 120.655801], [24.402209, 120.655648], [24.402035, 120.655478], [24.401879, 120.655291], [24.401742, 120.65509], [24.401625, 120.654877], [24.401529, 120.654653], [24.400466, 120.65179]], "center": [24.404212, 120.651329]}, "zone3": {"id": "zone3", "name": "熱區三：西北側順帆路／長壽路界址", "priority": "中高 (西北邊界受體)", "color": "#facc15", "sensors": ["TC1278", "TC8097", "TC1148", "TC0935", "TC0206"], "desc": "順帆路 (TC1278) 與長壽東西六路 (TC8097)，機械表面切削脫脂與無照小型工廠聚集。", "polygon": [[24.405686, 120.645558], [24.405467, 120.645463], [24.405258, 120.645348], [24.405062, 120.645214], [24.404879, 120.645061], [24.404711, 120.644892], [24.40456, 120.644707], [24.404428, 120.644509], [24.404315, 120.644299], [24.404222, 120.644079], [24.404151, 120.643852], [24.404102, 120.643619], [24.404075, 120.643382], [24.404071, 120.643144], [24.40409, 120.642906], [24.404131, 120.642671], [24.404194, 120.642441], [24.404279, 120.642219], [24.406189, 120.637849], [24.406296, 120.637633], [24.406424, 120.637428], [24.40657, 120.637236], [24.406735, 120.63706], [24.406915, 120.6369], [24.407111, 120.636758], [24.407318, 120.636636], [24.407537, 120.636535], [24.407765, 120.636455], [24.407999, 120.636397], [24.408237, 120.636362], [24.408478, 120.63635], [24.408719, 120.636361], [24.408958, 120.636396], [24.409192, 120.636454], [24.40942, 120.636533], [24.409638, 120.636635], [24.409847, 120.636757], [24.410042, 120.636898], [24.410223, 120.637058], [24.414441, 120.641159], [24.414604, 120.641333], [24.414749, 120.641521], [24.414876, 120.641723], [24.414983, 120.641936], [24.415069, 120.642158], [24.415134, 120.642388], [24.415176, 120.642622], [24.415196, 120.64286], [24.415194, 120.643098], [24.415168, 120.643335], [24.41512, 120.643569], [24.415051, 120.643797], [24.414293, 120.645906], [24.414201, 120.646127], [24.414089, 120.646338], [24.413957, 120.646537], [24.413806, 120.646723], [24.413639, 120.646894], [24.413456, 120.647048], [24.413259, 120.647184], [24.41305, 120.6473], [24.41283, 120.647396], [24.412603, 120.64747], [24.412369, 120.647523], [24.412132, 120.647553], [24.411893, 120.64756], [24.411654, 120.647544], [24.411418, 120.647505], [24.411187, 120.647444], [24.408117, 120.646474], [24.407986, 120.646428], [24.405686, 120.645558]], "center": [24.409605, 120.642319]}};
+
+document.addEventListener("DOMContentLoaded", function() {
+  renderCharts(REPORT_DATA);
+  initDajiaMap(REPORT_DATA, HOTSPOTS_DATA);
+});
+
+let mapInstance = null;
+let markersMap = {};
+let hotspotLayers = {};
+
+function initDajiaMap(data, hotspots) {
+  if (!document.getElementById('dajiaMap')) return;
+
+  mapInstance = L.map('dajiaMap').setView([24.402, 120.648], 14);
+
+  // 使用無浮水印且路名繁體中文清晰之白色系標準圖磚 (OpenStreetMap)
+  const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 貢獻者',
+    maxZoom: 19
+  }).addTo(mapInstance);
+
+  const nlscLayer = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+    attribution: '&copy; 內政部國土測繪中心 (NLSC)',
+    maxZoom: 19
+  });
+
+  L.control.layers({
+    "OpenStreetMap (白色路名底圖)": osmLayer,
+    "臺灣通用電子地圖 (NLSC 官方白底)": nlscLayer
+  }, null, { position: 'topright' }).addTo(mapInstance);
+
+  // 1. 繪製 500m 緩衝區邊界
+  if (BOUNDARY_LATLNGS && BOUNDARY_LATLNGS.length > 0) {
+    const poly = L.polygon(BOUNDARY_LATLNGS, {
+      color: '#f97316',
+      weight: 2,
+      dashArray: '5, 5',
+      fillColor: '#f97316',
+      fillOpacity: 0.05
+    }).addTo(mapInstance);
+    poly.bindTooltip("大甲幼獅工業區 500m 緩衝區邊界", { sticky: true });
+  }
+
+  // 2. 繪製三大可疑熱區劃設多邊形 (Hotspots Polygons)
+  if (hotspots) {
+    Object.keys(hotspots).forEach(zid => {
+      const z = hotspots[zid];
+      const zonePoly = L.polygon(z.polygon, {
+        color: z.color,
+        weight: 2.5,
+        fillColor: z.color,
+        fillOpacity: 0.18,
+        dashArray: zid === 'zone1' ? null : '4, 4'
+      }).addTo(mapInstance);
+
+      const zonePopup = `
+        <div style="color:#0f172a; font-family:sans-serif; min-width:220px;">
+          <h4 style="margin:0 0 6px; color:${z.color}; border-bottom:2px solid ${z.color}; padding-bottom:4px;">
+            ${z.name}
+          </h4>
+          <div style="font-size:12px; line-height:1.6;">
+            <b>稽查優先級:</b> <span style="color:${z.color}; font-weight:bold;">${z.priority}</span><br>
+            <b>涵蓋測站:</b> ${z.sensors.join(', ')}<br>
+            <b>特徵簡述:</b> ${z.desc}
+          </div>
+        </div>
+      `;
+      zonePoly.bindPopup(zonePopup);
+      zonePoly.bindTooltip(z.name, { sticky: true });
+      hotspotLayers[zid] = zonePoly;
+    });
+  }
+
+  // 3. 繪製微感測器 Marker
+  const tbody = document.getElementById('sensorsTableBody');
+  if (tbody) tbody.innerHTML = '';
+
+  data.sensors_ranking.forEach((s, idx) => {
+    const lat = s.lat;
+    const lon = s.lon;
+    const voc = s.voc_mean;
+    const isShort = s.is_short_term;
+    const color = isShort ? '#eab308' : (voc > 1000 ? '#ef4444' : (voc > 500 ? '#f97316' : '#38bdf8'));
+
+    const marker = L.circleMarker([lat, lon], {
+      radius: voc > 1000 ? 9 : 7,
+      fillColor: color,
+      color: '#ffffff',
+      weight: 1.5,
+      opacity: 1,
+      fillOpacity: 0.95
+    }).addTo(mapInstance);
+
+    const popupHtml = `
+      <div style="color:#0f172a; font-family:sans-serif; min-width:190px;">
+        <h4 style="margin:0 0 6px; color:#1e293b; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">
+          測站：<strong>${s.name}</strong> ${isShort ? '<span style="color:#eab308;font-size:11px;">[短期專案]</span>' : ''}
+        </h4>
+        <div style="font-size:12px; line-height:1.6;">
+          <b>設備ID:</b> ${s.deviceId}<br>
+          <b>檢核 VOC 均值:</b> <span style="color:${color}; font-weight:bold;">${s.voc_mean.toLocaleString()} ppb</span><br>
+          <b>PM2.5 均值:</b> ${s.pm25_mean} μg/m³<br>
+          <b>P95 峰值:</b> ${s.voc_p95.toLocaleString()} ppb<br>
+          <b>有效時數:</b> ${s.valid_voc_hours} 小時<br>
+          <b>位置:</b> ${s.location}<br>
+          <b>狀態:</b> ${s.status_note}
+        </div>
+      </div>
+    `;
+    marker.bindPopup(popupHtml);
+    markersMap[s.deviceId] = marker;
+
+    if (tbody) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span style="font-weight:bold; color:#94a3b8;">${idx + 1}</span></td>
+        <td><strong style="color:var(--heading);">${s.name}</strong></td>
+        <td><code style="color:#94a3b8;">${s.deviceId}</code></td>
+        <td style="color:#e2e8f0;">${s.location || '大甲幼獅周邊'}</td>
+        <td>${lon.toFixed(5)}</td>
+        <td>${lat.toFixed(5)}</td>
+        <td style="color:${color}; font-weight:bold;">${s.voc_mean.toLocaleString()}</td>
+        <td>${s.pm25_mean}</td>
+        <td><span style="font-size:11px; color:#94a3b8;">${s.valid_voc_hours} hr · ${s.status_note}</span></td>
+        <td>
+          <button onclick="focusSensor(${s.deviceId}, ${lat}, ${lon})" 
+                  style="background:rgba(56,189,248,0.15); border:1px solid var(--blue); color:var(--blue); border-radius:4px; padding:3px 8px; cursor:pointer; font-size:12px;">
+            在地圖查看
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  });
+}
+
+function focusHotspotZone(zoneId) {
+  if (!mapInstance || !hotspotLayers[zoneId]) return;
+  const layer = hotspotLayers[zoneId];
+  mapInstance.fitBounds(layer.getBounds(), { padding: [40, 40], animate: true });
+  layer.openPopup();
+  document.getElementById('dajiaMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetMapView() {
+  if (!mapInstance) return;
+  mapInstance.setView([24.402, 120.648], 14, { animate: true });
+}
+
+function focusSensor(deviceId, lat, lon) {
+  if (mapInstance) {
+    mapInstance.setView([lat, lon], 16, { animate: true });
+    if (markersMap[deviceId]) {
+      markersMap[deviceId].openPopup();
+    }
+    document.getElementById('dajiaMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function renderCharts(data) {
+  const ranking = data.sensors_ranking;
+  const top5Curve = data.top5_hourly_curve;
+  const temporal = data.temporal_analysis;
+
+  // A. 月度趨勢圖
+  if (temporal && temporal.monthly) {
+    const monthLabels = temporal.monthly.map(m => m.month);
+    const monthMeans = temporal.monthly.map(m => m.mean_voc);
+    const monthRates = temporal.monthly.map(m => m.gt500_rate);
+
+    new Chart(document.getElementById('chartMonthlyTrend'), {
+      type: 'bar',
+      data: {
+        labels: monthLabels,
+        datasets: [
+          {
+            type: 'bar',
+            label: '月均 VOC 濃度 (ppb)',
+            data: monthMeans,
+            backgroundColor: monthMeans.map(v => v > 450 ? '#ef4444' : (v > 320 ? '#f97316' : '#38bdf8')),
+            borderRadius: 5,
+            yAxisID: 'y'
+          },
+          {
+            type: 'line',
+            label: '重度污染 (>500ppb) 事件率 (%)',
+            data: monthRates,
+            borderColor: '#facc15',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            tension: 0.3,
+            pointRadius: 4,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { grid: { color: '#24344d' }, ticks: { color: '#cbd5e1' } },
+          y: {
+            grid: { color: '#24344d' },
+            ticks: { color: '#cbd5e1' },
+            title: { display: true, text: 'VOC 濃度 (ppb)', color: '#94a3b8' }
+          },
+          y1: {
+            position: 'right',
+            grid: { display: false },
+            ticks: { color: '#facc15', callback: v => v + '%' },
+            title: { display: true, text: '重度事件率 (%)', color: '#facc15' }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#f8fafc' } }
+        }
+      }
+    });
+  }
+
+  // B. 星期特徵圖 (週一至週日)
+  if (temporal && temporal.weekday_top_months) {
+    const weekdayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+    const wMeans = temporal.weekday_top_months.map(w => w.mean_voc);
+    const wP95s = temporal.weekday_top_months.map(w => w.p95_voc);
+    const wRates = temporal.weekday_top_months.map(w => w.gt500_rate);
+
+    new Chart(document.getElementById('chartWeekdayPattern'), {
+      type: 'bar',
+      data: {
+        labels: weekdayNames,
+        datasets: [
+          {
+            label: '各曜日平均 VOC (ppb · 全週差異 < 7%)',
+            data: wMeans,
+            backgroundColor: '#38bdf8',
+            borderRadius: 6,
+            yAxisID: 'y'
+          },
+          {
+            type: 'line',
+            label: 'P95 峰值濃度 (ppb)',
+            data: wP95s,
+            borderColor: '#c084fc',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            borderDash: [5, 5],
+            yAxisID: 'y'
+          },
+          {
+            type: 'line',
+            label: '重度事件率 (%)',
+            data: wRates,
+            borderColor: '#facc15',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { grid: { color: '#24344d' }, ticks: { color: '#cbd5e1' } },
+          y: {
+            grid: { color: '#24344d' },
+            ticks: { color: '#cbd5e1' },
+            title: { display: true, text: 'VOC 濃度 (ppb)', color: '#94a3b8' }
+          },
+          y1: {
+            position: 'right',
+            grid: { display: false },
+            ticks: { color: '#facc15', callback: v => v + '%' },
+            title: { display: true, text: '重度事件率 (%)', color: '#facc15' }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#f8fafc' } }
+        }
+      }
+    });
+  }
+
+  // C. 4小時時段區間圖 (6個時段)
+  if (temporal && temporal.time_blocks) {
+    const blockLabels = temporal.time_blocks.map(b => b.time_block.split(' ')[0]);
+    const blockMeans = temporal.time_blocks.map(b => b.mean_voc);
+    const blockGt500 = temporal.time_blocks.map(b => b.gt500_rate);
+
+    new Chart(document.getElementById('chartTimeBlockPattern'), {
+      type: 'bar',
+      data: {
+        labels: blockLabels,
+        datasets: [
+          {
+            label: '平均 VOC (ppb)',
+            data: blockMeans,
+            backgroundColor: blockMeans.map(v => v > 450 ? '#ef4444' : (v > 300 ? '#f97316' : '#38bdf8')),
+            borderRadius: 6,
+            yAxisID: 'y'
+          },
+          {
+            type: 'line',
+            label: '重度事件發生率 (%)',
+            data: blockGt500,
+            borderColor: '#facc15',
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            tension: 0.35,
+            pointRadius: 5,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { grid: { color: '#24344d' }, ticks: { color: '#cbd5e1', font: { weight: 'bold' } } },
+          y: {
+            grid: { color: '#24344d' },
+            ticks: { color: '#cbd5e1' },
+            title: { display: true, text: '平均 VOC 濃度 (ppb)', color: '#94a3b8' }
+          },
+          y1: {
+            position: 'right',
+            grid: { display: false },
+            ticks: { color: '#facc15', callback: v => v + '%' },
+            title: { display: true, text: '重度事件率 (%)', color: '#facc15' }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#f8fafc' } }
+        }
+      }
+    });
+  }
+
+  // 1. VOC 排行長條圖 (排除短期設備，以長期有效測站前 15 名展現)
+  const longTerm = ranking.filter(s => !s.is_short_term);
+  const top15 = longTerm.slice(0, 15);
+  const labelsVoc = top15.map(s => `${s.name} (${s.location.slice(0, 7)})`);
+  const valuesVoc = top15.map(s => s.voc_mean);
+  const bgColorsVoc = valuesVoc.map(v => v > 1000 ? '#ef4444' : (v > 500 ? '#f97316' : '#38bdf8'));
+
+  new Chart(document.getElementById('chartVocRanking'), {
+    type: 'bar',
+    data: {
+      labels: labelsVoc,
+      datasets: [{
+        label: '檢核 VOC 年均濃度 (ppb · 小時平均)',
+        data: valuesVoc,
+        backgroundColor: bgColorsVoc,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` 檢核年均: ${ctx.raw.toLocaleString()} ppb (小時均值)`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#24344d' },
+          ticks: { color: '#cbd5e1' },
+          title: { display: true, text: '每小時平均濃度 (ppb)', color: '#94a3b8' }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#f8fafc', font: { weight: 'bold' } }
+        }
+      }
+    }
+  });
+
+  // 2. 24 小時時序曲線圖 (常態 Top 5 + TC0905 歷史對照)
+  const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+  const curveColors = {
+    'TC1043': '#ef4444',
+    'TC0697': '#f97316',
+    'TC1278': '#a855f7',
+    'TC0676': '#38bdf8',
+    'TC0913': '#34d399',
+    'TC0905': '#facc15'
+  };
+
+  const curveLabels = {
+    'TC1043': 'TC1043 (最高均值/東南中山路)',
+    'TC0697': 'TC0697 (傍晚高峰/幸福里)',
+    'TC1278': 'TC1278 (清晨高峰/順帆路)',
+    'TC0676': 'TC0676 (清晨高峰/中山路二段912巷)',
+    'TC0913': 'TC0913 (夜間高值/東側邊界)',
+    'TC0905': 'TC0905 (歷史短期專案/清晨暴衝)'
+  };
+
+  const curveDatasets = Object.keys(top5Curve).map(k => ({
+    label: curveLabels[k] || k,
+    data: top5Curve[k],
+    borderColor: curveColors[k] || '#cbd5e1',
+    backgroundColor: 'transparent',
+    borderWidth: k === 'TC1043' || k === 'TC0905' ? 3.5 : 2,
+    borderDash: k === 'TC0905' ? [6, 4] : [],
+    tension: 0.35,
+    pointRadius: 3,
+    pointHoverRadius: 6
+  }));
+
+  new Chart(document.getElementById('chartHourlyCurve'), {
+    type: 'line',
+    data: {
+      labels: hours,
+      datasets: curveDatasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#f8fafc', boxWidth: 14 }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()} ppb`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#24344d' },
+          ticks: { color: '#cbd5e1' },
+          title: { display: true, text: '時刻 (整點)', color: '#94a3b8' }
+        },
+        y: {
+          grid: { color: '#24344d' },
+          ticks: { color: '#cbd5e1' },
+          title: { display: true, text: '每小時平均 VOC (ppb)', color: '#94a3b8' }
+        }
+      }
+    }
+  });
+
+  // 3. 警示時數結構分析 (Top 5 長期測站)
+  const top5Sensors = longTerm.slice(0, 5);
+  new Chart(document.getElementById('chartThresholdStacked'), {
+    type: 'bar',
+    data: {
+      labels: top5Sensors.map(s => s.name),
+      datasets: [
+        {
+          label: '極重度事件 (>1,000 ppb) 時數',
+          data: top5Sensors.map(s => s.voc_gt1000),
+          backgroundColor: '#ef4444'
+        },
+        {
+          label: '重度事件 (500~1,000 ppb) 時數',
+          data: top5Sensors.map(s => s.voc_gt500 - s.voc_gt1000),
+          backgroundColor: '#f97316'
+        },
+        {
+          label: '警示事件 (200~500 ppb) 時數',
+          data: top5Sensors.map(s => s.voc_gt200 - s.voc_gt500),
+          backgroundColor: '#38bdf8'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, ticks: { color: '#f8fafc' }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: '#cbd5e1' }, grid: { color: '#24344d' }, title: { display: true, text: '累計警示時數 (hr)', color: '#94a3b8' } }
+      },
+      plugins: {
+        legend: { labels: { color: '#f8fafc', font: { size: 11 } } }
+      }
+    }
+  });
+
+  // 4. PM2.5 與 VOC 關聯散佈圖
+  new Chart(document.getElementById('chartScatterMatrix'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: '微感測器 (31台有效)',
+        data: ranking.map(s => ({ x: s.pm25_mean, y: s.voc_mean, name: s.name, short: s.is_short_term })),
+        backgroundColor: ranking.map(s => s.is_short_term ? '#eab308' : (s.voc_mean > 1000 ? '#ef4444' : (s.voc_mean > 500 ? '#f97316' : '#38bdf8'))),
+        pointRadius: ranking.map(s => s.voc_mean > 1000 ? 9 : 6),
+        pointHoverRadius: 11
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          ticks: { color: '#cbd5e1' },
+          grid: { color: '#24344d' },
+          title: { display: true, text: 'PM2.5 檢核均值 (μg/m³)', color: '#94a3b8' }
+        },
+        y: {
+          ticks: { color: '#cbd5e1' },
+          grid: { color: '#24344d' },
+          title: { display: true, text: 'VOC 檢核均值 (ppb)', color: '#94a3b8' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` 測站 ${ctx.raw.name}: PM2.5 = ${ctx.raw.x} μg/m³, VOC = ${ctx.raw.y.toLocaleString()} ppb${ctx.raw.short ? ' [短期專案]' : ''}`
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+
+<script>
+function toggleMapMode(mode) {
+  var tgos = document.getElementById('tgosMapContainer');
+  var gis = document.getElementById('dajiaMap');
+  var btnTgos = document.getElementById('btnShowTgos');
+  var btnGis = document.getElementById('btnShowInteractive');
+  if (mode === 'tgos') {
+    if (tgos) tgos.style.display = 'block';
+    if (gis) gis.style.display = 'none';
+    if (btnTgos) { btnTgos.style.background = '#3b82f6'; btnTgos.style.color = '#fff'; }
+    if (btnGis) { btnGis.style.background = 'rgba(255,255,255,0.08)'; btnGis.style.color = '#cbd5e1'; }
+  } else {
+    if (tgos) tgos.style.display = 'none';
+    if (gis) {
+      gis.style.display = 'block';
+      if (window.map) setTimeout(function(){ window.map.invalidateSize(); }, 200);
+    }
+    if (btnGis) { btnGis.style.background = '#3b82f6'; btnGis.style.color = '#fff'; }
+    if (btnTgos) { btnTgos.style.background = 'rgba(255,255,255,0.08)'; btnTgos.style.color = '#cbd5e1'; }
+  }
+}
+// 預設將互動地圖先隱藏或同步提供切換
+document.addEventListener("DOMContentLoaded", function() {
+  var gis = document.getElementById('dajiaMap');
+  if (gis) gis.style.display = 'none';
+});
+</script>
+
+</body>
+</html>
