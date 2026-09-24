@@ -2306,15 +2306,19 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               </div>
             </div>
 
-            {/* 方案 A: 中央氣象署 (CWA) 法定標準測站風場 */}
+            {/* 標準氣象觀測站風場資料 */}
             {cwaWindInfo && (
               <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2.5 bg-slate-900/70 p-2.5 rounded-xl border border-slate-800/80">
                 <div className="flex items-center justify-between">
                   <span className="text-amber-400 font-bold flex items-center gap-1 text-[11px]">
-                    <span>🏛️</span> 氣象署標準站 (方案 A)
+                    <span>🏛️</span> 氣象參照測站
                   </span>
-                  <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono border border-amber-500/30">
-                    法定公信站
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium border ${
+                    (cwaWindInfo.agencyType === 'moenv' || cwaWindInfo.stationName.includes('環境部'))
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                  }`}>
+                    {cwaWindInfo.agencyLabel || (cwaWindInfo.stationName.includes('環境部') ? '環境部氣象站' : '環保局氣象站')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[10px]">

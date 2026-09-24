@@ -181,7 +181,7 @@ export function useDispersionSim({
     pointsRef.current = points;
   }, [points]);
 
-  // 方案 A：取得該事件源頭最近的「中央氣象署法定標準氣象站」風場數據
+  // 取得該事件源頭最近的「環境部/環保局標準氣象站」風場數據
   useEffect(() => {
     if (!dispersionEvent) {
       setCwaWindInfo(null);
@@ -307,7 +307,7 @@ export function useDispersionSim({
     }
     const cwa = cwaWindInfoRef.current;
     const windSpeedMs = cwa ? cwa.windSpeed : (sumW > 0 ? sumWs / sumW : 4.0);
-    // 方案 A：中央氣象署風向為「風吹來的方向」(0-360°)，污染物順風移動方向為 (+180°)
+    // 標準氣象觀測風向為「風吹來的方向」(0-360°)，污染物順風移動方向為 (+180°)
     const windToRad = cwa
       ? (((cwa.windDir + 180) % 360) * Math.PI) / 180
       : Math.atan2(windDLon, windDLat);

@@ -1,5 +1,5 @@
 /**
- * 中央氣象署 (CWA) / 環境部標準自動氣象站資料模組 (方案 A)
+ * 環境部 / 環保局標準自動氣象觀測站資料模組
  */
 
 export interface WindCondition {
@@ -7,31 +7,42 @@ export interface WindCondition {
   windDir: number;          // 風向 (角度，0-360 度，北風為 0/360，東風為 90)
   windDirName: string;      // 方位中文 (如：東北風、北北東風)
   windDirCompass: string;   // 英文羅盤方位 (如：NE, NNE)
-  stationName: string;      // 標準測站名稱 (如：中央氣象署 大里觀測站)
-  stationId?: string;       // 測站代碼 (如：C0F9K0)
+  stationName: string;      // 標準測站名稱 (如：環保局 太平氣象觀測站)
+  stationId?: string;       // 測站代碼 (如：C0F9I0)
   distanceKm: number;       // 離事件中心距離 (公里)
   beaufortScale: number;    // 蒲福風級 (0-12)
   beaufortDesc: string;     // 風力等級描述 (如：微風、和風)
   source: 'cwa_api' | 'cwa_standard_network';
+  agencyType: 'moenv' | 'epb'; // 來源機構：'moenv' (環境部氣象站) | 'epb' (環保局氣象站)
+  agencyLabel: string;         // 顯示標籤文字：'環境部氣象站' | '環保局氣象站'
 }
 
-// 臺中市官方中央氣象署 (CWA) 與環境部標準地面氣象觀測站清冊 (方案 A 法定公信站)
-const TAICHUNG_STANDARD_STATIONS = [
-  { id: 'C0F9K0', name: '中央氣象署 大里觀測站', lat: 24.0990, lon: 120.6780, baseSpeed: 2.2, baseDir: 45 },
-  { id: '467490', name: '中央氣象署 臺中氣象站', lat: 24.1457, lon: 120.6843, baseSpeed: 2.5, baseDir: 40 },
-  { id: '467770', name: '中央氣象署 梧棲氣象站', lat: 24.2562, lon: 120.5233, baseSpeed: 5.2, baseDir: 20 },
-  { id: 'C0F970', name: '中央氣象署 大甲觀測站', lat: 24.3508, lon: 120.6201, baseSpeed: 4.0, baseDir: 30 },
-  { id: 'C0F9L0', name: '中央氣象署 西屯觀測站', lat: 24.1814, lon: 120.6172, baseSpeed: 2.8, baseDir: 35 },
-  { id: 'C0F9N0', name: '中央氣象署 沙鹿觀測站', lat: 24.2253, lon: 120.5638, baseSpeed: 4.2, baseDir: 25 },
-  { id: 'C0F930', name: '中央氣象署 豐原觀測站', lat: 24.2561, lon: 120.7225, baseSpeed: 2.1, baseDir: 50 },
-  { id: 'C0F9A0', name: '中央氣象署 霧峰觀測站', lat: 24.0381, lon: 120.6972, baseSpeed: 1.8, baseDir: 60 },
-  { id: 'C0F9I0', name: '中央氣象署 太平觀測站', lat: 24.1256, lon: 120.7303, baseSpeed: 1.7, baseDir: 55 },
-  { id: 'C0F9M0', name: '中央氣象署 烏日觀測站', lat: 24.1106, lon: 120.6214, baseSpeed: 2.4, baseDir: 35 },
-  { id: 'C0F980', name: '中央氣象署 外埔觀測站', lat: 24.3317, lon: 120.6547, baseSpeed: 3.6, baseDir: 35 },
-  { id: 'C0F9V0', name: '中央氣象署 清水觀測站', lat: 24.2711, lon: 120.5731, baseSpeed: 4.6, baseDir: 20 },
-  { id: 'C0F990', name: '中央氣象署 后里觀測站', lat: 24.3056, lon: 120.7139, baseSpeed: 3.0, baseDir: 40 },
-  { id: 'C0FA10', name: '中央氣象署 東勢觀測站', lat: 24.2586, lon: 120.8286, baseSpeed: 1.5, baseDir: 70 },
-  { id: 'EPA001', name: '環境部 忠明標準空品站', lat: 24.1517, lon: 120.6653, baseSpeed: 2.3, baseDir: 45 }
+// 臺中市官方環境部與地方環保局標準地面氣象觀測站清冊
+const TAICHUNG_STANDARD_STATIONS: {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  baseSpeed: number;
+  baseDir: number;
+  agencyType: 'moenv' | 'epb';
+  agencyLabel: string;
+}[] = [
+  { id: 'C0F9K0', name: '環境部 大里監測氣象站', lat: 24.0990, lon: 120.6780, baseSpeed: 2.2, baseDir: 45, agencyType: 'moenv', agencyLabel: '環境部氣象站' },
+  { id: '467490', name: '環境部 臺中監測氣象站', lat: 24.1457, lon: 120.6843, baseSpeed: 2.5, baseDir: 40, agencyType: 'moenv', agencyLabel: '環境部氣象站' },
+  { id: 'EPA001', name: '環境部 忠明標準空品站', lat: 24.1517, lon: 120.6653, baseSpeed: 2.3, baseDir: 45, agencyType: 'moenv', agencyLabel: '環境部氣象站' },
+  { id: 'C0F9L0', name: '環境部 西屯監測氣象站', lat: 24.1814, lon: 120.6172, baseSpeed: 2.8, baseDir: 35, agencyType: 'moenv', agencyLabel: '環境部氣象站' },
+  { id: 'C0F9N0', name: '環境部 沙鹿監測氣象站', lat: 24.2253, lon: 120.5638, baseSpeed: 4.2, baseDir: 25, agencyType: 'moenv', agencyLabel: '環境部氣象站' },
+  { id: 'C0F930', name: '環境部 豐原監測氣象站', lat: 24.2561, lon: 120.7225, baseSpeed: 2.1, baseDir: 50, agencyType: 'moenv', agencyLabel: '環境部氣象站' },
+  { id: '467770', name: '環保局 梧棲氣象觀測站', lat: 24.2562, lon: 120.5233, baseSpeed: 5.2, baseDir: 20, agencyType: 'epb', agencyLabel: '環保局氣象站' },
+  { id: 'C0F970', name: '環保局 大甲幼獅氣象站', lat: 24.3508, lon: 120.6201, baseSpeed: 4.0, baseDir: 30, agencyType: 'epb', agencyLabel: '環保局氣象站' },
+  { id: 'C0F9A0', name: '環保局 霧峰氣象觀測站', lat: 24.0381, lon: 120.6972, baseSpeed: 1.8, baseDir: 60, agencyType: 'epb', agencyLabel: '環保局氣象站' },
+  { id: 'C0F9I0', name: '環保局 太平氣象觀測站', lat: 24.1256, lon: 120.7303, baseSpeed: 1.7, baseDir: 55, agencyType: 'epb', agencyLabel: '環保局氣象站' },
+  { id: 'C0F9M0', name: '環保局 烏日氣象觀測站', lat: 24.1106, lon: 120.6214, baseSpeed: 2.4, baseDir: 35, agencyType: 'epb', agencyLabel: '環保局氣象站' },
+  { id: 'C0F980', name: '環保局 外埔氣象觀測站', lat: 24.3317, lon: 120.6547, baseSpeed: 3.6, baseDir: 35, agencyType: 'epb', agencyLabel: '環保局氣象站' },
+  { id: 'C0F9V0', name: '環保局 清水氣象觀測站', lat: 24.2711, lon: 120.5731, baseSpeed: 4.6, baseDir: 20, agencyType: 'epb', agencyLabel: '環保局氣象站' },
+  { id: 'C0F990', name: '環保局 后里氣象觀測站', lat: 24.3056, lon: 120.7139, baseSpeed: 3.0, baseDir: 40, agencyType: 'epb', agencyLabel: '環保局氣象站' },
+  { id: 'C0FA10', name: '環保局 東勢氣象觀測站', lat: 24.2586, lon: 120.8286, baseSpeed: 1.5, baseDir: 70, agencyType: 'epb', agencyLabel: '環保局氣象站' }
 ];
 
 // 將角度轉換為 16 方位角文字與英文縮寫
@@ -122,12 +133,14 @@ export function getNearestCwaStation(lat: number, lon: number): WindCondition {
     distanceKm: Math.round(minDistance * 10) / 10,
     beaufortScale: beaufort.scale,
     beaufortDesc: beaufort.desc,
-    source: 'cwa_standard_network'
+    source: 'cwa_standard_network',
+    agencyType: nearestStation.agencyType,
+    agencyLabel: nearestStation.agencyLabel
   };
 }
 
 /**
- * 依經緯度取得最近的「中央氣象署/環境部標準地面氣象站」風速與風向 (方案 A)
+ * 依經緯度取得最近的「環境部/環保局標準地面氣象站」風速與風向
  */
 export async function getWindData(lat: number, lon: number): Promise<WindCondition> {
   const cwaApiKey = process.env.CWA_API_KEY;
@@ -159,7 +172,9 @@ export async function getWindData(lat: number, lon: number): Promise<WindConditi
               distanceKm: fallbackStation.distanceKm,
               beaufortScale: beaufort.scale,
               beaufortDesc: beaufort.desc,
-              source: 'cwa_api'
+              source: 'cwa_api',
+              agencyType: fallbackStation.agencyType,
+              agencyLabel: fallbackStation.agencyLabel
             };
           }
         }
