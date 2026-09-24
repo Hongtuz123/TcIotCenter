@@ -196,7 +196,12 @@ export default function DashboardPage() {
       const res = await fetch('/api/events');
       const data = await res.json();
       if (Array.isArray(data)) {
-        setEvents(data);
+        const sorted = [...data].sort((a, b) => {
+          const tA = new Date(a.event_time || a.start_time || a.created_at).getTime() || 0;
+          const tB = new Date(b.event_time || b.start_time || b.created_at).getTime() || 0;
+          return tB - tA;
+        });
+        setEvents(sorted);
       }
     } catch (e) {
       console.error('載入事件失敗:', e);

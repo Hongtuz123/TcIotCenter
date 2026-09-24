@@ -548,10 +548,16 @@ export const EventManager: React.FC<EventManagerProps> = ({
               <p className="text-sm font-bold text-slate-400">目前尚無事件。</p>
             </div>
           ) : (
-            // 事件由舊到新排列，舊的編號小
-            [...events].reverse().map((event, reverseIdx) => {
-              const seqNum = reverseIdx + 1;
-              const isExpanded = activeEventId === event.id;
+            // 最新事件排在最前面 (由新到舊排序)
+            [...events]
+              .sort((a, b) => {
+                const tA = new Date(a.event_time || a.start_time || a.created_at).getTime() || 0;
+                const tB = new Date(b.event_time || b.start_time || b.created_at).getTime() || 0;
+                return tB - tA;
+              })
+              .map((event, idx, arr) => {
+                const seqNum = arr.length - idx;
+                const isExpanded = activeEventId === event.id;
 
               // 解析超標測值（從 dominant_type 或 description 推斷）
               const domType = event.dominant_type || '';
