@@ -117,7 +117,8 @@ export const SensorMap: React.FC<SensorMapProps> = ({
     simAnimRef,
     simPhaseRef,
     simStartTimeRef,
-    simHoldStartRef
+    simHoldStartRef,
+    cwaWindInfo
   } = useDispersionSim({
     map: mapRef.current,
     isLoaded,
@@ -2304,6 +2305,56 @@ export const SensorMap: React.FC<SensorMapProps> = ({
                 <span className="font-bold" style={{ color: pmColor }}>{srcPm25 ? `${srcPm25.toFixed(1)} μg/m³` : 'N/A'}</span>
               </div>
             </div>
+
+            {/* 方案 A: 中央氣象署 (CWA) 法定標準測站風場 */}
+            {cwaWindInfo && (
+              <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2.5 bg-slate-900/70 p-2.5 rounded-xl border border-slate-800/80">
+                <div className="flex items-center justify-between">
+                  <span className="text-amber-400 font-bold flex items-center gap-1 text-[11px]">
+                    <span>🏛️</span> 氣象署標準站 (方案 A)
+                  </span>
+                  <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono border border-amber-500/30">
+                    法定公信站
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-slate-400">觀測測站</span>
+                  <span className="text-slate-200 font-semibold truncate max-w-[130px]" title={cwaWindInfo.stationName}>
+                    {cwaWindInfo.stationName}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">當下風向</span>
+                  <span className="text-slate-100 font-semibold flex items-center gap-1.5">
+                    <span 
+                      className="inline-block transition-transform duration-500 text-orange-400 text-sm font-black"
+                      style={{ transform: `rotate(${cwaWindInfo.windDir + 180}deg)` }}
+                      title={`吹向 ${(cwaWindInfo.windDir + 180) % 360}°`}
+                    >
+                      ↑
+                    </span>
+                    <span>{cwaWindInfo.windDirName} ({cwaWindInfo.windDir}°)</span>
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">當下風速</span>
+                  <span className="text-emerald-400 font-bold font-mono">
+                    {cwaWindInfo.windSpeed.toFixed(1)} m/s ({cwaWindInfo.beaufortDesc})
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                  <span className="text-slate-400">推算飄移距離</span>
+                  <div className="text-right">
+                    <span className="text-orange-400 font-bold font-mono">
+                      {((cwaWindInfo.windSpeed * (simTimeH * 3600) * 0.085) / 1000).toFixed(2)} km
+                    </span>
+                    <span className="text-[9px] text-slate-500 block leading-tight">
+                      (直線傳輸 {((cwaWindInfo.windSpeed * (simTimeH * 3600)) / 1000).toFixed(1)} km)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5 text-[11px] border-b border-slate-800 pb-2">
               <div className="text-[10px] text-slate-400 font-bold mb-0.5">達標感測站 ({eventSensors.length} 站)</div>

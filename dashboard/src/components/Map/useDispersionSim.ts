@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Event, Sensor, Observation, EventSensorDetail } from '@/types';
+import { WindCondition, getNearestCwaStation } from '@/lib/weather';
 
 // 取得擴散模擬的污染源測站 (Supabase 模式下若 sensors 為空，則從 points 尋找距離 bounds 中心最近的測站)
 export const getEventSourceSensor = (
@@ -160,6 +161,8 @@ export function useDispersionSim({
 }: UseDispersionSimProps) {
   const [simTimeH, setSimTimeH] = useState(0);
   const [isSimPlaying, setIsSimPlaying] = useState(false);
+  const [cwaWindInfo, setCwaWindInfo] = useState<WindCondition | null>(null);
+  const cwaWindInfoRef = useRef<WindCondition | null>(null);
   const accumulatedTimeRef = useRef(0);
   const simAnimRef = useRef<number | null>(null);
   const simStartTimeRef = useRef<number | null>(null);
@@ -177,6 +180,38 @@ export function useDispersionSim({
   useEffect(() => {
     pointsRef.current = points;
   }, [points]);
+
+  // 方案 A：取得該事件源頭最近的「中央氣象署法定標準氣象站」風場數據
+  useEffect(() => {
+    if (!dispersionEvent) {
+      setCwaWindInfo(null);
+      cwaWindInfoRef.current = null;
+      return;
+    }
+    const src = getEventSourceSensor(dispersionEvent, pointsRef.current);
+    if (!src) return;
+
+    // 1. 先以本地標準測站庫同步算式立即初始化（保證零延遲呈現法定測站與風向）
+    const initialStation = getNearestCwaStation(src.lat, src.lon);
+    setCwaWindInfo(initialStation);
+    cwaWindInfoRef.current = initialStation;
+
+    // 2. 隨後非同步向 /api/weather 請求即時 CWA API 觀測值
+    let isCancelled = false;
+    fetch(`/api/weather?lat=${src.lat}&lon=${src.lon}`)
+      .then(r => r.json())
+      .then((data: WindCondition) => {
+        if (!isCancelled && data && !('error' in data) && data.stationName) {
+          setCwaWindInfo(data);
+          cwaWindInfoRef.current = data;
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [dispersionEvent?.id]);
 
   // 3.3 污染擴散模擬：Gaussian Puff 動畫引擎
   useEffect(() => {
@@ -270,10 +305,12 @@ export function useDispersionSim({
       const w = 1.0 / (dLon * dLon + dLat * dLat + 0.000001);
       sumW += w; sumLon += v.dLon * w; sumLat += v.dLat * w; sumWs += v.ws * w;
     }
-    const windDLon = sumW > 0 ? sumLon / sumW : 0.0003;
-    const windDLat = sumW > 0 ? sumLat / sumW : 0.0002;
-    const windSpeedMs = sumW > 0 ? sumWs / sumW : 4.0;
-    const windToRad = Math.atan2(windDLon, windDLat);
+    const cwa = cwaWindInfoRef.current;
+    const windSpeedMs = cwa ? cwa.windSpeed : (sumW > 0 ? sumWs / sumW : 4.0);
+    // 方案 A：中央氣象署風向為「風吹來的方向」(0-360°)，污染物順風移動方向為 (+180°)
+    const windToRad = cwa
+      ? (((cwa.windDir + 180) % 360) * Math.PI) / 180
+      : Math.atan2(windDLon, windDLat);
 
     const eventTimeStr = dispersionEventRef.current.event_time || dispersionEventRef.current.start_time || new Date().toISOString();
     const eventHour = new Date(eventTimeStr.replace('T', ' ').replace(/-/g, '/')).getHours();
@@ -564,6 +601,7 @@ export function useDispersionSim({
     simAnimRef,
     simPhaseRef,
     simStartTimeRef,
-    simHoldStartRef
+    simHoldStartRef,
+    cwaWindInfo
   };
 }
