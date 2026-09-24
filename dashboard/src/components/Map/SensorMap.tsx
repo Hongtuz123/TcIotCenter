@@ -185,11 +185,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       ['==', ['get', 'value'], null], '#64748b',
       ['==', ['literal', selectedMetric], 'pm2_5'], [
         'step', ['get', 'value'],
-        '#10b981', 15.5,
-        '#eab308', 35.4,
-        '#f97316', 54.4,
-        '#ef4444', 150.4,
-        '#a855f7', 250.4,
+        '#10b981', 12.5,
+        '#eab308', 30.5,
+        '#f97316', 50.5,
+        '#ef4444', 125.5,
+        '#a855f7', 225.5,
         '#3f000f'
       ],
       ['==', ['literal', selectedMetric], 'temperature'], [
@@ -697,7 +697,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const lng = srcSensor ? srcSensor.lon : ((dispersionEvent.bounds?.center as any).lng ?? (dispersionEvent.bounds?.center as any).lon);
         const radius = dispersionEvent.bounds?.radiusKm || 1.5;
         if (lat !== undefined && lng !== undefined) {
-          const thresh = pm25Threshold ?? 54.0;
+          const thresh = pm25Threshold ?? 50.4;
           points.forEach(p => {
             const dLon = (p.lon - lng) * 111.32 * Math.cos(lat * Math.PI / 180);
             const dLat = (p.lat - lat) * 110.57;
@@ -724,7 +724,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         // 找到該測站在事件中的目標測值
         const evSensor = dispersionEvent.sensors?.find((s: any) => s.id === point.id);
         if (evSensor) {
-          const targetPm25 = evSensor.pm2_5 ?? 54.0;
+          const targetPm25 = evSensor.pm2_5 ?? 50.4;
           const basePm25 = Math.min(12.0, targetPm25 * 0.2); // 預設乾淨背景值 (原值的 20% 或最高 12.0)
           
           if (point.id === srcSensorId) {
@@ -749,13 +749,13 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           }
           
           // 動態更新是否超標判定
-          const isPm25Anomaly = val !== null && val !== undefined && val >= (pm25Threshold ?? 54);
+          const isPm25Anomaly = val !== null && val !== undefined && val >= (pm25Threshold ?? 50.4);
           isAnomalyPoint = isPm25Anomaly;
           anomalyType = isAnomalyPoint ? `連續 3 筆 PM₂.₅ 超標` : '';
         }
       } else {
         // 非模擬模式下的正常超標判定
-        const isPm25Anomaly = selectedMetric === 'pm2_5' && val !== null && val !== undefined && val >= (pm25Threshold ?? 54);
+        const isPm25Anomaly = selectedMetric === 'pm2_5' && val !== null && val !== undefined && val >= (pm25Threshold ?? 50.4);
         isAnomalyPoint = point.isAnomaly || isPm25Anomaly;
       }
 
@@ -1141,11 +1141,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       ['==', ['get', 'value'], null], '#64748b',
       ['==', ['literal', selectedMetric], 'pm2_5'], [
         'step', ['get', 'value'],
-        '#10b981', 15.5,
-        '#eab308', 35.4,
-        '#f97316', 54.4,
-        '#ef4444', 150.4,
-        '#a855f7', 250.4,
+        '#10b981', 12.5,
+        '#eab308', 30.5,
+        '#f97316', 50.5,
+        '#ef4444', 125.5,
+        '#a855f7', 225.5,
         '#3f000f'
       ],
       ['==', ['literal', selectedMetric], 'temperature'], [
@@ -1226,11 +1226,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         let pm25Color = '#10b981';
         if (point.pm2_5 !== null && point.pm2_5 !== undefined) {
           const p = point.pm2_5;
-          if (p < 15.5) pm25Color = '#10b981'; // 良好
-          else if (p <= 35.4) pm25Color = '#eab308'; // 普通 (黃)
-          else if (p <= 54.4) pm25Color = '#f97316'; // 敏感橘
-          else if (p <= 150.4) pm25Color = '#ef4444'; // 不健康 (紅)
-          else if (p <= 250.4) pm25Color = '#a855f7'; // 非常不健康
+          if (p <= 12.4) pm25Color = '#10b981'; // 良好 (綠)
+          else if (p <= 30.4) pm25Color = '#eab308'; // 普通 (黃)
+          else if (p <= 50.4) pm25Color = '#f97316'; // 敏感橘
+          else if (p <= 125.4) pm25Color = '#ef4444'; // 不健康 (紅)
+          else if (p <= 225.4) pm25Color = '#a855f7'; // 非常不健康
           else pm25Color = '#881337'; // 危害
         } else {
           pm25Color = '#64748b';
@@ -1405,7 +1405,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
 
     // 根據 selectedMetric 動態調整權重插值範圍
     let maxVal = 100;
-    if (selectedMetric === 'pm2_5') maxVal = 250.5;
+    if (selectedMetric === 'pm2_5') maxVal = 225.5;
     else if (selectedMetric === 'temperature') maxVal = 40;
     else if (selectedMetric === 'humidity') maxVal = 100;
 
@@ -1850,12 +1850,12 @@ export const SensorMap: React.FC<SensorMapProps> = ({
       gradientStyle = 'linear-gradient(to right, #10b981, #eab308, #f97316, #ef4444, #a855f7, #3f000f)';
       unit = 'µg/m³';
       steps = [
-        { value: 15.4, label: '15.4' },
-        { value: 35.4, label: '35.4' },
-        { value: 54.4, label: '54.4' },
-        { value: 150.4, label: '150.4' },
-        { value: 250.4, label: '250.4' },
-        { value: 250.5, label: '250.5+' }
+        { value: 12.4, label: '12.4' },
+        { value: 30.4, label: '30.4' },
+        { value: 50.4, label: '50.4' },
+        { value: 125.4, label: '125.4' },
+        { value: 225.4, label: '225.4' },
+        { value: 225.5, label: '225.5+' }
       ];
     } else if (selectedMetric === 'temperature') {
       title = '溫度熱區密度';
@@ -2164,9 +2164,9 @@ export const SensorMap: React.FC<SensorMapProps> = ({
         const hours = Math.floor(simTimeH);
         const mins = Math.floor((simTimeH - hours) * 60);
         let pmColor = '#10b981';
-        if (srcPm25 >= 54.4) pmColor = '#ef4444';
-        else if (srcPm25 >= 35.4) pmColor = '#f97316';
-        else if (srcPm25 >= 15.5) pmColor = '#eab308';
+        if (srcPm25 >= 50.4) pmColor = '#ef4444';
+        else if (srcPm25 >= 30.4) pmColor = '#f97316';
+        else if (srcPm25 >= 12.4) pmColor = '#eab308';
 
         // 取得該事件形成門檻/達標的感測站 (優先採計該事件記錄之達標/門檻感測站，避免包含範圍內低濃度的正常背景測站)
         const eventSensors = (() => {
@@ -2187,7 +2187,7 @@ export const SensorMap: React.FC<SensorMapProps> = ({
           const radius = dispersionEvent.bounds?.radiusKm || 1.5;
           if (lat === undefined || lng === undefined) return [];
           
-          const thresh = pm25Threshold ?? 54.0;
+          const thresh = pm25Threshold ?? 50.4;
           const matchedInRadius = points.filter(p => {
             const dLon = (p.lon - lng) * 111.32 * Math.cos(lat * Math.PI / 180);
             const dLat = (p.lat - lat) * 110.57;
@@ -2360,11 +2360,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
               <div className="text-[10px] text-slate-400 font-bold mb-0.5">達標感測站 ({eventSensors.length} 站)</div>
               {(() => {
                 const getPmColor = (val: number) => {
-                  if (val >= 250.4) return '#7f1d1d'; // 褐紅
-                  if (val >= 150.4) return '#a855f7'; // 紫色
-                  if (val >= 54.4) return '#ef4444';  // 紅色
-                  if (val >= 35.4) return '#f97316';  // 橘色
-                  if (val >= 15.5) return '#eab308';  // 黃色
+                  if (val >= 225.4) return '#7f1d1d'; // 褐紅
+                  if (val >= 125.4) return '#a855f7'; // 紫色
+                  if (val >= 50.4) return '#ef4444';  // 紅色
+                  if (val >= 30.4) return '#f97316';  // 橘色
+                  if (val >= 12.4) return '#eab308';  // 黃色
                   return '#34d399';                   // 綠色
                 };
 
@@ -2418,11 +2418,11 @@ export const SensorMap: React.FC<SensorMapProps> = ({
             <div className="flex flex-col gap-1 text-[10px] border-b border-slate-800 pb-2">
               <div className="text-slate-500 font-bold mb-0.5 text-[9px]">大氣擴散 PM₂.₅ 濃度圖例 (μg/m³)</div>
               <div className="relative w-full h-3 rounded overflow-hidden flex text-[8px] font-bold text-center">
-                <div className="flex-1 bg-[#34d399] text-slate-900 flex items-center justify-center">15.5</div>
-                <div className="flex-1 bg-[#eab308] text-slate-900 flex items-center justify-center">35.4</div>
-                <div className="flex-1 bg-[#f97316] text-slate-950 flex items-center justify-center">54.4</div>
-                <div className="flex-1 bg-[#ef4444] text-white flex items-center justify-center">150.4</div>
-                <div className="flex-1 bg-[#a855f7] text-white flex items-center justify-center">250.4</div>
+                <div className="flex-1 bg-[#34d399] text-slate-900 flex items-center justify-center">12.4</div>
+                <div className="flex-1 bg-[#eab308] text-slate-900 flex items-center justify-center">30.4</div>
+                <div className="flex-1 bg-[#f97316] text-slate-950 flex items-center justify-center">50.4</div>
+                <div className="flex-1 bg-[#ef4444] text-white flex items-center justify-center">125.4</div>
+                <div className="flex-1 bg-[#a855f7] text-white flex items-center justify-center">225.4</div>
               </div>
               <div className="flex justify-between text-[8px] text-slate-500 px-0.5">
                 <span>綠 (低)</span>

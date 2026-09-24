@@ -328,9 +328,9 @@ export function useDispersionSim({
     const srcY = ((MAX_LAT - srcLat) / latHeight) * dispCanvas.height;
 
     const getColor = (currentPm25: number, opacity: number) => {
-      if (currentPm25 >= 54.4) return `rgba(239,68,68,${opacity.toFixed(3)})`;
-      if (currentPm25 >= 35.4) return `rgba(249,115,22,${opacity.toFixed(3)})`;
-      if (currentPm25 >= 15.5) return `rgba(234,179,8,${opacity.toFixed(3)})`;
+      if (currentPm25 >= 50.4) return `rgba(239,68,68,${opacity.toFixed(3)})`;
+      if (currentPm25 >= 30.4) return `rgba(249,115,22,${opacity.toFixed(3)})`;
+      if (currentPm25 >= 12.4) return `rgba(234,179,8,${opacity.toFixed(3)})`;
       return `rgba(52,211,153,${opacity.toFixed(3)})`;
     };
 
@@ -452,16 +452,16 @@ export function useDispersionSim({
           const minOp = (o: number) => Math.max(o, 0.18).toFixed(3);
           const stdOp = (o: number) => o.toFixed(3);
 
-          if (val >= 250.4) return `rgba(127, 29, 29, ${stdOp(op)})`;   // 褐紅
-          if (val >= 150.4) return `rgba(168, 85, 247, ${stdOp(op)})`;  // 紫色
-          if (val >= 54.4) return `rgba(239, 68, 68, ${stdOp(op)})`;   // 紅色
-          if (val >= 35.4) return `rgba(249, 115, 22, ${stdOp(op)})`;  // 橘色
-          if (val >= 15.5) return `rgba(234, 179, 8, ${minOp(op)})`;   // 黃色
+          if (val >= 225.4) return `rgba(127, 29, 29, ${stdOp(op)})`;   // 褐紅
+          if (val >= 125.4) return `rgba(168, 85, 247, ${stdOp(op)})`;  // 紫色
+          if (val >= 50.4) return `rgba(239, 68, 68, ${stdOp(op)})`;   // 紅色
+          if (val >= 30.4) return `rgba(249, 115, 22, ${stdOp(op)})`;  // 橘色
+          if (val >= 12.4) return `rgba(234, 179, 8, ${minOp(op)})`;   // 黃色
           return `rgba(52, 211, 153, ${minOp(op)})`;                  // 綠色
         };
 
         const grad = dCtx.createRadialGradient(0, 0, 0, 0, 0, finalRadius);
-        const thresholds = [250.4, 150.4, 54.4, 35.4, 15.5];
+        const thresholds = [225.4, 125.4, 50.4, 30.4, 12.4];
         const boundaries: { x: number; val: number }[] = [];
         
         // 依高斯剖面分佈 C(x) = C_max * exp(-1.8 * x^2) 反推各等值線界線的相對半徑 x

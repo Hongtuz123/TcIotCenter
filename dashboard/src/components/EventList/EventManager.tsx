@@ -622,7 +622,7 @@ export const EventManager: React.FC<EventManagerProps> = ({
                                 return;
                               }
 
-                              const thresh = (event.bounds as any)?.pm25Threshold ?? (event as any).pm25_threshold ?? (event.title ? event.title.match(/門檻[ :]*PM₂?\.?₅?\s*(\d+(\.\d+)?)/i)?.[1] : null) ?? systemSettings?.pm25_threshold ?? 54;
+                              const thresh = (event.bounds as any)?.pm25Threshold ?? (event as any).pm25_threshold ?? (event.title ? event.title.match(/門檻[ :]*PM₂?\.?₅?\s*(\d+(\.\d+)?)/i)?.[1] : null) ?? systemSettings?.pm25_threshold ?? 50.4;
                               const consecutive = (event.bounds as any)?.consecutiveExceeds ?? (event as any).consecutive_exceeds ?? systemSettings?.consecutive_exceeds ?? 3;
                               const radius = (event.bounds as any)?.radiusKm || systemSettings?.cluster_radius_km || 1.0;
                               const minStations = event.stations_count || systemSettings?.min_cluster_stations || 2;

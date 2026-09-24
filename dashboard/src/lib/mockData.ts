@@ -14,7 +14,7 @@ export const mockSensors: Sensor[] = [
 export const globalMockState = {
   events: [] as Event[],
   settings: {
-    pm25_threshold: 54,
+    pm25_threshold: 50.4,
     consecutive_exceeds: 3,
     cluster_radius_km: 1.0,
     min_cluster_stations: 2

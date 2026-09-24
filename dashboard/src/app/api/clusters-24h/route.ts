@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     // 優先從 URL 參數讀取閥值規則，實現 localStorage 同步
     const radius = parseFloat(searchParams.get('radius') || '1.0');
     const minStations = parseInt(searchParams.get('min_stations') || '2', 10);
-    const pm25Thresh = parseFloat(searchParams.get('pm25_threshold') || '54');
+    const pm25Thresh = parseFloat(searchParams.get('pm25_threshold') || '50.4');
     const consecutiveExceeds = parseInt(searchParams.get('consecutive_exceeds') || '3', 10);
 
     const allClusters: any[] = [];

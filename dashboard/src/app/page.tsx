@@ -119,7 +119,7 @@ export default function DashboardPage() {
       }
     }
     return {
-      pm25_threshold: 54,
+      pm25_threshold: 50.4,
       consecutive_exceeds: 3,
       cluster_radius_km: 1.0,
       min_cluster_stations: 2
@@ -631,7 +631,7 @@ export default function DashboardPage() {
   useEffect(() => {
     // 當系統設定加載完成後更新輸入欄位狀態
     if (systemSettings) {
-      setPm25Input(systemSettings.pm25_threshold?.toString() ?? '54');
+      setPm25Input(systemSettings.pm25_threshold?.toString() ?? '50.4');
       setConsecutiveInput(systemSettings.consecutive_exceeds?.toString() ?? '3');
       setRadiusInput(systemSettings.cluster_radius_km?.toString() ?? '1.0');
       setMinStationsInput(systemSettings.min_cluster_stations?.toString() ?? '2');
@@ -848,7 +848,7 @@ export default function DashboardPage() {
           <button
             onClick={() => {
               if (systemSettings) {
-                setPm25Input(systemSettings.pm25_threshold?.toString() ?? '54');
+                setPm25Input(systemSettings.pm25_threshold?.toString() ?? '50.4');
                 setConsecutiveInput(systemSettings.consecutive_exceeds?.toString() ?? '3');
                 setRadiusInput(systemSettings.cluster_radius_km?.toString() ?? '1.0');
                 setMinStationsInput(systemSettings.min_cluster_stations?.toString() ?? '2');
