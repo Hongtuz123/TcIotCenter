@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-2025 年南區五縣市微感資料與產業園區空間交集處理腳本 (增強防護版)
+2025 年南區五縣市微感資料與產業園區空間交集處理腳本 (15 欄位標準對齊版)
 - 來源檔案：C:\\GoogleAntigravity\\2026IoTcenter\\saic\\小時平均值\\2025五縣市微感資料.xlsx
 - 空間圖層：C:\\GoogleAntigravity\\2026IoTcenter\\saic\\5縣市產業園區SHP\\距產業園區1km內含學校.shp
-- 處理原則：
-  1. 欄位填補：將「縣市」填入縣市名，將「工業區」填入產業園區名稱
-  2. 交集過濾：僅保留落於產業園區 1km 內之微感觀測資料，非工業區測站整列移除
-  3. 重疊歸屬：若同時落於兩工業區範圍內，以距離較近之工業區（園區幾何中心點 Centroid 距離最近）為主
-  4. 燕巢防護：排除無學校多邊形，重疊燕巢安招/國中者依距離兩校最近者智能歸屬
-  5. 異常值防護：對於經緯度或 PM2.5 為 #N/A 或非數值之字串進行容錯保護，無效經緯度自動過濾
-  6. 串流架構：單遍歷快取機制 + 即時 Flush 日誌 + 逐頁 GC 釋放記憶體
+- 15 欄位架構：
+  [deviceId, deviceName, localTime, localTime+時間, 年份, 月份, 日期, 時間, pm2_5, 縣市, 工業區, 緯度, 經度, 鄉鎮市, 鄰近學校]
 """
 
 import os
@@ -25,7 +20,6 @@ import pyproj
 import openpyxl
 import xlsxwriter
 
-# 確保輸出不被緩衝，即時寫入日誌
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(line_buffering=True)
 
@@ -57,7 +51,6 @@ def load_parks():
         county = (rec.get("縣市別", "") or "").strip()
         town = (rec.get("鄉鎮市", "") or "").strip()
 
-        # 排除無學校或屬性缺失之園區 (如 Join_Count == 0 之燕巢工業用地等)
         if not school or not county or not town or rec.get("Join_Count", 1) == 0:
             continue
 
@@ -87,7 +80,6 @@ def build_spatial_matcher(parks):
     def match_point(lat, lon):
         if lat is None or lon is None:
             return None
-        # 安全型別轉換，避免 #N/A 或字串報錯
         try:
             lat_f = float(lat)
             lon_f = float(lon)
@@ -103,7 +95,6 @@ def build_spatial_matcher(parks):
         if len(hits) == 1:
             best = hits[0]
         else:
-            # 優先檢查是否同時落在安招國小與燕巢國中重疊區
             schools = set(h["school"] for h in hits)
             if "市立安招國小" in schools and "市立燕巢國中" in schools:
                 d_an = haversine(lat_f, lon_f, anzhao_coord[0], anzhao_coord[1])
@@ -111,17 +102,14 @@ def build_spatial_matcher(parks):
                 target_school = "市立安招國小" if d_an < d_yan else "市立燕巢國中"
                 best = next(h for h in hits if h["school"] == target_school)
             else:
-                # 使用者指示：若同時落於兩工業區範圍內，取「距離較近」的工業區為主
-                # 轉至 TWD97 計算點位到各園區幾何中心 (Centroid) 的公尺直線距離
                 x_twd, y_twd = wgs_to_twd.transform(lon_f, lat_f)
                 p_twd = Point(x_twd, y_twd)
                 best = min(hits, key=lambda pk: p_twd.distance(pk["centroid_twd"]))
 
-        # 若缺失屬性則移除
         if not best["county"] or not best["name"]:
             return None
 
-        return (best["county"], best["name"])
+        return (best["county"], best["name"], best["town"], best["school"])
 
     return match_point
 
@@ -136,7 +124,7 @@ def process_2025_excel():
     sheet_names = wb_in.sheetnames
     print(f"工作表清單: {sheet_names}", flush=True)
 
-    print(f"\n>>> [3/3] 初始化目標活頁簿: {EXCEL_OUTPUT}", flush=True)
+    print(f"\n>>> [3/3] 初始化目標活頁簿 (15 欄位統一格式): {EXCEL_OUTPUT}", flush=True)
     wb_out = xlsxwriter.Workbook(EXCEL_OUTPUT)
 
     header_fmt = wb_out.add_format({
@@ -156,10 +144,11 @@ def process_2025_excel():
     headers = [
         "deviceId", "deviceName", "localTime", "localTime+時間",
         "年份", "月份", "日期", "時間", "pm2_5",
-        "縣市", "工業區", "緯度", "經度"
+        "縣市", "工業區", "緯度", "經度",
+        "鄉鎮市", "鄰近學校"
     ]
 
-    sensor_cache = {}  # deviceId -> (county, park_name) or None
+    sensor_cache = {}
     total_in_rows = 0
     total_out_rows = 0
 
@@ -170,7 +159,6 @@ def process_2025_excel():
         ws_out = wb_out.add_worksheet(sname)
         ws_out.freeze_panes(1, 0)
 
-        # 寫入標題
         for c_idx, h_name in enumerate(headers):
             ws_out.write(0, c_idx, h_name, header_fmt)
 
@@ -186,16 +174,14 @@ def process_2025_excel():
             lat = row[11]
             lon = row[12]
 
-            # 設備空間對照查詢 (帶快取)
             if did not in sensor_cache:
                 sensor_cache[did] = matcher(lat, lon)
 
             match_info = sensor_cache[did]
-            # 選項 1：未落於產業園區或經緯度無效者整列過濾移除
             if match_info is None:
                 continue
 
-            county_val, park_val = match_info
+            county_val, park_val, town_val, school_val = match_info
             sheet_out_cnt += 1
             row_num = sheet_out_cnt
 
@@ -256,10 +242,10 @@ def process_2025_excel():
             else:
                 ws_out.write_blank(row_num, 8, cell_fmt)
 
-            # 9: 縣市 (選項 A: 填入所屬縣市)
+            # 9: 縣市
             ws_out.write(row_num, 9, county_val, cell_fmt)
 
-            # 10: 工業區 (填入所屬產業園區名稱)
+            # 10: 工業區
             ws_out.write(row_num, 10, park_val, cell_fmt)
 
             # 11: 緯度
@@ -274,8 +260,15 @@ def process_2025_excel():
             except (ValueError, TypeError):
                 ws_out.write(row_num, 12, str(row[12]) if row[12] is not None else "", cell_fmt)
 
-        ws_out.autofilter(0, 0, sheet_out_cnt, len(headers) - 1)
-        col_widths = [16, 18, 20, 20, 8, 8, 8, 8, 14, 12, 24, 14, 14]
+            # 13: 鄉鎮市 (新增)
+            ws_out.write(row_num, 13, town_val, cell_fmt)
+
+            # 14: 鄰近學校 (新增)
+            ws_out.write(row_num, 14, school_val, cell_fmt)
+
+        ws_autofilter_max = sheet_out_cnt
+        ws_out.autofilter(0, 0, ws_autofilter_max, len(headers) - 1)
+        col_widths = [16, 18, 20, 20, 8, 8, 8, 8, 14, 12, 24, 14, 14, 12, 24]
         for c_idx, w in enumerate(col_widths):
             ws_out.set_column(c_idx, c_idx, w)
 
@@ -284,7 +277,6 @@ def process_2025_excel():
         sec_sheet = time.time() - t_sheet
         print(f"    -> 原始: {sheet_in_cnt:,} 列 | 保留工業區: {sheet_out_cnt:,} 列 (過濾移除: {sheet_in_cnt - sheet_out_cnt:,} 列) | 耗時: {sec_sheet:.1f} 秒", flush=True)
 
-        # 釋放記憶體
         gc.collect()
 
     print("\n>>> 正在進行 Excel 活頁簿封裝壓縮與儲存 (請稍候)...", flush=True)
@@ -295,13 +287,13 @@ def process_2025_excel():
     matched_sensors = sum(1 for v in sensor_cache.values() if v is not None)
 
     print("=" * 70, flush=True)
-    print(f"🎉 2025 年五縣市微感資料產業園區交集 Excel 產出成功！", flush=True)
-    print(f"全表感測器總數: {total_sensors} 台 | 命中工業區感測器: {matched_sensors} 台", flush=True)
-    print(f"原始總資料列數: {total_in_rows:,} 列", flush=True)
-    print(f"交集保留總列數: {total_out_rows:,} 列 (移除非工業區資料: {total_in_rows - total_out_rows:,} 列)", flush=True)
-    print(f"檔案大小: {sz_mb:.2f} MB", flush=True)
-    print(f"總耗時: {time.time() - t_start:.1f} 秒", flush=True)
-    print(f"輸出路徑: {EXCEL_OUTPUT}", flush=True)
+    print(f"🎉 2025 年五縣市微感資料產業園區交集 Excel (15 欄位完整版) 產出成功！", flush=True)
+    print(f"全表感測器總數: {total_sensors} 台 | 命中工業區感測器: {matched_sensors} 台")
+    print(f"原始總資料列數: {total_in_rows:,} 列")
+    print(f"交集保留總列數: {total_out_rows:,} 列 (移除非工業區資料: {total_in_rows - total_out_rows:,} 列)")
+    print(f"檔案大小: {sz_mb:.2f} MB")
+    print(f"總耗時: {time.time() - t_start:.1f} 秒")
+    print(f"輸出路徑: {EXCEL_OUTPUT}")
     print("=" * 70, flush=True)
 
 
