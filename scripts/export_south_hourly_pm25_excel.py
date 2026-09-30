@@ -27,7 +27,7 @@ SAIC_DIR = os.path.join(BASE_DIR, "saic")
 OUTPUT_DIR = os.path.join(SAIC_DIR, "output")
 SHP_PATH = os.path.join(SAIC_DIR, "5縣市產業園區SHP", "距產業園區1km內含學校.shp")
 PARQUET_PATH = os.path.join(OUTPUT_DIR, "south_5counties_park_school_1km_hourly_2026.parquet")
-EXCEL_OUTPUT = os.path.join(OUTPUT_DIR, "南區五縣市_1km有學校產業園區_每小時微感PM2.5數據_2026.xlsx")
+EXCEL_OUTPUT = os.path.join(OUTPUT_DIR, "南區五縣市_1km有學校產業園區_每小時微感PM2.5數據_2026_cleaned.xlsx")
 
 
 def match_sensors_spatial_attributes():
@@ -101,8 +101,9 @@ def export_hourly_pm25_excel(df_matched_sensors):
 
     target_ids = df_matched_sensors["deviceId"].to_list()
 
-    # 啟用 constant_memory 模式避免 800 萬列記憶體溢出
-    wb = xlsxwriter.Workbook(EXCEL_OUTPUT, {"constant_memory": True})
+    # 注意：不使用 constant_memory 模式，避免末尾列 flush 遺失問題
+    # xlsxwriter 標準模式可穩定寫入所有資料列
+    wb = xlsxwriter.Workbook(EXCEL_OUTPUT)
     header_fmt = wb.add_format({
         "bold": True,
         "bg_color": "#203764",
@@ -137,7 +138,9 @@ def export_hourly_pm25_excel(df_matched_sensors):
 
         # 讀取該區間數據
         scan = pl.scan_parquet(PARQUET_PATH).filter(
-            pl.col("deviceId").is_in(target_ids) & pl.col("pm2_5").is_not_null()
+            pl.col("deviceId").is_in(target_ids)
+            & pl.col("pm2_5").is_not_null()
+            & (pl.col("pm2_5") <= 500)  # 移除感測器硬體故障值 (>500 μg/m³ 不合理)
         )
         if plan["filter_type"] == "range":
             scan = scan.filter(
