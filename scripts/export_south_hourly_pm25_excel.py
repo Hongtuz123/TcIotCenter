@@ -30,24 +30,48 @@ PARQUET_PATH = os.path.join(OUTPUT_DIR, "south_5counties_park_school_1km_hourly_
 EXCEL_OUTPUT = os.path.join(OUTPUT_DIR, "南區五縣市_1km有學校產業園區_每小時微感PM2.5數據_2026_cleaned.xlsx")
 
 
+import math
+
+
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
 def match_sensors_spatial_attributes():
     print(">>> [1/3] 載入產業園區 Shapefile 空間圖層 (TWD97 -> WGS84)...")
     sf = shapefile.Reader(SHP_PATH, encoding="utf-8")
     transformer = pyproj.Transformer.from_crs("EPSG:3826", "EPSG:4326", always_xy=True)
 
+    # 學校精確座標（經緯度）
+    anzhao_coord = (22.790674, 120.337883)  # 市立安招國小
+    yanchao_coord = (22.786062, 120.362633)  # 市立燕巢國中
+
     parks = []
     for s, r in zip(sf.shapes(), sf.records()):
         geom_wgs = transform(transformer.transform, shape(s))
         rec = r.as_dict()
+        school = (rec.get("學校名", "") or "").strip()
+        county = (rec.get("縣市別", "") or "").strip()
+        town = (rec.get("鄉鎮市", "") or "").strip()
+
+        # 排除無學校或屬性缺失之園區 (如 Join_Count == 0 之燕巢工業用地等 3 個無學校多邊形)
+        if not school or not county or not town or rec.get("Join_Count", 1) == 0:
+            continue
+
         parks.append({
             "park_name": rec.get("NAME", "未命名園區"),
-            "school_name": rec.get("學校名", ""),
-            "county": rec.get("縣市別", ""),
-            "town": rec.get("鄉鎮市", ""),
+            "school_name": school,
+            "county": county,
+            "town": town,
             "area": float(rec.get("Shape_Area", 0.0)),
             "geom": geom_wgs
         })
-    print(f"✅ 成功載入 {len(parks)} 個產業園區 Buffer 多邊形。")
+    print(f"✅ 成功載入 {len(parks)} 個有效含學校之產業園區 Buffer 多邊形（已排除無學校園區）。")
 
     print(">>> [2/3] 從 Parquet 提取五縣市感測器並進行空間交集比對...")
     df_sensors = (
@@ -58,13 +82,29 @@ def match_sensors_spatial_attributes():
     )
 
     matched_records = []
+    removed_devices = []
+
     for row in df_sensors.iter_rows(named=True):
         p = Point(row["lon"], row["lat"])
         hits = [pk for pk in parks if pk["geom"].contains(p)]
 
         if hits:
-            # 若落在多個園區交疊處，以面積 (Shape_Area) 最大者為主
-            best_hit = max(hits, key=lambda x: x["area"])
+            # 優先規則 1：若重疊涵蓋市立安招國小與市立燕巢國中，依距離兩校最近者判定
+            hit_schools = set(h["school_name"] for h in hits)
+            if "市立安招國小" in hit_schools and "市立燕巢國中" in hit_schools:
+                d_an = haversine(row["lat"], row["lon"], anzhao_coord[0], anzhao_coord[1])
+                d_yan = haversine(row["lat"], row["lon"], yanchao_coord[0], yanchao_coord[1])
+                target_school = "市立安招國小" if d_an < d_yan else "市立燕巢國中"
+                best_hit = next(h for h in hits if h["school_name"] == target_school)
+            else:
+                # 規則 2：若落在多個園區交疊處，以面積 (Shape_Area) 最大者為主
+                best_hit = max(hits, key=lambda x: x["area"])
+
+            # 規則 3：遇到無法對應學校、縣市、鄉市鎮者直接移除
+            if not best_hit["school_name"] or not best_hit["county"] or not best_hit["town"]:
+                removed_devices.append(row["deviceId"])
+                continue
+
             matched_records.append({
                 "deviceId": row["deviceId"],
                 "name": row["name"],
@@ -76,8 +116,11 @@ def match_sensors_spatial_attributes():
                 "school_name": best_hit["school_name"]
             })
 
+    if removed_devices:
+        print(f"⚠️ 依指示移除無法對應學校/縣市/鄉市鎮之設備共 {len(removed_devices)} 台: {removed_devices}")
+
     df_matched = pl.DataFrame(matched_records)
-    print(f"✅ 完成空間匹配！共鎖定 {len(df_matched)} 台感測器，重疊區域已全數依最大面積園區判定唯一歸屬。")
+    print(f"✅ 完成空間匹配！共納入 {len(df_matched)} 台感測器，所有測站均 100% 完整對應學校、縣市、鄉市鎮。")
     return df_matched
 
 
