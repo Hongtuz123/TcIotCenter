@@ -24,7 +24,7 @@ export async function GET() {
       const { data, error } = await client
         .from('events')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('event_time', { ascending: false })
         .limit(100);
 
       if (error) {
@@ -65,8 +65,20 @@ export async function GET() {
         return { ...ev, title: cleanTitle, bounds: parsedBounds };
       });
 
-      // 取得所有事件的 unique event_time 以一次性查詢感測值，避免 N+1 查詢問題
-      const uniqueTimes = Array.from(new Set(sanitizedData.map((ev: any) => ev.event_time).filter(Boolean)));
+      const toIsoWithTz = (t: string): string => {
+        const s = t.trim().replace(' ', 'T');
+        if (s.includes('+') || s.endsWith('Z')) return new Date(s).toISOString();
+        return new Date(`${s}+08:00`).toISOString();
+      };
+
+      // 取得所有事件的 unique event_time (轉為 UTC ISO) 以一次性查詢感測值，避免 N+1 查詢問題
+      const uniqueTimes = Array.from(
+        new Set(
+          sanitizedData
+            .map((ev: any) => (ev.event_time ? toIsoWithTz(ev.event_time) : null))
+            .filter(Boolean)
+        )
+      );
       let allObs: any[] = [];
       if (uniqueTimes.length > 0) {
         const { data: obsData, error: obsErr } = await client
@@ -99,7 +111,7 @@ export async function GET() {
       // 解析 bounds JSON 並動態過濾落在該 radiusKm 內的所有感測站資料 (補齊 sensors)
       const events = (sanitizedData || []).map((ev: any) => {
         const parsedBounds = typeof ev.bounds === 'string' ? (() => { try { return JSON.parse(ev.bounds); } catch { return ev.bounds; } })() : ev.bounds;
-        const eventTs = ev.event_time ? new Date(ev.event_time.replace(' ', 'T')).getTime() : 0;
+        const eventTs = ev.event_time ? new Date(toIsoWithTz(ev.event_time)).getTime() : 0;
         const obsList = obsByTimeMap.get(eventTs) || [];
         
         let sensors: any[] = [];

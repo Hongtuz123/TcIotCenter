@@ -113,7 +113,12 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function getLocalSettings(): Promise<{ pm25_threshold?: number }> {
+async function getLocalSettings(): Promise<{
+  pm25_threshold?: number;
+  consecutive_exceeds?: number;
+  cluster_radius_km?: number;
+  min_cluster_stations?: number;
+}> {
   // ── Tier 1: 優先嘗試從 Supabase 讀取設定 ──────────────────────────
   try {
     const { data, error } = await supabase
@@ -502,6 +507,184 @@ async function upsertObservations(
   return { total: toUpsert.length, success: successCount };
 }
 
+// ---- Phase 3.5: 自動偵測時空群聚異常並寫入 events 表 ----
+async function detectAndCreateClusterEvents(
+  propMap: Map<string, StaThing['properties']>,
+  pm25Thresh: number = 50.4,
+  consecutiveExceeds: number = 3,
+  clusterRadiusKm: number = 1.0,
+  minClusterStations: number = 2
+) {
+  console.log(
+    `\n🚨 Phase 3.5: 檢查時空群聚異常 (門檻=${pm25Thresh}, 連續=${consecutiveExceeds}筆, 半徑=${clusterRadiusKm}km, 最少站數=${minClusterStations})...`
+  );
+
+  const now = new Date();
+  const since = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+
+  // 分頁撈取近 2 小時內所有觀測值
+  const stationObsMap = new Map<string, { bucket_time: string; pm2_5: number | null }[]>();
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('observations_5m')
+      .select('station_id,bucket_time,pm2_5')
+      .gte('bucket_time', since)
+      .lte('bucket_time', now.toISOString())
+      .order('bucket_time', { ascending: false })
+      .range(from, from + 999);
+
+    if (error) {
+      console.error('  ❌ Phase 3.5 讀取 observations_5m 失敗:', error.message);
+      return;
+    }
+    if (!data || data.length === 0) break;
+
+    for (const row of data) {
+      if (!stationObsMap.has(row.station_id)) {
+        stationObsMap.set(row.station_id, []);
+      }
+      stationObsMap.get(row.station_id)!.push(row);
+    }
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+
+  // 篩選符合「連續 N 筆超標」的種子站
+  const anomalies: {
+    id: string;
+    name: string;
+    lat: number;
+    lon: number;
+    pm2_5: number;
+    time: string;
+  }[] = [];
+
+  for (const [stationId, obsList] of stationObsMap.entries()) {
+    if (obsList.length < consecutiveExceeds) continue;
+    let isConsecutive = true;
+    for (let i = 0; i < consecutiveExceeds; i++) {
+      const val = obsList[i].pm2_5;
+      if (val === null || val === undefined || val < pm25Thresh) {
+        isConsecutive = false;
+        break;
+      }
+    }
+    if (!isConsecutive) continue;
+
+    const prop = propMap.get(stationId);
+    if (!prop || !prop.lat || !prop.lon) continue;
+
+    anomalies.push({
+      id: stationId,
+      name: prop.deviceName || stationId,
+      lat: prop.lat,
+      lon: prop.lon,
+      pm2_5: obsList[0].pm2_5!,
+      time: obsList[0].bucket_time,
+    });
+  }
+
+  if (anomalies.length === 0) {
+    console.log('  ✅ 目前無連續超標測站。');
+    return;
+  }
+
+  // 進行 Haversine 空間半徑聚類
+  const visited = new Set<string>();
+  const clusters: {
+    center: { lat: number; lon: number };
+    radiusKm: number;
+    stationsCount: number;
+    avgPm25: number;
+    eventTime: string;
+  }[] = [];
+
+  for (const seed of anomalies) {
+    if (visited.has(seed.id)) continue;
+    const group = anomalies.filter(
+      (o) => getDistanceKm(seed.lat, seed.lon, o.lat, o.lon) <= clusterRadiusKm
+    );
+    if (group.length >= minClusterStations) {
+      group.forEach((pt) => visited.add(pt.id));
+      const avgLat = group.reduce((s, p) => s + p.lat, 0) / group.length;
+      const avgLon = group.reduce((s, p) => s + p.lon, 0) / group.length;
+      const avgPm25 = group.reduce((s, p) => s + p.pm2_5, 0) / group.length;
+      clusters.push({
+        center: { lat: avgLat, lon: avgLon },
+        radiusKm: clusterRadiusKm,
+        stationsCount: group.length,
+        avgPm25,
+        eventTime: seed.time,
+      });
+    }
+  }
+
+  if (clusters.length === 0) {
+    console.log(`  ℹ️ 有 ${anomalies.length} 站連續超標，但未達空間群聚門檻 (${clusterRadiusKm}km 內至少 ${minClusterStations} 站)。`);
+    return;
+  }
+
+  const toTaipeiStr = (isoStr: string): string => {
+    const d = new Date(isoStr);
+    const fmt = new Intl.DateTimeFormat('zh-TW', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(d);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || '00';
+    return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:00`;
+  };
+
+  const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  let createdCount = 0;
+
+  for (const cluster of clusters) {
+    const lat = cluster.center.lat;
+    const lon = cluster.center.lon;
+    const taipeiTimeStr = toTaipeiStr(cluster.eventTime);
+    const fmtTime = taipeiTimeStr.replace(/[- :T]/g, '').substring(0, 12);
+    const eventId = `auto_${fmtTime}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
+    const dominantType = `連續 ${consecutiveExceeds} 筆 PM₂.₅ 超標`;
+
+    const { error } = await supabase.from('events').upsert(
+      {
+        id: eventId,
+        title: `微感事件`,
+        description: `系統自動偵測超標群聚熱區。超標站數：${cluster.stationsCount} 站，平均 PM₂.₅ 濃度：${cluster.avgPm25.toFixed(1)} µg/m³，主導類型：${dominantType}。`,
+        status: '待確認',
+        created_at: nowStr,
+        updated_at: nowStr,
+        bounds: JSON.stringify({
+          center: { lat, lng: lon },
+          radiusKm: cluster.radiusKm,
+          pm25Threshold: pm25Thresh,
+          consecutiveExceeds,
+        }),
+        event_time: taipeiTimeStr,
+        stations_count: cluster.stationsCount,
+        avg_pm25: cluster.avgPm25,
+        dominant_type: dominantType,
+      },
+      { onConflict: 'id', ignoreDuplicates: true }
+    );
+
+    if (!error) {
+      createdCount++;
+    } else {
+      console.error('  ❌ 自動寫入事件失敗:', error.message);
+    }
+  }
+
+  console.log(`  ✅ 偵測到 ${clusters.length} 個群聚熱區，已同步寫入 ${createdCount} 筆事件至 events 表！`);
+}
+
 // ---- Phase 4: 計算並記錄完整率 ----
 async function logCompleteness(
   windowMinutes: number = 60,
@@ -556,6 +739,23 @@ async function cleanup() {
   } else {
     console.log('  ✅ 已清理舊資料（via RPC）');
   }
+
+  // 自動輪替截斷過大的 run_poller.log (超過 2MB 則只保留最後 200KB)
+  try {
+    const logPath = path.join(__dirname, 'run_poller.log');
+    if (fs.existsSync(logPath)) {
+      const stat = fs.statSync(logPath);
+      if (stat.size > 2 * 1024 * 1024) {
+        const fd = fs.openSync(logPath, 'r');
+        const keepBytes = 200 * 1024;
+        const buf = Buffer.alloc(keepBytes);
+        fs.readSync(fd, buf, 0, keepBytes, stat.size - keepBytes);
+        fs.closeSync(fd);
+        fs.writeFileSync(logPath, buf);
+        console.log('  🧹 已自動瘦身 run_poller.log 至 200KB');
+      }
+    }
+  } catch {}
 }
 
 // ---- Main ----
@@ -579,11 +779,23 @@ async function main() {
 
     // 讀取本地設定
     const localSettings = await getLocalSettings();
-    const pm25Threshold = localSettings.pm25_threshold ?? 54;
-    console.log(`   使用 PM2.5 異常門檻值: ${pm25Threshold} ug/m³`);
+    const pm25Threshold = localSettings.pm25_threshold ?? 50.4;
+    const consecutiveExceeds = Math.round(localSettings.consecutive_exceeds ?? 3);
+    const clusterRadiusKm = localSettings.cluster_radius_km ?? 1.0;
+    const minClusterStations = Math.round(localSettings.min_cluster_stations ?? 2);
+    console.log(`   使用 PM2.5 異常門檻值: ${pm25Threshold} ug/m³ (連續 ${consecutiveExceeds} 筆, 半徑 ${clusterRadiusKm} km, 最少 ${minClusterStations} 站)`);
 
     // Phase 3: 聚合寫入
     const { total, success } = await upsertObservations(pm25Map, tempMap, humMap, propMap, windMap, pm25Threshold);
+
+    // Phase 3.5: 自動偵測時空群聚並寫入 events 表
+    await detectAndCreateClusterEvents(
+      propMap,
+      pm25Threshold,
+      consecutiveExceeds,
+      clusterRadiusKm,
+      minClusterStations
+    );
 
     // Phase 4: 完整率
     await logCompleteness(60, totalSensors, success);

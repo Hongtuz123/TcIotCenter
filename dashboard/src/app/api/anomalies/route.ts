@@ -317,9 +317,9 @@ export async function GET(request: NextRequest) {
       const anomalies = allPoints.filter((p) => p.isAnomaly);
       const clusters = buildClusters(anomalies, clusterRadius, minStations);
 
-      // 背景寫入事件（fire-and-forget），不阻塞 API response
+      // 確保 Serverless 環境在回傳前完成事件寫入
       if (clusters.length > 0) {
-        autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh, consecutiveExceeds);
+        await autoCreateEvents(clusters, time || new Date().toISOString().replace('T', ' ').substring(0, 19), pm25Thresh, consecutiveExceeds);
       }
 
       return NextResponse.json({
@@ -397,9 +397,8 @@ export async function GET(request: NextRequest) {
       const anomalies = allPoints.filter((p: any) => p.isAnomaly);
       const clusters = buildClusters(anomalies, clusterRadius, minStations);
 
-      // 背景寫入事件（fire-and-forget），不阻塞 API response
       if (clusters.length > 0) {
-        autoCreateEvents(clusters, time, pm25Thresh);
+        await autoCreateEvents(clusters, time, pm25Thresh);
       }
 
       return NextResponse.json({
@@ -418,9 +417,8 @@ export async function GET(request: NextRequest) {
     const anomalies = allPoints.filter((p) => p.isAnomaly);
     const clusters = buildClusters(anomalies as any[], clusterRadius, minStations);
 
-    // 背景寫入事件（fire-and-forget），不阻塞 API response
     if (clusters.length > 0) {
-      autoCreateEvents(clusters, mockTime, pm25Thresh);
+      await autoCreateEvents(clusters, mockTime, pm25Thresh);
     }
 
     return NextResponse.json({
