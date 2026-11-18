@@ -20,16 +20,19 @@ export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
 
+    const rawUsername = (username || "").trim().toLowerCase();
+    const cleanPassword = (password || "").trim();
+
     const defaultUsers = ["tim", "wenhe", "frank", "jason", "oscar", "levi", "ren", "allison", "chanel", "sage", "stace", "albert", "test1", "test2", "test3"];
-    const envUsers = (process.env.SYS_VALID_USERS || "").split(",").map((u) => u.trim()).filter(Boolean);
+    const envUsers = (process.env.SYS_VALID_USERS || "").split(",").map((u) => u.trim().toLowerCase()).filter(Boolean);
     const validUsers = Array.from(new Set([...defaultUsers, ...envUsers]));
     const systemPassword = process.env.SYS_PASSWORD || "pstcom";
 
     // 帳號驗證
-    if (validUsers.includes(username) && password === systemPassword) {
-      const role = username === "tim" ? "admin" : "user";
+    if (validUsers.includes(rawUsername) && cleanPassword === systemPassword) {
+      const role = rawUsername === "tim" ? "admin" : "user";
       const cookieStore = await cookies();
-      cookieStore.set("auth_session", `session_verified_${username}`, {
+      cookieStore.set("auth_session", `session_verified_${rawUsername}`, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
         path: "/",
       });
 
-      return NextResponse.json({ success: true, role, username });
+      return NextResponse.json({ success: true, role, username: rawUsername });
     }
 
     return NextResponse.json(
